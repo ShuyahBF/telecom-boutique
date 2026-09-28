@@ -7,6 +7,7 @@ import GestionLayout from "@/components/GestionLayout";
 import Abonnement from "@/pages/gestion/Abonnement";
 import Abonnements from "@/pages/plateforme/Abonnements";
 import Sms from "@/pages/gestion/Sms";
+import Carrousel from "@/pages/gestion/Carrousel";
 import Reversements from "@/pages/gestion/Reversements";
 import ReversementsPlateforme from "@/pages/plateforme/Reversements";
 import ChangerMotDePasse from "@/pages/ChangerMotDePasse";
@@ -109,6 +110,8 @@ export default function App() {
               <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
               <Route path="reversements" element={<RouteProtegee permission="paiements.historique"><Reversements /></RouteProtegee>} />
               <Route path="sms" element={<RouteProtegee permission="messagerie"><Sms /></RouteProtegee>} />
+              {/* Envoi de produits en carrousel photo par WhatsApp */}
+              <Route path="carrousel" element={<RouteProtegee permission="messagerie"><Carrousel /></RouteProtegee>} />
               <Route path="abonnement" element={<RouteProtegee permission="parametres"><Abonnement /></RouteProtegee>} />
             </Route>
 

@@ -129,6 +129,15 @@ class Settings(BaseSettings):
     # 3 variables : {{1}} nom de la boutique, {{2}} échéance, {{3}} montant
     whatsapp_rappel_template: Optional[str] = None
     whatsapp_template_langue: str = "fr"
+    # Carrousel de produits (modèle « Marketing » à cartes, approuvé par Meta).
+    # Nom de BASE : le modèle réellement utilisé est « <base>_<n> » où n = nombre
+    # de cartes (2 à 10), car Meta impose un nombre de cartes fixe par modèle.
+    # Ex. base « adlyn_carrousel » -> modèles adlyn_carrousel_3, adlyn_carrousel_5...
+    # Structure attendue de chaque modèle :
+    #   corps du message : {{1}} nom de la boutique, {{2}} message d'introduction
+    #   chaque carte : en-tête IMAGE, corps {{1}} nom du produit, {{2}} prix,
+    #   bouton URL « Voir le produit » = https://adlynservice.com/b/{{1}}
+    whatsapp_carrousel_template: Optional[str] = None
 
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique

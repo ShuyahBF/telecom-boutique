@@ -34,6 +34,8 @@ class ClientSaisie(BaseModel):
     adresse: str = Field("", max_length=500)
     ifu: str = Field("", max_length=50)
     notes: str = Field("", max_length=2000)
+    # Le client accepte de recevoir les offres de la boutique par WhatsApp (carrousels)
+    accepte_whatsapp: bool = False
 
 
 def _client_doc(payload: ClientSaisie) -> dict:
@@ -65,19 +67,30 @@ async def lire_client(client_id: str, ctx: Contexte = Depends(clients_dep)):
     return client
 
 
+def _date_consentement(doc: dict, avant: dict | None) -> None:
+    """Date (et origine) de l'accord WhatsApp : fixée au moment où il est donné, effacée s'il est retiré."""
+    if doc.get("accepte_whatsapp") and not (avant or {}).get("accepte_whatsapp"):
+        doc["accepte_whatsapp_le"], doc["accepte_whatsapp_source"] = now_iso(), "fiche client"
+    elif not doc.get("accepte_whatsapp"):
+        doc["accepte_whatsapp_le"], doc["accepte_whatsapp_source"] = None, None
+
+
 @router.post("/clients", status_code=201)
 async def creer_client(payload: ClientSaisie, ctx: Contexte = Depends(clients_dep)):
     doc = {"id": new_id(), **_client_doc(payload), "created_at": now_iso()}
+    _date_consentement(doc, None)
     await ctx.tdb.clients.insert_one(doc)
     return doc
 
 
 @router.put("/clients/{client_id}")
 async def modifier_client(client_id: str, payload: ClientSaisie, ctx: Contexte = Depends(clients_dep)):
-    doc = await ctx.tdb.clients.find_one_and_update({"id": client_id}, {"$set": _client_doc(payload)})
-    if not doc:
+    avant = await ctx.tdb.clients.find_one({"id": client_id})
+    if not avant:
         raise HTTPException(404, "Client introuvable")
-    return doc
+    maj = _client_doc(payload)
+    _date_consentement(maj, avant)
+    return await ctx.tdb.clients.find_one_and_update({"id": client_id}, {"$set": maj})
 
 
 async def trouver_ou_creer_client(ctx_tdb, nom: str, telephone: str, email: str = "") -> dict:

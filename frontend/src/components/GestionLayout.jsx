@@ -21,6 +21,7 @@ const MENU = [
   { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs" },
   { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", compteur: "conversations" },
   { to: "/gestion/sms", label: "SMS", icone: "📨", permission: "messagerie" },
+  { to: "/gestion/carrousel", label: "Carrousel WhatsApp", icone: "🎠", permission: "messagerie" },
   { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres" },
   { to: "/gestion/abonnement", label: "Abonnement adLyn", icone: "💰", permission: "parametres" },
 ];
