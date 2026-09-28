@@ -27,6 +27,11 @@ export const STATUTS_KYC = {
   REJETE: { libelle: "Rejeté", classe: "bg-red-100 text-red-700" },
 };
 
+// ---------------------------------------------------------------------------
+// Abonnements : statuts (mêmes codes que backend/abonnements.py) et modes de paiement
+// ---------------------------------------------------------------------------
+export { MODES_ABONNEMENT, STATUTS_ABONNEMENT } from "@/lib/statuts";
+
 export const TYPES_PIECES_KYC = {
   PIECE_IDENTITE_DG: "Pièce d'identité du DG",
   RCCM: "Registre du commerce (RCCM)",

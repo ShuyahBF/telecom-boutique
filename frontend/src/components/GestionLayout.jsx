@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/api";
 import { ROLES } from "@/lib/statuts";
+import Abonnement from "@/pages/gestion/Abonnement";
 
 // Menu du back-office : chaque entrée indique la permission nécessaire pour la
 // voir (table PERMISSIONS de backend/auth.py, reçue à la connexion).
@@ -19,7 +20,34 @@ const MENU = [
   { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs" },
   { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", compteur: "conversations" },
   { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres" },
+  { to: "/gestion/abonnement", label: "Abonnement adLyn", icone: "💰", permission: "parametres" },
 ];
+
+/** Jours entre aujourd'hui et l'échéance de l'abonnement (négatif = dépassée). */
+function joursAvantEcheance(abonnement) {
+  if (!abonnement?.echeance) return null;
+  const jour = new Date(); jour.setHours(0, 0, 0, 0);
+  return Math.round((new Date(`${abonnement.echeance}T00:00:00`) - jour) / 86400000);
+}
+
+// Bandeau d'abonnement (visible par le DG) : essai en cours, échéance proche ou dépassée
+function BandeauAbonnement({ boutique }) {
+  const ab = boutique.abonnement;
+  const jours = joursAvantEcheance(ab);
+  if (jours === null || (!ab.en_essai && jours >= 3)) return null;
+  const retard = jours < 0;
+  const texte = retard
+    ? `Votre abonnement adLyn a expiré depuis ${-jours} jour(s). Réglez-le pour éviter la suspension de votre boutique.`
+    : ab.en_essai
+      ? `Essai gratuit : ${jours + 1} jour(s) restant(s). Choisissez votre abonnement pour continuer sans interruption.`
+      : `Votre abonnement expire ${jours === 0 ? "ce soir" : `dans ${jours + 1} jour(s)`}. Pensez à le renouveler.`;
+  return (
+    <div className={`no-print flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm ${retard ? "bg-red-600 text-white" : ab.en_essai ? "bg-purple-50 text-purple-900" : "bg-amber-50 text-amber-900"}`}>
+      <span>{retard ? "⚠️" : "💡"} {texte}</span>
+      <Link to="/gestion/abonnement" className={`font-semibold underline ${retard ? "text-white" : ""}`}>Voir mon abonnement →</Link>
+    </div>
+  );
+}
 
 // Mise en page du back-office : barre latérale (menu), barre du haut, contenu.
 export default function GestionLayout() {
@@ -48,6 +76,32 @@ export default function GestionLayout() {
   // Super-admin sans boutique choisie : retour à l'écran de la plateforme
   if (user?.role === "super_admin" && !boutique) return <Navigate to="/plateforme" replace />;
   if (!boutique) return null;
+
+  // Boutique suspendue : le DG ne voit que sa page Abonnement (pour payer et
+  // retrouver l'accès) ; les autres membres voient un simple message
+  if (boutique.actif === false && user.role !== "super_admin") {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
+          <span className="font-extrabold">{boutique.nom}</span>
+          <button type="button" className="btn-outline btn-sm ml-auto" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
+        </header>
+        <main className="mx-auto max-w-5xl p-4 sm:p-6">
+          {user.role === "dg" ? <Abonnement /> : (
+            <div className="card mx-auto max-w-lg text-center">
+              <p className="text-4xl">🔒</p>
+              <h1 className="mt-2 text-xl font-extrabold">Accès à la boutique suspendu</h1>
+              <p className="mt-2 text-gray-600">
+                {boutique.suspension?.motif === "IMPAYE"
+                  ? "L'abonnement adLyn de la boutique n'a pas été renouvelé. Prévenez votre DG : l'accès reviendra dès le paiement."
+                  : "La boutique a été suspendue par l'administrateur de la plateforme. Prévenez votre DG."}
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
 
   const entrees = MENU.filter((m) => peut(user, m.permission));
   const classeLien = ({ isActive }) =>
@@ -103,6 +157,7 @@ export default function GestionLayout() {
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
             </div>
           </header>
+          {user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
           {menuMobile && <div className="no-print border-b border-gray-200 bg-white p-3 lg:hidden">{menu}</div>}
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
             <Outlet />

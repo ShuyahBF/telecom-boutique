@@ -64,6 +64,20 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 - Anti force brute : après 10 échecs en 15 minutes, le compte est bloqué 15 minutes.
 - L'administrateur de la plateforme se connecte sans ID boutique (lien « Administrateur ? »).
 
+### Abonnements (modèle SaaS)
+- Chaque nouvelle boutique a **14 jours d'essai complet** à partir de sa création (les boutiques plus anciennes aussi, comptés depuis leur création).
+- Ensuite, **abonnement** selon une formule : 1 mois, 3 mois, 6 mois, 1 an… Les durées et les prix se règlent dans `/plateforme/abonnements` > Formules. **Les prix installés au départ sont des exemples à ajuster.**
+- Un paiement repousse l'échéance du nombre de mois de la formule, à partir de l'échéance en cours : aucun jour perdu, même payé pendant l'essai. Une boutique suspendue pour impayé repart du jour du paiement.
+- Deux façons de payer :
+  - le DG paie en ligne par Mobile Money (PawaPay) depuis sa page **Abonnement adLyn** ; l'argent arrive sur le compte de la plateforme ;
+  - l'administrateur enregistre un paiement reçu autrement (espèces, transfert, virement).
+- **Retards** : la liste montre les boutiques dont l'échéance est dépassée, avec les jours de retard et le montant attendu. L'administrateur coche celles dont il **suspend l'accès** (back-office et vitrine). Il n'y a **aucun blocage automatique**.
+- Pendant la suspension, le DG garde l'accès à sa page Abonnement : son paiement **rend l'accès automatiquement**. Une suspension manuelle (autre motif) n'est levée que par l'administrateur.
+- **Rappels** chaque jour à 9h, 3 jours avant l'échéance puis chaque jour tant qu'elle n'est pas réglée :
+  - WhatsApp (même compte que beauthentik), avec le SMS en repli si WhatsApp échoue ;
+  - e-mail au DG.
+  Un journal des envois est disponible.
+
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
 - **Création automatique par webhook** (voir plus bas) : les boutiques créées ainsi attendent la **validation** de l'administrateur avant d'apparaître sur le portail. Journal des appels (bouton « 🔗 Webhook ») et renvoi des identifiants au DG.
@@ -111,7 +125,7 @@ Pages utiles :
 - `/gestion` : back-office ;
 - `/plateforme` : administration de la plateforme.
 
-**Tests automatiques** (60 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook et la connexion.
+**Tests automatiques** (68 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook, la connexion et les abonnements.
 
 ## Déployer sur Render
 
@@ -125,7 +139,8 @@ Pages utiles :
    - PawaPay (mêmes jetons que beauthentik) ;
    - `ANTHROPIC_API_KEY` (assistant de recherche) ;
    - **sauvegardes** : `SAUVEGARDE_CLE`, Google Drive, SMTP de la plateforme (détails ci-dessous) ;
-   - **webhook** : `WEBHOOK_BOUTIQUES_SECRET` ; **SMS** : `ORANGE_SMS_*` (et `OVH_SMS_*` en repli), mêmes comptes que beauthentik.
+   - **webhook** : `WEBHOOK_BOUTIQUES_SECRET` ; **SMS** : `ORANGE_SMS_*` (et `OVH_SMS_*` en repli), mêmes comptes que beauthentik ;
+   - **WhatsApp** : `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (beauthentik) et `WHATSAPP_RAPPEL_TEMPLATE`. Faites approuver par Meta un modèle « Utility » en français à 3 variables, par exemple : « Bonjour, l'abonnement adLyn de {{1}} {{2}}. Montant à régler : {{3}}. Payez depuis votre espace boutique, page Abonnement. ». Sans modèle approuvé, WhatsApp n'accepte le message que si le DG a écrit au numéro dans les dernières 24 h : le SMS prend alors le relais.
 3. Noms de domaine : décommenter les blocs `domains` de `render.yaml` et créer les CNAME chez Cloudflare, comme pour beauthentik. **Important pour la connexion** : donnez au site et à l'API deux sous-domaines du **même** domaine (ex. `adlyn.com` et `api.adlyn.com`). Sinon, avec les deux adresses `onrender.com`, Safari (iPhone, Mac) refuse le cookie de session et le personnel devrait se reconnecter à chaque ouverture.
 
 ### Webhook de création des boutiques

@@ -154,6 +154,21 @@ services:
       - key: OVH_SMS_SENDER
         sync: false
 
+      # --- WhatsApp Cloud API (rappels d'abonnement) : même compte que beauthentik ---
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      # Modèle « Utility » approuvé par Meta, 3 variables : boutique, échéance, montant
+      - key: WHATSAPP_RAPPEL_TEMPLATE
+        sync: false
+
+      # --- Abonnements ---
+      - key: ABONNEMENT_ESSAI_JOURS
+        value: "14"
+      - key: ABONNEMENT_RAPPEL_JOURS_AVANT
+        value: "3"
+
       # --- Webhook de création des boutiques (signature HMAC-SHA256) ---
       # Secret partagé avec le système appelant (ex. : openssl rand -hex 32).
       # Sans lui, le webhook reste fermé.

@@ -7,12 +7,13 @@ import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATU
 
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
-// Boutiques / Référentiel mondial / Catalogue public / Sauvegardes.
+// Boutiques / Référentiel mondial / Catalogue public / Abonnements / Sauvegardes.
 // ---------------------------------------------------------------------------
 const MENU_PLATEFORME = [
   { to: "/plateforme", label: "Boutiques", court: "Boutiques", icone: "🏪", end: true },
   { to: "/plateforme/referentiel", label: "Référentiel mondial", court: "Appareils", icone: "📚" },
   { to: "/plateforme/catalogue", label: "Catalogue public", court: "Catalogue", icone: "🌍" },
+  { to: "/plateforme/abonnements", label: "Abonnements", court: "Abonnements", icone: "💰" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
 ];
 
@@ -29,14 +30,14 @@ export function EnTetePlateforme() {
           <p className="truncate text-xs text-gray-300">Administration de la plateforme · {user?.nom}</p>
         </div>
 
-        {/* Menu : sur téléphone il passe sur une seconde ligne (order-last),
-            en 4 colonnes égales avec des libellés courts */}
-        <nav className="order-last grid w-full grid-cols-4 gap-1 sm:order-none sm:flex sm:w-auto">
+        {/* Menu : sur téléphone il passe sur une seconde ligne (order-last) qui
+            défile horizontalement ; libellés courts sur les écrans moyens */}
+        <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-none sm:w-auto">
           {MENU_PLATEFORME.map((m) => (
             <NavLink key={m.to} to={m.to} end={m.end}
               className={({ isActive }) => `whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:px-3 sm:text-sm ${isActive ? "bg-white/15 text-white" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}>
               <span className="mr-1">{m.icone}</span>
-              <span className="sm:hidden">{m.court}</span><span className="hidden sm:inline">{m.label}</span>
+              <span className="xl:hidden">{m.court}</span><span className="hidden xl:inline">{m.label}</span>
             </NavLink>
           ))}
         </nav>

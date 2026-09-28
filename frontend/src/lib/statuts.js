@@ -74,3 +74,18 @@ export function classeStatut(table, statut) {
 export function libelleStatut(table, statut) {
   return table[statut]?.libelle || statut || "—";
 }
+
+// ---------------------------------------------------------------------------
+// Abonnements adLyn : statuts (mêmes codes que backend/abonnements.py) et modes de paiement
+// ---------------------------------------------------------------------------
+export const STATUTS_ABONNEMENT = {
+  ESSAI: { libelle: "Essai gratuit", classe: "bg-purple-100 text-purple-800" },
+  ACTIF: { libelle: "Actif", classe: "bg-green-100 text-green-800" },
+  A_RENOUVELER: { libelle: "À renouveler", classe: "bg-amber-100 text-amber-800" },
+  EN_RETARD: { libelle: "En retard", classe: "bg-red-100 text-red-700" },
+  SUSPENDU: { libelle: "Suspendu", classe: "bg-gray-800 text-white" },
+};
+export const MODES_ABONNEMENT = {
+  PAWAPAY: "Mobile Money en ligne", MOBILE_MONEY: "Mobile Money (transfert)", ESPECES: "Espèces",
+  VIREMENT: "Virement", CHEQUE: "Chèque", OFFERT: "Geste commercial",
+};
