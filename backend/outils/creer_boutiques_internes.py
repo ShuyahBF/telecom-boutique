@@ -151,15 +151,16 @@ class Api:
         return r.json()
 
 
-def creer(api: Api, admin: str, i: int, donnees: tuple, existantes: set) -> None:
+def creer(api: Api, admin: str, i: int, donnees: tuple, existantes: dict) -> None:
     nom, pays, ville, adresse, lat, lng, dg_nom, ind, rccm = donnees
-    if nom in existantes:
-        print(f"= {nom} existe déjà, ignorée")
-        return
     rnd = random.Random(nom)  # mêmes « hasards » à chaque exécution
     prenom, nom_dg = dg_nom.split(" ", 1)
     dg_email = f"{ascii_min(prenom)}.{ascii_min(nom_dg)}@adlyn.bf"
     annee = rnd.randint(2015, 2023)
+    if nom in existantes:
+        # Déjà créée (ex. exécution interrompue) : on complète seulement ce qui manque
+        remplir(api, existantes[nom], dg_email, rnd, ind)
+        return
     creation = api.appel("POST", "/plateforme/boutiques", admin, json={
         "nom": nom, "pays": pays, "ville": ville, "adresse": adresse,
         "latitude": round(lat + rnd.uniform(-0.003, 0.003), 5), "longitude": round(lng + rnd.uniform(-0.003, 0.003), 5),
@@ -173,14 +174,22 @@ def creer(api: Api, admin: str, i: int, donnees: tuple, existantes: set) -> None
               json={"echeance": (date.today() + timedelta(days=365)).isoformat(), "formule": "ANNUEL"})
     if i < 6:
         api.appel("PATCH", f"/plateforme/boutiques/{b['id']}", admin, json={"mise_en_avant": True, "ordre": i})
+    remplir(api, b, dg_email, rnd, ind)
 
+
+def remplir(api: Api, b: dict, dg_email: str, rnd: random.Random, ind: str) -> None:
+    """Fiche, catalogue, clients et réparations d'une boutique (sans doublon si relancé)."""
+    nom, ville = b["nom"], b.get("ville", "")
     session = api.appel("POST", "/auth/login", json={"code_boutique": b["code_marchand"], "email": dg_email, "password": MDP_DG})
     h = session["access_token"]
     api.appel("PATCH", "/boutique", h, json={"slogan": rnd.choice(SLOGANS), "couleur": rnd.choice(COULEURS)})
 
     # Catalogue : rayons + une sélection de produits aux prix de la boutique
-    rayons = {n: api.appel("POST", "/categories", h, json={"nom": n})["id"]
-              for n in ("Smartphones", "Téléphones simples", "Accessoires", "Pièces détachées", "Services")}
+    # (les rayons déjà créés, par exemple par la copie du catalogue public, sont réutilisés)
+    rayons = {c["nom"]: c["id"] for c in api.appel("GET", "/categories", h)}
+    for n in ("Smartphones", "Téléphones simples", "Accessoires", "Pièces détachées", "Services"):
+        if n not in rayons:
+            rayons[n] = api.appel("POST", "/categories", h, json={"nom": n})["id"]
     produits = []
     for ref, nom_p, marque, base, fiche in rnd.sample(TELEPHONES, rnd.randint(8, 12)):
         produits.append({"reference": ref, "nom": nom_p, "type_produit": "TEL", "categorie_id": rayons["Smartphones"],
@@ -202,8 +211,17 @@ def creer(api: Api, admin: str, i: int, donnees: tuple, existantes: set) -> None
     for ref, nom_p, base in SERVICES:
         produits.append({"reference": ref, "nom": nom_p, "type_produit": "SER", "categorie_id": rayons["Services"],
                          "prix_vente": base, "visible_portail": False})
+    crees = 0
     for p in produits:
-        api.appel("POST", "/produits", h, json=p)
+        try:
+            api.appel("POST", "/produits", h, json=p)
+            crees += 1
+        except RuntimeError as exc:
+            if "409" not in str(exc):  # 409 : référence déjà présente (relance)
+                raise
+    if not crees:
+        print(f"= {nom} déjà complète")
+        return
 
     # Clients et quelques réparations en cours
     clients = []
@@ -226,7 +244,7 @@ def main() -> None:
     api = Api()
     admin = api.appel("POST", "/auth/login", json={"email": os.environ["ADLYN_ADMIN_EMAIL"],
                                                     "password": os.environ["ADLYN_ADMIN_MDP"]})["access_token"]
-    existantes = {b["nom"] for b in api.appel("GET", "/plateforme/boutiques", admin)}
+    existantes = {b["nom"]: b for b in api.appel("GET", "/plateforme/boutiques", admin)}
     for i, donnees in enumerate(BOUTIQUES):
         creer(api, admin, i, donnees, existantes)
 
