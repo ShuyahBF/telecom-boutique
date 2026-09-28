@@ -60,6 +60,11 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
 - Vérification des dossiers **KYC**, suspension des boutiques, mise en avant dans le carrousel.
+- **Référentiel mondial des appareils** (`/plateforme/referentiel`) :
+  - liste officielle Google Play de tous les appareils Android certifiés (environ 40 000 modèles de 3 800 marques, avec leurs codes modèle), plus les iPhone ;
+  - bouton de mise à jour, qui télécharge la dernière liste Google ;
+  - pour chaque appareil, « Créer la fiche » (avec ou sans assistant de recherche) crée sa fiche détaillée dans le catalogue public ;
+  - les boutiques y cherchent n'importe quel appareil, par nom ou par code modèle.
 - **Catalogue public commun** (`/plateforme/catalogue`) :
   - téléphones, accessoires et pièces détachées liées aux téléphones compatibles ;
   - **assistant de recherche** qui lit les sites des fabricants (API Claude + recherche web) ;
@@ -98,7 +103,7 @@ Pages utiles :
 - `/gestion` : back-office ;
 - `/plateforme` : administration de la plateforme.
 
-**Tests automatiques** (38 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes et l'historique des paiements.
+**Tests automatiques** (42 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes et l'historique des paiements.
 
 ## Déployer sur Render
 
@@ -147,6 +152,7 @@ backend/
   auth.py                connexion, rôles et table des PERMISSIONS
   services.py            numérotation, stock, calcul des lignes de facture
   catalogue_public.py    catalogue commun, publication à 23h, assistant de recherche
+  referentiel.py         référentiel mondial des appareils (Google Play + iPhone)
   kyc.py                 dossier d'identification des boutiques (fichiers privés)
   sauvegarde.py          export chiffré / restauration d'une boutique
   gdrive.py              envoi sur Google Drive
