@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { prix } from "@/lib/format";
 import { TYPES_PRODUIT } from "@/lib/statuts";
@@ -17,7 +17,7 @@ export default function Produits() {
   const navigate = useNavigate();
   const toast = useToast();
   // Le technicien consulte le catalogue sans pouvoir le modifier
-  const peutModifier = aLeRole(user, "gerant", "vendeur");
+  const peutModifier = peut(user, "catalogue.edition");
 
   // --- État de la page ---
   const [produits, setProduits] = useState([]);
@@ -75,7 +75,7 @@ export default function Produits() {
       </div>
 
       {!peutModifier && (
-        <p className="mb-3 rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Consultation seule : seuls le gérant et les vendeurs modifient le catalogue.</p>
+        <p className="mb-3 rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Consultation seule : seuls le DG et les commerciaux modifient le catalogue.</p>
       )}
 
       {/* Tableau des produits (défilement horizontal sur petit écran) */}

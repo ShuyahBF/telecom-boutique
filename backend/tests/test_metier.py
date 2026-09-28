@@ -405,3 +405,20 @@ def test_matrice_des_roles(client, boutique_equipee):
     assert code("secretaire", "post", f"/api/maintenance/{d['id']}/facture") == 403
     assert code("technicien", "post", f"/api/maintenance/{d['id']}/facture") == 403
     assert code("comptable", "get", f"/api/maintenance/{d['id']}") == 403
+
+
+def test_corrections_commande_et_categories(client, boutique_equipee):
+    a = boutique_equipee
+    slug = a["boutique"]["slug"]
+    client.post(f"/api/public/b/{slug}/commandes", json={"nom": "Note Test", "telephone": "70303030",
+                                                          "lignes": [{"produit_id": a["tel"]["id"], "quantite": 1}]})
+    cmd = client.get("/api/commandes", headers=a["h"]).json()[0]
+    url = f"/api/commandes/{cmd['id']}/statut"
+    client.post(url, headers=a["h"], json={"statut": "RECUE", "note_interne": "Rappeler demain"})
+    r = client.post(url, headers=a["h"], json={"statut": "RECUE", "note_interne": ""}).json()
+    assert len(r["historique"]) == 1 and r["note_interne"] == ""  # pas de doublon, note effacée
+    # Catégorie en double refusée (même avec d'autres majuscules)
+    assert client.post("/api/categories", headers=a["h"], json={"nom": "rayon DE TEST"}).status_code == 409
+    # E-mail de la boutique effaçable
+    client.patch("/api/boutique", headers=a["h"], json={"email": "contact@test.bf"})
+    assert client.patch("/api/boutique", headers=a["h"], json={"email": ""}).json()["email"] == ""

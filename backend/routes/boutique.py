@@ -2,7 +2,7 @@
 messagerie (SMTP, textes des e-mails, journal) et équipe."""
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
@@ -30,7 +30,7 @@ class FicheBoutique(BaseModel):
     adresse: Optional[str] = Field(None, max_length=500)
     ville: Optional[str] = Field(None, max_length=80)
     telephone: Optional[str] = Field(None, max_length=30)
-    email: Optional[EmailStr] = None
+    email: Optional[Union[EmailStr, Literal[""]]] = None  # "" = effacer l'e-mail
     ifu: Optional[str] = Field(None, max_length=50)
     rccm: Optional[str] = Field(None, max_length=60)
     cnss: Optional[str] = Field(None, max_length=50)

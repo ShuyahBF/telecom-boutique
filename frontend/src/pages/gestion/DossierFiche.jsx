@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, dateHeure, prix } from "@/lib/format";
 import { STATUTS_SAV } from "@/lib/statuts";
@@ -46,7 +46,7 @@ export default function DossierFiche() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user, boutique } = useAuth();
-  const peutFacturer = aLeRole(user, "gerant", "vendeur"); // le technicien ne facture pas
+  const peutFacturer = peut(user, "facturation"); // DG, commercial, comptable
   const devise = boutique?.devise || "FCFA";
 
   // --- État ---
@@ -61,7 +61,7 @@ export default function DossierFiche() {
   // Liste des techniciens possibles (techniciens et gérants actifs) + libellés des statuts
   useEffect(() => {
     apiClient.get("/boutique/equipe")
-      .then(({ data }) => setEquipe(data.filter((m) => ["technicien", "gerant"].includes(m.role) && m.actif !== false)))
+      .then(({ data }) => setEquipe(data.filter((m) => ["technicien", "dg"].includes(m.role) && m.actif !== false)))
       .catch(() => {});
     apiClient.get("/maintenance/statuts").then(({ data }) => setStatuts(data)).catch(() => {});
   }, []);
@@ -162,7 +162,7 @@ export default function DossierFiche() {
       <Champ label="Technicien">
         <select className="input" value={saisie.technicien_id || ""} onChange={(e) => maj("technicien_id", e.target.value)}>
           <option value="">— Non attribué —</option>
-          {equipe.map((m) => <option key={m.id} value={m.id}>{m.nom} ({m.role === "gerant" ? "gérant" : "technicien"})</option>)}
+          {equipe.map((m) => <option key={m.id} value={m.id}>{m.nom} ({m.role === "dg" ? "DG" : "technicien"})</option>)}
         </select>
       </Champ>
       <Champ label={`Acompte versé (${devise})`}><input className="input" type="number" min={0} value={saisie.acompte} onChange={(e) => maj("acompte", e.target.value)} /></Champ>

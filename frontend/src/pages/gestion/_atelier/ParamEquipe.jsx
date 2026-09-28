@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
-import { ROLES } from "@/lib/statuts";
+import { DESCRIPTIONS_ROLES, ROLES } from "@/lib/statuts";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Champ } from "./communs";
 
 // Rôles qu'un gérant peut attribuer, avec leur explication en une ligne
-const ROLES_BOUTIQUE = [
-  ["gerant", "Accès complet, y compris les paramètres, l'équipe et la messagerie."],
-  ["vendeur", "Ventes, factures, commandes en ligne, clients, stock, fournisseurs et SAV."],
-  ["technicien", "Dossiers de réparation (SAV) et consultation du catalogue ; pas de facturation."],
-];
+// Rôles proposés, avec leur description (définies dans lib/statuts.js)
+const ROLES_BOUTIQUE = Object.entries(DESCRIPTIONS_ROLES);
 
 // Onglet « Équipe » : comptes du personnel de la boutique.
 export default function ParamEquipe() {
@@ -71,7 +68,7 @@ export default function ParamEquipe() {
       <div className="lg:col-span-2">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-bold">{membres.length} membre(s)</h2>
-          <button type="button" className="btn-primary" onClick={() => setAjout({ nom: "", email: "", mot_de_passe: "", role: "vendeur" })}>+ Ajouter un membre</button>
+          <button type="button" className="btn-primary" onClick={() => setAjout({ nom: "", email: "", mot_de_passe: "", role: "commercial" })}>+ Ajouter un membre</button>
         </div>
 
         {/* Une carte par membre (lisible aussi sur téléphone) */}

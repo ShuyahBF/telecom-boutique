@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure, prix } from "@/lib/format";
 import { TYPES_PRODUIT } from "@/lib/statuts";
@@ -24,7 +24,7 @@ export default function ProduitForm() {
   const toast = useToast();
   const { user, boutique } = useAuth();
   // Le technicien voit la fiche en lecture seule
-  const peutModifier = aLeRole(user, "gerant", "vendeur");
+  const peutModifier = peut(user, "catalogue.edition");
 
   // --- État du formulaire ---
   const [produit, setProduit] = useState(PRODUIT_VIDE);
@@ -58,8 +58,8 @@ export default function ProduitForm() {
       })
       .catch((err) => toast.erreur(messageErreur(err, "Produit introuvable")))
       .finally(() => setChargement(false));
-    // Le journal de stock est réservé au gérant et aux vendeurs
-    if (peutModifier) {
+    // Le journal de stock n'est chargé que pour les rôles qui ont accès au stock
+    if (peut(user, "stock")) {
       apiClient.get("/stock/mouvements", { params: { produit_id: id } }).then(({ data }) => setMouvements(data)).catch(() => {});
       apiClient.get("/stock/motifs").then(({ data }) => setMotifs(data)).catch(() => {});
     }
@@ -151,7 +151,7 @@ export default function ProduitForm() {
         {!lectureSeule && <button className="btn-primary" disabled={enregistrement}>{enregistrement ? "Enregistrement…" : "💾 Enregistrer"}</button>}
       </EnTetePage>
 
-      {lectureSeule && <p className="mb-4 rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Consultation seule : seuls le gérant et les vendeurs modifient le catalogue.</p>}
+      {lectureSeule && <p className="mb-4 rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Consultation seule : seuls le DG et les commerciaux modifient le catalogue.</p>}
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Colonne principale : identité, description, prix */}

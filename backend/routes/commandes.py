@@ -1,7 +1,7 @@
 """Commandes passées sur le portail public (côté personnel de la boutique)."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -48,7 +48,8 @@ async def lire(commande_id: str, ctx: Contexte = Depends(commandes_dep)):
 
 class ChangementStatut(BaseModel):
     statut: Literal["RECUE", "CONFIRMEE", "PREPARATION", "PRETE", "LIVREE", "ANNULEE"]
-    note_interne: str = Field("", max_length=1000)
+    # None = note inchangée ; "" = note effacée
+    note_interne: Optional[str] = Field(None, max_length=1000)
 
 
 @router.post("/{commande_id}/statut")
@@ -57,11 +58,13 @@ async def changer_statut(commande_id: str, payload: ChangementStatut, ctx: Conte
     if not avant:
         raise HTTPException(404, "Commande introuvable")
     maj: dict = {"statut": payload.statut, "date_maj": now_iso()}
-    if payload.note_interne:
-        maj["note_interne"] = payload.note_interne
-    cmd = await ctx.tdb.commandes.find_one_and_update(
-        {"id": commande_id},
-        {"$set": maj, "$push": {"historique": {"date": now_iso(), "statut": payload.statut, "par": ctx.user.get("nom", "")}}})
+    if payload.note_interne is not None:
+        maj["note_interne"] = payload.note_interne.strip()
+    operation: dict = {"$set": maj}
+    # Une ligne d'historique seulement si le statut change réellement
+    if avant["statut"] != payload.statut:
+        operation["$push"] = {"historique": {"date": now_iso(), "statut": payload.statut, "par": ctx.user.get("nom", "")}}
+    cmd = await ctx.tdb.commandes.find_one_and_update({"id": commande_id}, operation)
     if avant["statut"] != payload.statut and cmd["client"].get("email"):
         cmd_l = avec_libelles(cmd)
         notifier_en_fond(ctx.boutique, "CMD_STATUT", cmd["client"]["email"],

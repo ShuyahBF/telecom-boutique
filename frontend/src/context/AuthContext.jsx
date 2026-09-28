@@ -78,3 +78,13 @@ export function useAuth() {
 export function aLeRole(user, ...roles) {
   return !!user && (user.role === "super_admin" || roles.includes(user.role));
 }
+
+/**
+ * Vrai si l'utilisateur a la permission demandée. La liste des permissions
+ * de chaque rôle est définie UNE seule fois côté serveur (table PERMISSIONS
+ * de backend/auth.py) et renvoyée à la connexion dans user.permissions.
+ * Exemples : peut(user, "facturation"), peut(user, "catalogue.edition").
+ */
+export function peut(user, permission) {
+  return !!user && (user.role === "super_admin" || (user.permissions || []).includes(permission));
+}

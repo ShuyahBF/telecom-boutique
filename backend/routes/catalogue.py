@@ -32,8 +32,16 @@ async def lister_categories(ctx: Contexte = Depends(tout_le_personnel)):
     return await ctx.tdb.categories.find({}).sort([("ordre", 1), ("nom", 1)]).to_list(500)
 
 
+async def _nom_libre(ctx: Contexte, nom: str, sauf_id: str = "") -> None:
+    """Refuse deux catégories du même nom (sans tenir compte des majuscules)."""
+    existante = await ctx.tdb.categories.find_one({"nom": {"$regex": f"^{re.escape(nom.strip())}$", "$options": "i"}})
+    if existante and existante["id"] != sauf_id:
+        raise HTTPException(409, f"La catégorie « {existante['nom']} » existe déjà")
+
+
 @router.post("/categories", status_code=201)
 async def creer_categorie(payload: Categorie, ctx: Contexte = Depends(edition)):
+    await _nom_libre(ctx, payload.nom)
     doc = {"id": new_id(), "nom": payload.nom.strip(), "slug": slugifier(payload.nom), "ordre": payload.ordre}
     await ctx.tdb.categories.insert_one(doc)
     return doc
@@ -41,6 +49,7 @@ async def creer_categorie(payload: Categorie, ctx: Contexte = Depends(edition)):
 
 @router.put("/categories/{categorie_id}")
 async def modifier_categorie(categorie_id: str, payload: Categorie, ctx: Contexte = Depends(edition)):
+    await _nom_libre(ctx, payload.nom, categorie_id)
     doc = await ctx.tdb.categories.find_one_and_update(
         {"id": categorie_id},
         {"$set": {"nom": payload.nom.strip(), "slug": slugifier(payload.nom), "ordre": payload.ordre}})

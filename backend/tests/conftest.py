@@ -61,7 +61,7 @@ def nouvelle_boutique(client, super_admin):
 def boutique_equipee(client, nouvelle_boutique):
     """Boutique avec une catégorie, un téléphone (stock 5), un service et un client."""
     b, h = nouvelle_boutique()
-    cat = client.post("/api/categories", headers=h, json={"nom": "Smartphones"}).json()
+    cat = client.post("/api/categories", headers=h, json={"nom": "Rayon de test"}).json()
     tel = client.post("/api/produits", headers=h, json={
         "reference": "T1", "nom": "Téléphone test", "categorie_id": cat["id"], "prix_vente": 100000,
         "prix_achat": 80000, "stock_initial": 5}).json()

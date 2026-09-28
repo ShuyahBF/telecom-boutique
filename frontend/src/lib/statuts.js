@@ -48,7 +48,24 @@ export const STATUTS_CONVERSATION = {
 
 export const TYPES_PRODUIT = { TEL: "Téléphone", ACC: "Accessoire", PIE: "Pièce détachée", SER: "Service" };
 
-export const ROLES = { super_admin: "Administrateur plateforme", gerant: "Gérant", vendeur: "Vendeur", technicien: "Technicien" };
+export const ROLES = {
+  super_admin: "Administrateur plateforme",
+  dg: "DG",
+  commercial: "Commercial",
+  secretaire: "Secrétaire",
+  comptable: "Comptable",
+  technicien: "Technicien",
+};
+
+// Ce que chaque rôle peut faire (affiché dans Paramètres > Équipe ; les droits
+// réels sont appliqués par le serveur, table PERMISSIONS de backend/auth.py)
+export const DESCRIPTIONS_ROLES = {
+  dg: "Directeur Général : tous les droits, dont paramètres, équipe et dossier KYC.",
+  commercial: "Catalogue et prix, clients, proformas et factures, commandes en ligne, conseils, stock.",
+  secretaire: "Accueil des clients, dépôts et suivi SAV, commandes en ligne, messagerie.",
+  comptable: "Factures et règlements, historique des paiements, stock et fournisseurs.",
+  technicien: "Réparations (SAV) et pièces détachées, consultation du catalogue.",
+};
 
 /** Badge de statut : <Badge statut={x} table={STATUTS_SAV} /> */
 export function classeStatut(table, statut) {

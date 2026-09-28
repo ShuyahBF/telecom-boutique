@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
 import { STATUTS_CONVERSATION } from "@/lib/statuts";
@@ -112,7 +112,7 @@ export default function Messagerie() {
           <h1 className="text-2xl font-extrabold">Messagerie</h1>
           <p className="text-sm text-gray-500">Demandes de conseil reçues depuis votre vitrine</p>
         </div>
-        {aLeRole(user, "gerant") && (
+        {peut(user, "parametres") && (
           <Link to="/gestion/parametres" className="text-sm text-gray-500 hover:text-primary">
             ⚙️ Envoi des e-mails : <span className="font-semibold underline">Paramètres &gt; Messagerie</span>
           </Link>

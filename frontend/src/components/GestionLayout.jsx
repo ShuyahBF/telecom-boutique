@@ -1,22 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/api";
 import { ROLES } from "@/lib/statuts";
 
-// Menu du back-office : chaque entrée indique les rôles qui peuvent la voir.
+// Menu du back-office : chaque entrée indique la permission nécessaire pour la
+// voir (table PERMISSIONS de backend/auth.py, reçue à la connexion).
 const MENU = [
-  { to: "/gestion", label: "Tableau de bord", icone: "📊", roles: ["gerant", "vendeur", "technicien"], end: true },
-  { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", roles: ["gerant", "vendeur"] },
-  { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", roles: ["gerant", "vendeur"] },
-  { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", roles: ["gerant", "vendeur", "technicien"] },
-  { to: "/gestion/produits", label: "Catalogue", icone: "📱", roles: ["gerant", "vendeur", "technicien"] },
-  { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", roles: ["gerant", "vendeur", "technicien"] },
-  { to: "/gestion/stock", label: "Stock", icone: "🏷️", roles: ["gerant", "vendeur"] },
-  { to: "/gestion/clients", label: "Clients", icone: "👥", roles: ["gerant", "vendeur", "technicien"] },
-  { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", roles: ["gerant", "vendeur"] },
-  { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", roles: ["gerant", "vendeur"], compteur: true },
-  { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", roles: ["gerant"] },
+  { to: "/gestion", label: "Tableau de bord", icone: "📊", permission: "tableau_de_bord", end: true },
+  { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", permission: "facturation" },
+  { to: "/gestion/paiements", label: "Historique des paiements", icone: "💳", permission: "paiements.historique" },
+  { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes" },
+  { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance" },
+  { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", compteur: "nouveautes" },
+  { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", permission: "catalogue.lecture" },
+  { to: "/gestion/stock", label: "Stock", icone: "🏷️", permission: "stock" },
+  { to: "/gestion/clients", label: "Clients", icone: "👥", permission: "clients" },
+  { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs" },
+  { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", compteur: "conversations" },
+  { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres" },
 ];
 
 // Mise en page du back-office : barre latérale (menu), barre du haut, contenu.
@@ -24,12 +26,20 @@ export default function GestionLayout() {
   const { user, boutique, deconnexion } = useAuth();
   const navigate = useNavigate();
   const [menuMobile, setMenuMobile] = useState(false);
-  const [nonLues, setNonLues] = useState(0);
+  const [compteurs, setCompteurs] = useState({ conversations: 0, nouveautes: 0 });
 
-  // Nombre de demandes de conseil en attente (rafraîchi chaque minute)
+  // Pastilles du menu (rafraîchies chaque minute) : demandes de conseil en
+  // attente et nouveaux modèles reçus du catalogue public
   useEffect(() => {
-    if (!boutique || !aLeRole(user, "gerant", "vendeur")) return undefined;
-    const charger = () => apiClient.get("/conversations/non-lues").then(({ data }) => setNonLues(data.non_lues)).catch(() => {});
+    if (!boutique) return undefined;
+    const charger = async () => {
+      const suivants = { conversations: 0, nouveautes: 0 };
+      if (peut(user, "messagerie")) {
+        suivants.conversations = (await apiClient.get("/conversations/non-lues").catch(() => ({ data: {} }))).data.non_lues || 0;
+      }
+      suivants.nouveautes = (await apiClient.get("/produits", { params: { nouveau: true } }).catch(() => ({ data: [] }))).data.length || 0;
+      setCompteurs(suivants);
+    };
     charger();
     const t = setInterval(charger, 60000);
     return () => clearInterval(t);
@@ -39,7 +49,7 @@ export default function GestionLayout() {
   if (user?.role === "super_admin" && !boutique) return <Navigate to="/plateforme" replace />;
   if (!boutique) return null;
 
-  const entrees = MENU.filter((m) => aLeRole(user, ...m.roles));
+  const entrees = MENU.filter((m) => peut(user, m.permission));
   const classeLien = ({ isActive }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${isActive ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`;
 
@@ -49,7 +59,11 @@ export default function GestionLayout() {
         <NavLink key={m.to} to={m.to} end={m.end} className={classeLien} onClick={() => setMenuMobile(false)}>
           <span>{m.icone}</span>
           <span className="flex-1">{m.label}</span>
-          {m.compteur && nonLues > 0 && <span className="rounded-full bg-accent px-2 text-xs text-white">{nonLues}</span>}
+          {m.compteur && compteurs[m.compteur] > 0 && (
+            <span className="rounded-full bg-accent px-2 text-xs text-white" title={m.compteur === "nouveautes" ? "Nouveautés du catalogue public" : "Demandes en attente"}>
+              {compteurs[m.compteur]}
+            </span>
+          )}
         </NavLink>
       ))}
     </nav>

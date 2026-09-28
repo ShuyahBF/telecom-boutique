@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, dateHeure, montant, prix } from "@/lib/format";
 import { STATUTS_COMMANDE, STATUTS_SAV } from "@/lib/statuts";
@@ -16,7 +16,7 @@ export default function TableauDeBord() {
   const [erreur, setErreur] = useState("");
 
   // Le technicien ne voit que l'atelier (réparations) et les alertes de stock
-  const vendeur = aLeRole(user, "gerant", "vendeur");
+  const vendeur = peut(user, "facturation") || peut(user, "commandes");
   const devise = boutique?.devise || "FCFA";
 
   // Chargement de tous les indicateurs en une seule requête

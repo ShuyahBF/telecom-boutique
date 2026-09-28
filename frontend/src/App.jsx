@@ -43,9 +43,6 @@ import CataloguePublic from "@/pages/gestion/CataloguePublic";
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 
-// Raccourcis de rôles
-const VENTES = ["gerant", "vendeur"];
-const ATELIER = ["gerant", "vendeur", "technicien"];
 
 export default function App() {
   return (
@@ -71,33 +68,33 @@ export default function App() {
             <Route path="/connexion" element={<Connexion />} />
 
             {/* Documents imprimables : pleine page, sans menu */}
-            <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee roles={VENTES}><DocumentImprimable /></RouteProtegee>} />
-            <Route path="/gestion/maintenance/:id/bon-de-depot" element={<RouteProtegee roles={ATELIER}><BonDepot /></RouteProtegee>} />
+            <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation"><DocumentImprimable /></RouteProtegee>} />
+            <Route path="/gestion/maintenance/:id/bon-de-depot" element={<RouteProtegee permission="maintenance"><BonDepot /></RouteProtegee>} />
 
             {/* Back-office des boutiques */}
             <Route path="/gestion" element={<RouteProtegee><GestionLayout /></RouteProtegee>}>
               <Route index element={<TableauDeBord />} />
-              <Route path="documents" element={<RouteProtegee roles={VENTES}><Documents /></RouteProtegee>} />
-              <Route path="documents/nouveau" element={<RouteProtegee roles={VENTES}><DocumentEditeur /></RouteProtegee>} />
-              <Route path="documents/:id" element={<RouteProtegee roles={VENTES}><DocumentEditeur /></RouteProtegee>} />
-              <Route path="commandes" element={<RouteProtegee roles={VENTES}><Commandes /></RouteProtegee>} />
-              <Route path="commandes/:id" element={<RouteProtegee roles={VENTES}><CommandeFiche /></RouteProtegee>} />
+              <Route path="documents" element={<RouteProtegee permission="facturation"><Documents /></RouteProtegee>} />
+              <Route path="documents/nouveau" element={<RouteProtegee permission="facturation"><DocumentEditeur /></RouteProtegee>} />
+              <Route path="documents/:id" element={<RouteProtegee permission="facturation"><DocumentEditeur /></RouteProtegee>} />
+              <Route path="commandes" element={<RouteProtegee permission="commandes"><Commandes /></RouteProtegee>} />
+              <Route path="commandes/:id" element={<RouteProtegee permission="commandes"><CommandeFiche /></RouteProtegee>} />
               <Route path="clients" element={<Clients />} />
               <Route path="clients/:id" element={<ClientFiche />} />
-              <Route path="messagerie" element={<RouteProtegee roles={VENTES}><Messagerie /></RouteProtegee>} />
+              <Route path="messagerie" element={<RouteProtegee permission="messagerie"><Messagerie /></RouteProtegee>} />
               <Route path="produits" element={<Produits />} />
               <Route path="catalogue-public" element={<CataloguePublic />} />
-              <Route path="produits/nouveau" element={<RouteProtegee roles={VENTES}><ProduitForm /></RouteProtegee>} />
+              <Route path="produits/nouveau" element={<RouteProtegee permission="catalogue.edition"><ProduitForm /></RouteProtegee>} />
               <Route path="produits/:id" element={<ProduitForm />} />
-              <Route path="stock" element={<RouteProtegee roles={VENTES}><Stock /></RouteProtegee>} />
-              <Route path="stock/bons" element={<RouteProtegee roles={VENTES}><BonsEntree /></RouteProtegee>} />
-              <Route path="stock/bons/nouveau" element={<RouteProtegee roles={VENTES}><BonEntreeForm /></RouteProtegee>} />
-              <Route path="stock/bons/:id" element={<RouteProtegee roles={VENTES}><BonEntreeForm /></RouteProtegee>} />
-              <Route path="fournisseurs" element={<RouteProtegee roles={VENTES}><Fournisseurs /></RouteProtegee>} />
-              <Route path="maintenance" element={<Maintenance />} />
-              <Route path="maintenance/nouveau" element={<DossierFiche />} />
-              <Route path="maintenance/:id" element={<DossierFiche />} />
-              <Route path="parametres" element={<RouteProtegee roles={["gerant"]}><Parametres /></RouteProtegee>} />
+              <Route path="stock" element={<RouteProtegee permission="stock"><Stock /></RouteProtegee>} />
+              <Route path="stock/bons" element={<RouteProtegee permission="stock"><BonsEntree /></RouteProtegee>} />
+              <Route path="stock/bons/nouveau" element={<RouteProtegee permission="stock"><BonEntreeForm /></RouteProtegee>} />
+              <Route path="stock/bons/:id" element={<RouteProtegee permission="stock"><BonEntreeForm /></RouteProtegee>} />
+              <Route path="fournisseurs" element={<RouteProtegee permission="fournisseurs"><Fournisseurs /></RouteProtegee>} />
+              <Route path="maintenance" element={<RouteProtegee permission="maintenance"><Maintenance /></RouteProtegee>} />
+              <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
+              <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
+              <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
             </Route>
 
             {/* Administration de la plateforme */}

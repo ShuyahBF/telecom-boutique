@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { aLeRole, useAuth } from "@/context/AuthContext";
+import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, prix } from "@/lib/format";
 import { STATUTS_DOCUMENT, STATUTS_SAV } from "@/lib/statuts";
@@ -19,7 +19,7 @@ export default function ClientFiche() {
   const { user, boutique } = useAuth();
   const devise = boutique?.devise || "FCFA";
   // Le technicien n'a pas accès aux factures : historique des documents masqué
-  const vendeur = aLeRole(user, "gerant", "vendeur");
+  const vendeur = peut(user, "facturation");
 
   const [client, setClient] = useState(null);
   const [erreur, setErreur] = useState("");
