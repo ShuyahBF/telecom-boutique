@@ -5,6 +5,7 @@ import { dateHeure } from "@/lib/format";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
+import ModelesVendus from "./_plateforme/ModelesVendus";
 
 // Référentiel MONDIAL des appareils (super-admin) : tous les modèles existants
 // d'après la liste officielle Google Play (+ iPhone). On y cherche un appareil
@@ -24,6 +25,8 @@ export default function Referentiel() {
   const marque = params.get("marque") || "";
   const page = Number(params.get("page") || 1);
   const sansFiche = params.get("sans_fiche") === "1";
+  // Onglet affiché : tous les appareils du monde, ou modèles vendus dans les boutiques (?vue=vendus)
+  const vue = params.get("vue") === "vendus" ? "vendus" : "monde";
   const majFiltre = (cle, valeur) => {
     const suivants = new URLSearchParams(params);
     if (valeur) suivants.set(cle, valeur); else suivants.delete(cle);
@@ -33,13 +36,14 @@ export default function Referentiel() {
 
   // Recherche (petit délai pendant la frappe)
   useEffect(() => {
+    if (vue !== "monde") return undefined;
     const t = setTimeout(() => {
       apiClient.get("/plateforme/referentiel", { params: { q, marque, page, sans_fiche: sansFiche } })
         .then(({ data }) => setResultat(data))
         .catch((err) => toast.erreur(messageErreur(err, "Recherche impossible")));
     }, 250);
     return () => clearTimeout(t);
-  }, [q, marque, page, sansFiche, toast]);
+  }, [q, marque, page, sansFiche, toast, vue]);
 
   // Liste des marques (pour le filtre), rechargée après un import
   useEffect(() => {
@@ -95,10 +99,22 @@ export default function Referentiel() {
               {dernier && <> Dernière mise à jour : {dateHeure(dernier.date)} — {dernier.total} appareils.</>}
             </p>
           </div>
-          <button type="button" className="btn-primary" disabled={importEnCours} onClick={importer}>
-            {importEnCours ? "Import en cours…" : resultat?.total ? "↻ Mettre à jour la liste" : "⬇ Importer la liste mondiale"}
-          </button>
+          {vue === "monde" && (
+            <button type="button" className="btn-primary" disabled={importEnCours} onClick={importer}>
+              {importEnCours ? "Import en cours…" : resultat?.total ? "↻ Mettre à jour la liste" : "⬇ Importer la liste mondiale"}
+            </button>
+          )}
         </div>
+
+        {/* Choix de l'onglet (gardé dans l'adresse : ?vue=vendus) */}
+        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+          {[["monde", "📚 Tous les appareils"], ["vendus", "🏪 Modèles vendus dans mes boutiques"]].map(([cle, libelle]) => (
+            <button key={cle} type="button" onClick={() => setParams(cle === "vendus" ? { vue: "vendus" } : {}, { replace: true })}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${vue === cle ? "bg-primary text-white" : "text-gray-600"}`}>{libelle}</button>
+          ))}
+        </div>
+
+        {vue === "vendus" ? <ModelesVendus /> : (<>
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-3">
@@ -158,6 +174,7 @@ export default function Referentiel() {
           La liste Google ne contient que l'identité des appareils (marque, nom, codes modèle). Les caractéristiques,
           la photo et les pièces détachées sont ajoutées fiche par fiche, avec l'assistant de recherche.
         </p>
+        </>)}
       </main>
     </div>
   );
