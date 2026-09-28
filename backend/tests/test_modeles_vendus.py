@@ -27,6 +27,9 @@ def test_fiche_technique_et_modeles_vendus(client, super_admin, nouvelle_boutiqu
     b0, h0, p0 = boutiques[0]
     fiche = client.get(f"/api/public/b/{b0['slug']}/produits/{p0['slug']}").json()["fiche_technique"]
     assert "Batterie : 5000 mAh" in fiche and "Écran : 6,78 pouces" in fiche and "Garantie : 12 mois" in fiche
+    # Fiche produit du back-office : l'appareil relié du référentiel est fourni pour l'affichage
+    relie = client.get(f"/api/produits/{p0['id']}", headers=h0).json()["referentiel"]
+    assert relie["cle"] == camon["cle"] and relie["marque"] == "Tecno"
     # Liste des modèles vendus : un seul groupe, 2 boutiques, sans aucun prix
     vendus = client.get("/api/plateforme/referentiel/demande", headers=super_admin).json()
     groupe = next(g for g in vendus if g["referentiel_cle"] == camon["cle"])

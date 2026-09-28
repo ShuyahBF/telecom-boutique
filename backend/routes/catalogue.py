@@ -158,6 +158,12 @@ async def lire_produit(produit_id: str, ctx: Contexte = Depends(tout_le_personne
     produit = await ctx.tdb.produits.find_one({"id": produit_id})
     if not produit:
         raise HTTPException(404, "Produit introuvable")
+    # Appareil du référentiel mondial relié (affiché dans la fiche technique)
+    produit["referentiel"] = None
+    if produit.get("referentiel_cle"):
+        produit["referentiel"] = await db.referentiel_appareils.find_one(
+            {"cle": produit["referentiel_cle"]},
+            {"_id": 0, "cle": 1, "marque": 1, "nom": 1, "codes_modele": 1, "annee_sortie": 1})
     return produit
 
 

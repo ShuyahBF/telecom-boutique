@@ -9,12 +9,14 @@ import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { Case, Champ, ChoixImage } from "./_atelier/communs";
 import DocumentsPrives from "./_catalogue/DocumentsPrives";
+import FicheTechnique, { FICHE_VIDE, ficheVersApi, ficheVersFormulaire } from "./_catalogue/FicheTechnique";
 
 // Valeurs d'un produit vierge (création)
 const PRODUIT_VIDE = {
   reference: "", nom: "", type_produit: "TEL", categorie_id: "", marque: "", description: "",
   caracteristiques: [""], prix_achat: 0, prix_vente: 0, stock_alerte: 2, garantie_mois: 0,
   visible_portail: true, actif: true, stock_initial: 0, conseils_utilisation: "",
+  fiche_technique: FICHE_VIDE, referentiel: null, // fiche technique + appareil du référentiel mondial relié
 };
 
 // Message affiché quand on veut montrer sur le portail un produit sans prix
@@ -72,6 +74,7 @@ export default function ProduitForm() {
         // (les valeurs absentes ou nulles sont remplacées par "" pour garder des champs contrôlés)
         setProduit({ ...PRODUIT_VIDE, ...data, marque: data.marque || "", description: data.description || "",
           conseils_utilisation: data.conseils_utilisation || "",
+          fiche_technique: ficheVersFormulaire(data.fiche_technique), referentiel: data.referentiel || null,
           caracteristiques: data.caracteristiques?.length ? data.caracteristiques : [""] });
         // Nouveauté du catalogue public : l'ouvrir retire le badge « Nouveau »
         if (data.nouveau) apiClient.post(`/produits/${id}/vu`).catch(() => {});
@@ -138,6 +141,9 @@ export default function ProduitForm() {
       stock_alerte: Number(produit.stock_alerte) || 0, garantie_mois: Number(produit.garantie_mois) || 0,
       visible_portail: produit.visible_portail, actif: produit.actif,
       conseils_utilisation: produit.conseils_utilisation || "",
+      // Fiche technique : seulement pour un téléphone (null = pas de fiche)
+      fiche_technique: produit.type_produit === "TEL" ? ficheVersApi(produit.fiche_technique) : null,
+      referentiel_cle: produit.type_produit === "TEL" ? produit.referentiel?.cle || null : null,
     };
     try {
       if (creation) {
@@ -218,6 +224,15 @@ export default function ProduitForm() {
             <Champ label="Marque"><input className="input disabled:bg-gray-100 disabled:text-gray-600" maxLength={80} disabled={verrou} value={produit.marque} onChange={(e) => maj("marque", e.target.value)} placeholder="ex. Samsung" /></Champ>
           </div>
 
+          {/* Fiche technique structurée : téléphones créés par la boutique
+              (ceux du catalogue public ont déjà leurs caractéristiques communes) */}
+          {produit.type_produit === "TEL" && !duCatalogue && (
+            <FicheTechnique fiche={produit.fiche_technique} onFiche={(f) => maj("fiche_technique", f)}
+              referentiel={produit.referentiel} onReferentiel={(a) => maj("referentiel", a)}
+              nomProduit={produit.nom} desactive={lectureSeule}
+              onSuggestion={({ nom, marque }) => setProduit((p) => ({ ...p, nom: p.nom || nom, marque: p.marque || marque }))} />
+          )}
+
           {/* Description et caractéristiques : verrouillées pour un produit du catalogue public */}
           <fieldset disabled={verrou} className="card space-y-4">
             <h2 className="font-bold">Description {duCatalogue && <span className="ml-1 text-xs font-normal text-gray-500">🔒 lecture seule</span>}</h2>
@@ -227,7 +242,11 @@ export default function ProduitForm() {
             {/* Caractéristiques : une ligne = une caractéristique */}
             <div>
               <label className="label">Caractéristiques</label>
-              <p className="mb-2 text-xs text-gray-500">Une caractéristique par ligne, par exemple « Écran : 6,5 pouces ».</p>
+              <p className="mb-2 text-xs text-gray-500">
+                {produit.type_produit === "TEL" && !duCatalogue
+                  ? "Autres informations, en plus de la fiche technique ci-dessus (une par ligne)."
+                  : "Une caractéristique par ligne, par exemple « Écran : 6,5 pouces »."}
+              </p>
               <div className="space-y-2">
                 {produit.caracteristiques.map((c, i) => (
                   <div key={i} className="flex gap-2">
@@ -266,7 +285,7 @@ export default function ProduitForm() {
                 <input className="input" type="number" min={0} value={produit.stock_alerte} onChange={(e) => maj("stock_alerte", e.target.value)} />
               </Champ>
             )}
-            <Champ label="Garantie (mois)">
+            <Champ label="Garantie (mois)" aide={produit.type_produit === "TEL" ? "Affichée dans la fiche technique de la vitrine." : ""}>
               <input className="input" type="number" min={0} max={120} value={produit.garantie_mois} onChange={(e) => maj("garantie_mois", e.target.value)} />
             </Champ>
             {creation && !service && (

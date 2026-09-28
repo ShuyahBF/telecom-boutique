@@ -158,6 +158,27 @@ export default function Produit() {
             </div>
           )}
 
+          {/* Fiche technique structurée (lignes « Libellé : valeur » préparées par le serveur) */}
+          {produit.fiche_technique?.length > 0 && (
+            <div>
+              <h2 className="mb-2 font-bold">Fiche technique</h2>
+              <table className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  {produit.fiche_technique.map((ligne) => {
+                    // Découpe au premier « : » : libellé à gauche, valeur à droite
+                    const i = ligne.indexOf(" : ");
+                    return (
+                      <tr key={ligne}>
+                        <th className="w-2/5 bg-gray-50 px-4 py-2 text-left font-medium text-gray-500">{i > 0 ? ligne.slice(0, i) : ""}</th>
+                        <td className="px-4 py-2 text-gray-800">{i > 0 ? ligne.slice(i + 3) : ligne}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {/* Caractéristiques (liste à puces) */}
           {produit.caracteristiques?.length > 0 && (
             <div>
