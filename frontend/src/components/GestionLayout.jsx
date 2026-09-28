@@ -11,6 +11,7 @@ const MENU = [
   { to: "/gestion", label: "Tableau de bord", icone: "📊", permission: "tableau_de_bord", end: true },
   { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", permission: "facturation" },
   { to: "/gestion/paiements", label: "Historique des paiements", icone: "💳", permission: "paiements.historique" },
+  { to: "/gestion/reversements", label: "Reversements PawaPay", icone: "💸", permission: "paiements.historique" },
   { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes" },
   { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance" },
   { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", compteur: "nouveautes" },

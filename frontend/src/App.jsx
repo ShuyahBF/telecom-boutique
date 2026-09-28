@@ -7,6 +7,8 @@ import GestionLayout from "@/components/GestionLayout";
 import Abonnement from "@/pages/gestion/Abonnement";
 import Abonnements from "@/pages/plateforme/Abonnements";
 import Sms from "@/pages/gestion/Sms";
+import Reversements from "@/pages/gestion/Reversements";
+import ReversementsPlateforme from "@/pages/plateforme/Reversements";
 import ChangerMotDePasse from "@/pages/ChangerMotDePasse";
 import Connexion from "@/pages/Connexion";
 // --- Portail public ---
@@ -104,6 +106,7 @@ export default function App() {
               <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
               <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
               <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
+              <Route path="reversements" element={<RouteProtegee permission="paiements.historique"><Reversements /></RouteProtegee>} />
               <Route path="sms" element={<RouteProtegee permission="messagerie"><Sms /></RouteProtegee>} />
               <Route path="abonnement" element={<RouteProtegee permission="parametres"><Abonnement /></RouteProtegee>} />
             </Route>
@@ -113,6 +116,7 @@ export default function App() {
             <Route path="/plateforme/catalogue" element={<RouteProtegee roles={["super_admin"]}><CatalogueAdmin /></RouteProtegee>} />
             <Route path="/plateforme/referentiel" element={<RouteProtegee roles={["super_admin"]}><Referentiel /></RouteProtegee>} />
             <Route path="/plateforme/abonnements" element={<RouteProtegee roles={["super_admin"]}><Abonnements /></RouteProtegee>} />
+            <Route path="/plateforme/reversements" element={<RouteProtegee roles={["super_admin"]}><ReversementsPlateforme /></RouteProtegee>} />
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -14,6 +14,7 @@ const MENU_PLATEFORME = [
   { to: "/plateforme/referentiel", label: "Référentiel mondial", court: "Appareils", icone: "📚" },
   { to: "/plateforme/catalogue", label: "Catalogue public", court: "Catalogue", icone: "🌍" },
   { to: "/plateforme/abonnements", label: "Abonnements", court: "Abonnements", icone: "💰" },
+  { to: "/plateforme/reversements", label: "Reversements", court: "Reversements", icone: "💸" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
 ];
 
@@ -37,7 +38,7 @@ export function EnTetePlateforme() {
             <NavLink key={m.to} to={m.to} end={m.end}
               className={({ isActive }) => `whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:px-3 sm:text-sm ${isActive ? "bg-white/15 text-white" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}>
               <span className="mr-1">{m.icone}</span>
-              <span className="xl:hidden">{m.court}</span><span className="hidden xl:inline">{m.label}</span>
+              <span className="2xl:hidden">{m.court}</span><span className="hidden 2xl:inline">{m.label}</span>
             </NavLink>
           ))}
         </nav>
