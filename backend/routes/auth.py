@@ -15,7 +15,10 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
+
+import acces
 from pydantic import BaseModel, EmailStr, Field
 
 from auth import (create_access_token, effacer_cookie_session, get_current_user, hash_password,
@@ -64,7 +67,7 @@ def _sans_secrets(boutique: dict | None) -> dict | None:
 
 
 @router.post("/login")
-async def login(payload: Connexion, response: Response):
+async def login(payload: Connexion, request: Request, response: Response):
     email = payload.email.lower()
     code = re.sub(r"[^A-Za-z0-9]", "", payload.code_boutique or "").upper()
     cle_echecs = f"{code}|{email}"
@@ -72,24 +75,40 @@ async def login(payload: Connexion, response: Response):
     if await db.echecs_connexion.count_documents({"cle": cle_echecs, "date": {"$gte": depuis}}) >= MAX_ECHECS:
         raise HTTPException(429, "Trop de tentatives. Réessayez dans 15 minutes.")
 
+    # Boutique désignée par l'ID tapé (sert aussi à tracer les tentatives dans SON journal)
+    boutique = await db.boutiques.find_one({"code_marchand": code}, SANS_ID) if code else None
     user = await db.users.find_one({"email": email}, SANS_ID)
     erreur = None
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         erreur = "Identifiants incorrects"
     elif user.get("role") != "super_admin":
         # Personnel d'une boutique : l'ID boutique doit être celui de SA boutique
-        boutique = await db.boutiques.find_one({"id": user.get("boutique_id")}, {"_id": 0, "code_marchand": 1})
         if not code:
             erreur = "Indiquez l'ID de votre boutique (6 caractères)"
-        elif not boutique or boutique.get("code_marchand") != code:
+        elif not boutique or boutique["id"] != user.get("boutique_id"):
             erreur = "Identifiants incorrects"
     if erreur:
         # Même message quel que soit le champ erroné : on ne révèle rien (compte, boutique)
         await db.echecs_connexion.insert_one({"cle": cle_echecs, "date": now_iso(),
                                               "expire_le": datetime.now(timezone.utc) + FENETRE_ECHECS})
+        if boutique:
+            await acces.journaliser(boutique["id"], request, "ECHEC", email=email, raison=erreur)
         raise HTTPException(401, erreur)
     if not user.get("actif", True):
         raise HTTPException(403, "Ce compte est désactivé")
+
+    if user.get("role") != "super_admin":
+        # Adresse IP / appareil : règles d'accès de la boutique (listes blanche et noire)
+        appareil = acces.poser_cookie_appareil(request, response)
+        autorise, raison = acces.verdict(acces.regles(boutique), acces.ip_client(request), appareil)
+        await acces.journaliser(boutique["id"], request, "SUCCES" if autorise else "BLOQUE", user=user,
+                                raison=raison, appareil=appareil)
+        if not autorise:
+            refus = JSONResponse({"detail": f"Connexion refusée : {raison.lower()}. Contactez le DG de votre boutique."},
+                                 status_code=403)
+            for cookie in response.headers.getlist("set-cookie"):  # garde l'identifiant de l'appareil
+                refus.headers.append("set-cookie", cookie)
+            return refus
     await db.echecs_connexion.delete_many({"cle": cle_echecs})
     session = await _reponse_session(user)
     poser_cookie_session(response, session["access_token"])
@@ -104,8 +123,14 @@ async def logout(response: Response):
 
 
 @router.get("/me")
-async def me(user: dict = Depends(get_current_user)):
+async def me(request: Request, user: dict = Depends(get_current_user)):
     session = await _reponse_session(user)
+    # Appareil ou adresse interdits depuis l'ouverture de la session : on n'ouvre pas le site
+    if session["boutique"] and user.get("role") != "super_admin":
+        b = await db.boutiques.find_one({"id": user["boutique_id"]}, {"_id": 0, "acces": 1})
+        autorise, raison = acces.controler(b or {}, request)
+        if not autorise:
+            raise HTTPException(403, f"Accès refusé : {raison.lower()}")
     session.pop("access_token")
     return session
 

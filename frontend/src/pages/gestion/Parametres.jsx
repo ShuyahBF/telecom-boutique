@@ -8,6 +8,7 @@ import ParamMessagerie from "./_atelier/ParamMessagerie";
 import ParamModeles from "./_atelier/ParamModeles";
 import ParamJournal from "./_atelier/ParamJournal";
 import ParamEquipe from "./_atelier/ParamEquipe";
+import ParamSecurite from "./_atelier/ParamSecurite";
 
 // Liste des onglets de la page (le code apparaît dans l'adresse : ?onglet=equipe)
 const ONGLETS = [
@@ -18,6 +19,7 @@ const ONGLETS = [
   { code: "modeles", libelle: "📝 Modèles de messages" },
   { code: "journal", libelle: "📜 Journal des envois" },
   { code: "equipe", libelle: "👥 Équipe" },
+  { code: "securite", libelle: "🛡️ Sécurité & connexions" },
 ];
 
 // Page « Paramètres » (réservée au DG). Chaque onglet est un composant
@@ -44,6 +46,7 @@ export default function Parametres() {
       {onglet === "modeles" && <ParamModeles />}
       {onglet === "journal" && <ParamJournal />}
       {onglet === "equipe" && <ParamEquipe />}
+      {onglet === "securite" && <ParamSecurite />}
     </div>
   );
 }

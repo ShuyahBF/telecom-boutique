@@ -179,7 +179,8 @@ class Contexte:
         return {"user_id": self.user["id"], "user_nom": self.user.get("nom", "")}
 
 
-async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_suspendue: bool) -> Contexte:
+async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_suspendue: bool,
+                             request: Optional[Request] = None) -> Contexte:
     if user.get("role") == "super_admin":
         # Le super-administrateur choisit explicitement la boutique à consulter
         if not x_boutique_id:
@@ -197,23 +198,32 @@ async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_susp
         if (boutique.get("suspension") or {}).get("motif") == "IMPAYE":
             raise HTTPException(403, "Accès suspendu : abonnement adLyn non renouvelé. Le DG peut le régler depuis la page Abonnement.")
         raise HTTPException(403, "Cette boutique est suspendue. Contactez l'administrateur de la plateforme.")
+    if request is not None and user.get("role") != "super_admin":
+        # Règles d'accès de la boutique (IP / appareils), vérifiées à CHAQUE requête :
+        # une interdiction ajoutée par le DG coupe aussi les sessions déjà ouvertes
+        import acces
+        autorise, raison = acces.controler(boutique, request)
+        if not autorise:
+            raise HTTPException(403, f"Accès refusé : {raison.lower()}")
     return Contexte(user, boutique)
 
 
 async def get_contexte(
+    request: Request,
     user: dict = Depends(get_current_user),
     x_boutique_id: Optional[str] = Header(default=None),
 ) -> Contexte:
-    return await _resoudre_contexte(user, x_boutique_id, meme_suspendue=False)
+    return await _resoudre_contexte(user, x_boutique_id, meme_suspendue=False, request=request)
 
 
 async def contexte_abonnement(
+    request: Request,
     user: dict = Depends(get_current_user),
     x_boutique_id: Optional[str] = Header(default=None),
 ) -> Contexte:
     """Page « Abonnement » : réservée au DG, et accessible MÊME si la boutique est
     suspendue (c'est là qu'il règle son abonnement pour retrouver l'accès)."""
-    ctx = await _resoudre_contexte(user, x_boutique_id, meme_suspendue=True)
+    ctx = await _resoudre_contexte(user, x_boutique_id, meme_suspendue=True, request=request)
     if ctx.role not in ("dg", "super_admin"):
         raise HTTPException(403, "Réservé au DG de la boutique")
     return ctx

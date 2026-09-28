@@ -42,6 +42,7 @@ from pydantic import BaseModel, EmailStr, Field, ValidationError
 from pymongo.errors import DuplicateKeyError
 
 import envois_plateforme as envois
+from acces import ip_client
 from auth import get_super_admin
 from config import get_settings
 from db import SANS_ID, db
@@ -95,12 +96,7 @@ def signature_attendue(secret: str, horodatage: str, corps: bytes) -> str:
 
 
 def _ip(request: Request) -> str:
-    """Adresse de l'appelant. Derrière le proxy de Render, c'est la DERNIÈRE
-    adresse de X-Forwarded-For (celle ajoutée par Render, non falsifiable)."""
-    transmis = request.headers.get("x-forwarded-for", "")
-    if transmis:
-        return transmis.split(",")[-1].strip()
-    return request.client.host if request.client else "inconnue"
+    return ip_client(request)
 
 
 async def _journaliser(ip: str, resultat: str, detail: str = "", **extra) -> None:

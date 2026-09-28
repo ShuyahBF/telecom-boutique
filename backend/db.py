@@ -152,6 +152,8 @@ async def ensure_indexes() -> None:
     await db.formules.create_index("code", unique=True)
     await db.abonnement_paiements.create_index([("boutique_id", 1), ("created_at", -1)])
     await db.abonnement_rappels_journal.create_index("date")
+    # Journal des connexions au back-office des boutiques
+    await db.connexions_journal.create_index([("boutique_id", 1), ("date", -1)])
     # Reversements PawaPay aux boutiques
     await db.paiements.create_index([("boutique_id", 1), ("statut", 1), ("reversement_id", 1)])
     await db.reversements.create_index([("boutique_id", 1), ("created_at", -1)])

@@ -94,6 +94,19 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
   - Elle se paie en ligne par le DG (page Abonnement) ou s'enregistre à la main par l'administrateur.
 - **Retard** : liste des factures SMS impayées après leur échéance (10 jours). L'administrateur choisit les boutiques dont il **suspend le seul service SMS** ; le reste de la boutique continue. Le paiement des factures en retard rétablit le service automatiquement.
 
+### Reversements PawaPay aux boutiques
+- Les paiements Mobile Money des clients arrivent sur le compte PawaPay de la plateforme.
+- L'administrateur (`/plateforme/reversements`) voit pour chaque boutique l'encaissé, le reversé, les frais retenus et ce qui reste à reverser. Il enregistre chaque reversement : paiements couverts, frais, mode, référence. Il peut annuler un reversement saisi par erreur.
+- Chaque boutique (DG et comptable, page **Reversements PawaPay**) ne voit que ses propres paiements, avec pour chacun « reversé » ou « en attente », et ses reversements.
+
+### Sécurité des connexions (par boutique)
+- Dans **Paramètres > Sécurité & connexions**, le DG gère les adresses IP (avec `*`, ex. `196.28.*`) et les appareils à **autoriser** (liste blanche) ou à **interdire**.
+  - L'interdiction l'emporte toujours.
+  - Dès que la liste blanche contient une règle, seuls les adresses et appareils de la liste passent ; `*` y autorise tout le monde.
+- Les règles s'appliquent à la connexion et à chaque action : une interdiction coupe aussi une session déjà ouverte. Le DG ne peut pas créer une règle qui le bloquerait lui-même. L'administrateur de la plateforme n'est jamais bloqué.
+- Chaque tentative de connexion (réussie, mauvais mot de passe, refusée) est tracée dans le journal de la boutique et dans le journal du serveur (logs Render) : compte, adresse IP, appareil. Depuis chaque ligne, le DG autorise ou interdit cette adresse ou cet appareil pour l'avenir.
+- Un appareil est reconnu par un identifiant posé dans le navigateur à la première connexion. Il est visible dans le journal.
+
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
 - **Création automatique par webhook** (voir plus bas) : les boutiques créées ainsi attendent la **validation** de l'administrateur avant d'apparaître sur le portail. Journal des appels (bouton « 🔗 Webhook ») et renvoi des identifiants au DG.
@@ -141,7 +154,7 @@ Pages utiles :
 - `/gestion` : back-office ;
 - `/plateforme` : administration de la plateforme.
 
-**Tests automatiques** (72 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook, la connexion, les abonnements et le service SMS.
+**Tests automatiques** (76 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook, la connexion, les abonnements, le service SMS, les reversements et les règles d'accès.
 
 ## Déployer sur Render
 

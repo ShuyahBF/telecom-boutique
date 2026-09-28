@@ -17,7 +17,7 @@ import catalogue_public as service_catalogue
 import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
-from routes import (abonnements, auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
+from routes import (abonnements, acces_boutique, auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
                     maintenance, paiements, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
                     tableau_de_bord, tiers, webhooks)
 from seed import creer_demo, ensure_super_admin
@@ -43,6 +43,8 @@ for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, c
 # Abonnements : page du DG et administration (super-admin)
 api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
+# Règles d'accès (IP / appareils) et journal des connexions de chaque boutique
+api.include_router(acces_boutique.router)
 # Reversements aux boutiques de l'argent encaissé par PawaPay
 api.include_router(reversements.boutique)
 api.include_router(reversements.admin)
