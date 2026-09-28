@@ -8,13 +8,15 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from auth import Contexte, tout_le_personnel, ventes
+from auth import Contexte, permission, tout_le_personnel
 from services import entree_stock, est_stockable
 from catalogue_public import CHAMPS_PARTAGES
 from storage import enregistrer_image, lire_document, lire_image, supprimer_image
 from utils import new_id, now_iso, slugifier
 
 router = APIRouter(tags=["Catalogue"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+edition = permission("catalogue.edition")
 
 
 # ---------------------------------------------------------------------------
@@ -31,14 +33,14 @@ async def lister_categories(ctx: Contexte = Depends(tout_le_personnel)):
 
 
 @router.post("/categories", status_code=201)
-async def creer_categorie(payload: Categorie, ctx: Contexte = Depends(ventes)):
+async def creer_categorie(payload: Categorie, ctx: Contexte = Depends(edition)):
     doc = {"id": new_id(), "nom": payload.nom.strip(), "slug": slugifier(payload.nom), "ordre": payload.ordre}
     await ctx.tdb.categories.insert_one(doc)
     return doc
 
 
 @router.put("/categories/{categorie_id}")
-async def modifier_categorie(categorie_id: str, payload: Categorie, ctx: Contexte = Depends(ventes)):
+async def modifier_categorie(categorie_id: str, payload: Categorie, ctx: Contexte = Depends(edition)):
     doc = await ctx.tdb.categories.find_one_and_update(
         {"id": categorie_id},
         {"$set": {"nom": payload.nom.strip(), "slug": slugifier(payload.nom), "ordre": payload.ordre}})
@@ -49,7 +51,7 @@ async def modifier_categorie(categorie_id: str, payload: Categorie, ctx: Context
 
 
 @router.delete("/categories/{categorie_id}")
-async def supprimer_categorie(categorie_id: str, ctx: Contexte = Depends(ventes)):
+async def supprimer_categorie(categorie_id: str, ctx: Contexte = Depends(edition)):
     if await ctx.tdb.produits.count_documents({"categorie_id": categorie_id}):
         raise HTTPException(409, "Des produits utilisent encore cette catégorie")
     await ctx.tdb.categories.delete_one({"id": categorie_id})
@@ -137,7 +139,7 @@ async def lire_produit(produit_id: str, ctx: Contexte = Depends(tout_le_personne
 
 
 @router.post("/produits", status_code=201)
-async def creer_produit(payload: ProduitCreation, ctx: Contexte = Depends(ventes)):
+async def creer_produit(payload: ProduitCreation, ctx: Contexte = Depends(edition)):
     if await ctx.tdb.produits.find_one({"reference": payload.reference.strip()}):
         raise HTTPException(409, "Cette référence existe déjà dans votre catalogue")
     _controler_mise_en_vente(payload)
@@ -158,7 +160,7 @@ async def creer_produit(payload: ProduitCreation, ctx: Contexte = Depends(ventes
 
 
 @router.put("/produits/{produit_id}")
-async def modifier_produit(produit_id: str, payload: ProduitSaisie, ctx: Contexte = Depends(ventes)):
+async def modifier_produit(produit_id: str, payload: ProduitSaisie, ctx: Contexte = Depends(edition)):
     actuel = await ctx.tdb.produits.find_one({"id": produit_id})
     if not actuel:
         raise HTTPException(404, "Produit introuvable")
@@ -197,7 +199,7 @@ async def marquer_vu(produit_id: str, ctx: Contexte = Depends(tout_le_personnel)
 
 
 @router.post("/produits/{produit_id}/image")
-async def envoyer_image_produit(produit_id: str, fichier: UploadFile = File(...), ctx: Contexte = Depends(ventes)):
+async def envoyer_image_produit(produit_id: str, fichier: UploadFile = File(...), ctx: Contexte = Depends(edition)):
     produit = await ctx.tdb.produits.find_one({"id": produit_id})
     if not produit:
         raise HTTPException(404, "Produit introuvable")
@@ -224,7 +226,7 @@ async def types_documents(_: Contexte = Depends(tout_le_personnel)):
 @router.post("/produits/{produit_id}/documents")
 async def ajouter_document(produit_id: str, fichier: UploadFile = File(...), titre: str = Form(..., max_length=150),
                            type_document: str = Form("AUTRE"), visible_clients: bool = Form(False),
-                           ctx: Contexte = Depends(ventes)):
+                           ctx: Contexte = Depends(edition)):
     if type_document not in TYPES_DOCUMENT:
         raise HTTPException(400, "Type de document inconnu")
     if not await ctx.tdb.produits.find_one({"id": produit_id}, {"_id": 0, "id": 1}):
@@ -242,7 +244,7 @@ class VisibiliteDocument(BaseModel):
 
 @router.patch("/produits/{produit_id}/documents/{document_id}")
 async def visibilite_document(produit_id: str, document_id: str, payload: VisibiliteDocument,
-                              ctx: Contexte = Depends(ventes)):
+                              ctx: Contexte = Depends(edition)):
     produit = await ctx.tdb.produits.find_one_and_update(
         {"id": produit_id, "documents.id": document_id},
         {"$set": {"documents.$.visible_clients": payload.visible_clients}})
@@ -252,7 +254,7 @@ async def visibilite_document(produit_id: str, document_id: str, payload: Visibi
 
 
 @router.delete("/produits/{produit_id}/documents/{document_id}")
-async def supprimer_document(produit_id: str, document_id: str, ctx: Contexte = Depends(ventes)):
+async def supprimer_document(produit_id: str, document_id: str, ctx: Contexte = Depends(edition)):
     produit = await ctx.tdb.produits.find_one({"id": produit_id})
     doc = next((d for d in (produit or {}).get("documents", []) if d["id"] == document_id), None)
     if not doc:

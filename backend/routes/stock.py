@@ -7,20 +7,22 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import Contexte, ventes
+from auth import Contexte, permission
 from services import MOTIFS, entree_stock, est_stockable, prochain_numero, sortie_stock
 from utils import new_id, now_iso, today_iso
 
 router = APIRouter(tags=["Stock"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+stock_dep = permission("stock")
 
 
 @router.get("/stock/motifs")
-async def motifs(_: Contexte = Depends(ventes)):
+async def motifs(_: Contexte = Depends(stock_dep)):
     return MOTIFS
 
 
 @router.get("/stock/mouvements")
-async def lister_mouvements(produit_id: str = "", ctx: Contexte = Depends(ventes)):
+async def lister_mouvements(produit_id: str = "", ctx: Contexte = Depends(stock_dep)):
     filtre = {"produit_id": produit_id} if produit_id else {}
     return await ctx.tdb.mouvements.find(filtre).sort("date", -1).to_list(500)
 
@@ -34,7 +36,7 @@ class MouvementManuel(BaseModel):
 
 
 @router.post("/stock/mouvements", status_code=201)
-async def mouvement_manuel(payload: MouvementManuel, ctx: Contexte = Depends(ventes)):
+async def mouvement_manuel(payload: MouvementManuel, ctx: Contexte = Depends(stock_dep)):
     """Correction manuelle (casse, inventaire...). Pour annuler une erreur,
     on saisit un mouvement inverse : le journal n'est jamais effacé."""
     produit = await ctx.tdb.produits.find_one({"id": payload.produit_id})
@@ -82,12 +84,12 @@ async def _preparer_bon(ctx: Contexte, payload: BonSaisie) -> dict:
 
 
 @router.get("/stock/bons")
-async def lister_bons(ctx: Contexte = Depends(ventes)):
+async def lister_bons(ctx: Contexte = Depends(stock_dep)):
     return await ctx.tdb.bons_entree.find({}).sort([("date", -1), ("numero", -1)]).to_list(500)
 
 
 @router.get("/stock/bons/{bon_id}")
-async def lire_bon(bon_id: str, ctx: Contexte = Depends(ventes)):
+async def lire_bon(bon_id: str, ctx: Contexte = Depends(stock_dep)):
     bon = await ctx.tdb.bons_entree.find_one({"id": bon_id})
     if not bon:
         raise HTTPException(404, "Bon introuvable")
@@ -95,7 +97,7 @@ async def lire_bon(bon_id: str, ctx: Contexte = Depends(ventes)):
 
 
 @router.post("/stock/bons", status_code=201)
-async def creer_bon(payload: BonSaisie, ctx: Contexte = Depends(ventes)):
+async def creer_bon(payload: BonSaisie, ctx: Contexte = Depends(stock_dep)):
     bon = {"id": new_id(), "numero": await prochain_numero(ctx.boutique["id"], "BE"),
            **await _preparer_bon(ctx, payload), "valide": False, "date_validation": None,
            "created_at": now_iso(), **ctx.auteur}
@@ -104,7 +106,7 @@ async def creer_bon(payload: BonSaisie, ctx: Contexte = Depends(ventes)):
 
 
 @router.put("/stock/bons/{bon_id}")
-async def modifier_bon(bon_id: str, payload: BonSaisie, ctx: Contexte = Depends(ventes)):
+async def modifier_bon(bon_id: str, payload: BonSaisie, ctx: Contexte = Depends(stock_dep)):
     bon = await ctx.tdb.bons_entree.find_one_and_update(
         {"id": bon_id, "valide": False}, {"$set": await _preparer_bon(ctx, payload)})
     if not bon:
@@ -113,7 +115,7 @@ async def modifier_bon(bon_id: str, payload: BonSaisie, ctx: Contexte = Depends(
 
 
 @router.post("/stock/bons/{bon_id}/valider")
-async def valider_bon(bon_id: str, ctx: Contexte = Depends(ventes)):
+async def valider_bon(bon_id: str, ctx: Contexte = Depends(stock_dep)):
     """Fait entrer en stock toutes les lignes, UNE seule fois : le passage
     valide=False -> True est atomique (un double-clic ne double pas le stock)."""
     bon = await ctx.tdb.bons_entree.find_one_and_update(
@@ -133,7 +135,7 @@ async def valider_bon(bon_id: str, ctx: Contexte = Depends(ventes)):
 
 
 @router.delete("/stock/bons/{bon_id}")
-async def supprimer_bon(bon_id: str, ctx: Contexte = Depends(ventes)):
+async def supprimer_bon(bon_id: str, ctx: Contexte = Depends(stock_dep)):
     res = await ctx.tdb.bons_entree.delete_one({"id": bon_id, "valide": False})
     if not res.deleted_count:
         raise HTTPException(409, "Seul un bon non validé peut être supprimé")

@@ -1,4 +1,4 @@
-"""Paramètres de SA boutique (réservé au gérant) : fiche d'identité, logo,
+"""Paramètres de SA boutique (réservé au DG) : fiche d'identité, logo,
 messagerie (SMTP, textes des e-mails, journal) et équipe."""
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
-from auth import Contexte, gerant, hash_password, tout_le_personnel, user_public
+from auth import ROLES_BOUTIQUE, Contexte, hash_password, permission, tout_le_personnel, user_public
 from db import SANS_ID, db
 from messagerie import MODELES_PAR_DEFAUT, envoyer_email, modeles_de
 from routes.auth import _sans_secrets
@@ -16,6 +16,8 @@ from storage import enregistrer_image, lire_image, supprimer_image
 from utils import new_id, normaliser_telephone, now_iso
 
 router = APIRouter(prefix="/boutique", tags=["Ma boutique"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+parametres = permission("parametres")
 
 
 @router.get("")
@@ -46,7 +48,7 @@ class FicheBoutique(BaseModel):
 
 
 @router.patch("")
-async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(gerant)):
+async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(parametres)):
     # Le nom et le code marchand sont gérés par l'administrateur de la plateforme
     maj = payload.model_dump(exclude_none=True)
     if "telephone" in maj:
@@ -61,7 +63,7 @@ async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(gerant)
 
 
 @router.post("/logo")
-async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(gerant)):
+async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(parametres)):
     contenu, type_mime = await lire_image(fichier)
     url = await enregistrer_image(ctx.boutique["id"], "logo", contenu, type_mime)
     await supprimer_image(ctx.boutique["id"], ctx.boutique.get("logo_url"))
@@ -73,22 +75,22 @@ async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(
 # Dossier KYC (justificatifs privés, envoyés par le DG)
 # ---------------------------------------------------------------------------
 @router.get("/kyc/types")
-async def types_kyc(_: Contexte = Depends(gerant)):
+async def types_kyc(_: Contexte = Depends(parametres)):
     return {"types": service_kyc.TYPES_PIECES_KYC, "statuts": service_kyc.STATUTS_KYC}
 
 
 @router.post("/kyc/documents")
-async def envoyer_justificatif(fichier: UploadFile = File(...), type_piece: str = Form(...), ctx: Contexte = Depends(gerant)):
+async def envoyer_justificatif(fichier: UploadFile = File(...), type_piece: str = Form(...), ctx: Contexte = Depends(parametres)):
     return await service_kyc.ajouter_piece(ctx.boutique, fichier, type_piece, ctx.user.get("nom", ""))
 
 
 @router.get("/kyc/documents/{piece_id}")
-async def ouvrir_justificatif(piece_id: str, ctx: Contexte = Depends(gerant)):
+async def ouvrir_justificatif(piece_id: str, ctx: Contexte = Depends(parametres)):
     return await service_kyc.ouvrir_piece(ctx.boutique, piece_id)
 
 
 @router.delete("/kyc/documents/{piece_id}")
-async def retirer_justificatif(piece_id: str, ctx: Contexte = Depends(gerant)):
+async def retirer_justificatif(piece_id: str, ctx: Contexte = Depends(parametres)):
     if (ctx.boutique.get("kyc") or {}).get("statut") == "VERIFIE" and ctx.role != "super_admin":
         raise HTTPException(409, "Dossier vérifié : contactez l'administrateur pour retirer un justificatif")
     return await service_kyc.retirer_piece(ctx.boutique, piece_id)
@@ -112,7 +114,7 @@ class ParametresMessagerie(BaseModel):
 
 
 @router.put("/messagerie")
-async def regler_messagerie(payload: ParametresMessagerie, ctx: Contexte = Depends(gerant)):
+async def regler_messagerie(payload: ParametresMessagerie, ctx: Contexte = Depends(parametres)):
     actuel = ctx.boutique.get("messagerie") or {}
     nouveau = payload.model_dump()
     if not nouveau.get("smtp_mot_de_passe"):
@@ -128,14 +130,14 @@ class EmailTest(BaseModel):
 
 
 @router.post("/messagerie/test")
-async def tester_messagerie(payload: EmailTest, ctx: Contexte = Depends(gerant)):
+async def tester_messagerie(payload: EmailTest, ctx: Contexte = Depends(parametres)):
     journal = await envoyer_email(ctx.boutique, payload.destinataire, "Test de messagerie",
                                   "Les réglages de messagerie de votre boutique fonctionnent.", "TEST")
     return {"statut": journal["statut"], "erreur": journal["erreur"]}
 
 
 @router.get("/messagerie/modeles")
-async def lister_modeles(ctx: Contexte = Depends(gerant)):
+async def lister_modeles(ctx: Contexte = Depends(parametres)):
     return await modeles_de(ctx.tdb)
 
 
@@ -146,7 +148,7 @@ class ModeleMaj(BaseModel):
 
 
 @router.put("/messagerie/modeles/{code}")
-async def modifier_modele(code: str, payload: ModeleMaj, ctx: Contexte = Depends(gerant)):
+async def modifier_modele(code: str, payload: ModeleMaj, ctx: Contexte = Depends(parametres)):
     if code not in MODELES_PAR_DEFAUT:
         raise HTTPException(404, "Modèle inconnu")
     await modeles_de(ctx.tdb)  # s'assure qu'il existe
@@ -154,7 +156,7 @@ async def modifier_modele(code: str, payload: ModeleMaj, ctx: Contexte = Depends
 
 
 @router.post("/messagerie/modeles/{code}/reinitialiser")
-async def reinitialiser_modele(code: str, ctx: Contexte = Depends(gerant)):
+async def reinitialiser_modele(code: str, ctx: Contexte = Depends(parametres)):
     if code not in MODELES_PAR_DEFAUT:
         raise HTTPException(404, "Modèle inconnu")
     _, sujet, corps = MODELES_PAR_DEFAUT[code]
@@ -164,7 +166,7 @@ async def reinitialiser_modele(code: str, ctx: Contexte = Depends(gerant)):
 
 
 @router.get("/messagerie/journal")
-async def journal_envois(ctx: Contexte = Depends(gerant)):
+async def journal_envois(ctx: Contexte = Depends(parametres)):
     return await ctx.tdb.journal_envois.find({}).sort("date", -1).to_list(200)
 
 
@@ -175,12 +177,12 @@ class MembreCreation(BaseModel):
     nom: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     mot_de_passe: str = Field(..., min_length=8)
-    role: Literal["gerant", "vendeur", "technicien"] = "vendeur"
+    role: Literal["dg", "commercial", "secretaire", "comptable", "technicien"] = "commercial"
 
 
 class MembreMaj(BaseModel):
     nom: Optional[str] = Field(None, min_length=2, max_length=100)
-    role: Optional[Literal["gerant", "vendeur", "technicien"]] = None
+    role: Optional[Literal["dg", "commercial", "secretaire", "comptable", "technicien"]] = None
     actif: Optional[bool] = None
     mot_de_passe: Optional[str] = Field(None, min_length=8)
 
@@ -192,7 +194,7 @@ async def lister_equipe(ctx: Contexte = Depends(tout_le_personnel)):
 
 
 @router.post("/equipe", status_code=201)
-async def ajouter_membre(payload: MembreCreation, ctx: Contexte = Depends(gerant)):
+async def ajouter_membre(payload: MembreCreation, ctx: Contexte = Depends(parametres)):
     if await db.users.find_one({"email": payload.email.lower()}):
         raise HTTPException(409, "Un compte existe déjà avec cet e-mail")
     membre = {
@@ -205,13 +207,13 @@ async def ajouter_membre(payload: MembreCreation, ctx: Contexte = Depends(gerant
 
 
 @router.patch("/equipe/{user_id}")
-async def modifier_membre(user_id: str, payload: MembreMaj, ctx: Contexte = Depends(gerant)):
+async def modifier_membre(user_id: str, payload: MembreMaj, ctx: Contexte = Depends(parametres)):
     # Filtre boutique_id : un gérant ne peut modifier QUE les comptes de sa boutique
     membre = await db.users.find_one({"id": user_id, "boutique_id": ctx.boutique["id"]}, SANS_ID)
     if not membre:
         raise HTTPException(404, "Membre introuvable")
-    if user_id == ctx.user["id"] and (payload.actif is False or (payload.role and payload.role != "gerant")):
-        raise HTTPException(400, "Vous ne pouvez pas vous retirer vous-même le rôle de gérant")
+    if user_id == ctx.user["id"] and (payload.actif is False or (payload.role and payload.role != "dg")):
+        raise HTTPException(400, "Vous ne pouvez pas vous retirer vous-même le rôle de DG")
     maj = payload.model_dump(exclude_none=True)
     if "mot_de_passe" in maj:
         maj["password_hash"] = hash_password(maj.pop("mot_de_passe"))

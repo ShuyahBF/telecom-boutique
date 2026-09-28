@@ -1,5 +1,5 @@
 """Administration de la PLATEFORME (super-administrateur uniquement) :
-création des boutiques (tenants) et de leur premier compte gérant."""
+création des boutiques (tenants) et de leur premier compte : le DG."""
 from __future__ import annotations
 
 import re
@@ -57,9 +57,9 @@ class BoutiqueCreation(Identification):
     email: Optional[EmailStr] = None
     code_marchand: Optional[str] = Field(None, max_length=12)
     # Premier compte gérant de la boutique
-    gerant_nom: str = Field(..., min_length=2)
-    gerant_email: EmailStr
-    gerant_mot_de_passe: str = Field(..., min_length=8)
+    # Compte du DG (son nom est celui de dg_nom, obligatoire ici)
+    dg_email: EmailStr
+    dg_mot_de_passe: str = Field(..., min_length=8)
 
 
 class BoutiqueMaj(BaseModel):
@@ -110,8 +110,10 @@ async def lister_boutiques(_: dict = Depends(get_super_admin)):
 
 @router.post("/boutiques", status_code=201)
 async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_super_admin)):
-    if await db.users.find_one({"email": payload.gerant_email.lower()}):
-        raise HTTPException(409, "Un compte existe déjà avec l'e-mail du gérant")
+    if len(payload.dg_nom.strip()) < 2:
+        raise HTTPException(400, "Indiquez le nom du DG de la boutique")
+    if await db.users.find_one({"email": payload.dg_email.lower()}):
+        raise HTTPException(409, "Un compte existe déjà avec l'e-mail du DG")
     code = _normaliser_code(payload.code_marchand) if payload.code_marchand else await _code_marchand_unique()
     if await db.boutiques.find_one({"code_marchand": code}):
         raise HTTPException(409, "Ce code marchand est déjà utilisé")
@@ -123,16 +125,16 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
         **Identification(**payload.model_dump(include=set(Identification.model_fields))).model_dump(),
     }
     await db.boutiques.insert_one(boutique.copy())
-    gerant = {
-        "id": new_id(), "email": payload.gerant_email.lower(), "nom": payload.gerant_nom.strip(),
-        "password_hash": hash_password(payload.gerant_mot_de_passe), "role": "gerant",
+    dg = {
+        "id": new_id(), "email": payload.dg_email.lower(), "nom": payload.dg_nom.strip(),
+        "password_hash": hash_password(payload.dg_mot_de_passe), "role": "dg",
         "boutique_id": boutique["id"], "actif": True, "created_at": now_iso(),
     }
-    await db.users.insert_one(gerant.copy())
+    await db.users.insert_one(dg.copy())
     # Première initialisation : la boutique reçoit tout le catalogue public (sans prix)
     from catalogue_public import copier_catalogue_dans_boutique
     nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
-    return {"boutique": _sans_secrets(boutique), "gerant": user_public(gerant), "produits_copies": nb_produits}
+    return {"boutique": _sans_secrets(boutique), "dg": user_public(dg), "produits_copies": nb_produits}
 
 
 @router.patch("/boutiques/{boutique_id}")

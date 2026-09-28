@@ -12,7 +12,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import Contexte, atelier
+from auth import Contexte, permission
 from messagerie import lien_suivi, notifier_en_fond
 from routes.documents import creer_document, enrichir
 from routes.tiers import instantane_client
@@ -20,6 +20,8 @@ from services import entree_stock, est_stockable, prochain_numero, sortie_stock
 from utils import new_id, now_iso, today_iso
 
 router = APIRouter(prefix="/maintenance", tags=["Maintenance (SAV)"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+maintenance_dep = permission("maintenance")
 
 STATUTS_SAV = {
     "RECU": "Appareil reçu",
@@ -87,12 +89,12 @@ async def _lire(ctx: Contexte, dossier_id: str) -> dict:
 
 
 @router.get("/statuts")
-async def statuts(_: Contexte = Depends(atelier)):
+async def statuts(_: Contexte = Depends(maintenance_dep)):
     return STATUTS_SAV
 
 
 @router.get("")
-async def lister(statut: str = "", en_cours: bool = False, q: str = "", ctx: Contexte = Depends(atelier)):
+async def lister(statut: str = "", en_cours: bool = False, q: str = "", ctx: Contexte = Depends(maintenance_dep)):
     filtre: dict = {}
     if statut:
         filtre["statut"] = statut
@@ -107,12 +109,12 @@ async def lister(statut: str = "", en_cours: bool = False, q: str = "", ctx: Con
 
 
 @router.get("/{dossier_id}")
-async def lire(dossier_id: str, ctx: Contexte = Depends(atelier)):
+async def lire(dossier_id: str, ctx: Contexte = Depends(maintenance_dep)):
     return avec_libelles(await _lire(ctx, dossier_id))
 
 
 @router.post("", status_code=201)
-async def deposer(payload: DossierSaisie, ctx: Contexte = Depends(atelier)):
+async def deposer(payload: DossierSaisie, ctx: Contexte = Depends(maintenance_dep)):
     client = await ctx.tdb.clients.find_one({"id": payload.client_id})
     if not client:
         raise HTTPException(400, "Client inconnu")
@@ -132,7 +134,7 @@ async def deposer(payload: DossierSaisie, ctx: Contexte = Depends(atelier)):
 
 
 @router.put("/{dossier_id}")
-async def modifier(dossier_id: str, payload: DossierSaisie, ctx: Contexte = Depends(atelier)):
+async def modifier(dossier_id: str, payload: DossierSaisie, ctx: Contexte = Depends(maintenance_dep)):
     client = await ctx.tdb.clients.find_one({"id": payload.client_id})
     if not client:
         raise HTTPException(400, "Client inconnu")
@@ -150,7 +152,7 @@ class ChangementStatut(BaseModel):
 
 
 @router.post("/{dossier_id}/statut")
-async def changer_statut(dossier_id: str, payload: ChangementStatut, ctx: Contexte = Depends(atelier)):
+async def changer_statut(dossier_id: str, payload: ChangementStatut, ctx: Contexte = Depends(maintenance_dep)):
     avant = await _lire(ctx, dossier_id)
     maj: dict = {"statut": payload.statut}
     if payload.statut == "RESTITUE" and not avant.get("date_restitution"):
@@ -171,7 +173,7 @@ class PieceSaisie(BaseModel):
 
 
 @router.post("/{dossier_id}/pieces")
-async def ajouter_piece(dossier_id: str, payload: PieceSaisie, ctx: Contexte = Depends(atelier)):
+async def ajouter_piece(dossier_id: str, payload: PieceSaisie, ctx: Contexte = Depends(maintenance_dep)):
     """Pièce consommée pendant la réparation : SORT du stock immédiatement."""
     d = await _lire(ctx, dossier_id)
     produit = await ctx.tdb.produits.find_one({"id": payload.produit_id})
@@ -189,7 +191,7 @@ async def ajouter_piece(dossier_id: str, payload: PieceSaisie, ctx: Contexte = D
 
 
 @router.delete("/{dossier_id}/pieces/{piece_id}")
-async def retirer_piece(dossier_id: str, piece_id: str, ctx: Contexte = Depends(atelier)):
+async def retirer_piece(dossier_id: str, piece_id: str, ctx: Contexte = Depends(maintenance_dep)):
     """Retirer une pièce du dossier = la remettre en stock."""
     d = await _lire(ctx, dossier_id)
     piece = next((p for p in d.get("pieces", []) if p["id"] == piece_id), None)
@@ -204,13 +206,13 @@ async def retirer_piece(dossier_id: str, piece_id: str, ctx: Contexte = Depends(
 
 
 @router.post("/{dossier_id}/facture")
-async def generer_facture(dossier_id: str, ctx: Contexte = Depends(atelier)):
+async def generer_facture(dossier_id: str, ctx: Contexte = Depends(maintenance_dep)):
     """Facture de réparation (brouillon) : main d'œuvre (montant du devis) +
     pièces utilisées. Les pièces étant DÉJÀ sorties du stock par le dossier,
     elles sont facturées en lignes libres (sans produit) pour ne pas être
     déstockées une deuxième fois à la validation."""
-    if ctx.role == "technicien":
-        raise HTTPException(403, "La facturation est réservée aux vendeurs et au gérant")
+    if not ctx.peut("facturation"):
+        raise HTTPException(403, "La facturation est réservée au DG, aux commerciaux et au comptable")
     d = await _lire(ctx, dossier_id)
     if d.get("facture_id"):
         existante = await ctx.tdb.documents.find_one({"id": d["facture_id"]})

@@ -7,11 +7,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import Contexte, ventes
+from auth import Contexte, permission
 from messagerie import lien_suivi, notifier_en_fond
 from utils import new_id, now_iso
 
 router = APIRouter(prefix="/conversations", tags=["Messagerie"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+messagerie_dep = permission("messagerie")
 
 
 def resume(c: dict) -> dict:
@@ -23,18 +25,18 @@ def resume(c: dict) -> dict:
 
 
 @router.get("")
-async def lister(statut: str = "", ctx: Contexte = Depends(ventes)):
+async def lister(statut: str = "", ctx: Contexte = Depends(messagerie_dep)):
     filtre = {"statut": statut} if statut else {}
     return [resume(c) for c in await ctx.tdb.conversations.find(filtre).sort("date_maj", -1).to_list(500)]
 
 
 @router.get("/non-lues")
-async def compteur(ctx: Contexte = Depends(ventes)):
+async def compteur(ctx: Contexte = Depends(messagerie_dep)):
     return {"non_lues": await ctx.tdb.conversations.count_documents({"statut": "ATTENTE"})}
 
 
 @router.get("/{conversation_id}")
-async def lire(conversation_id: str, ctx: Contexte = Depends(ventes)):
+async def lire(conversation_id: str, ctx: Contexte = Depends(messagerie_dep)):
     conv = await ctx.tdb.conversations.find_one({"id": conversation_id})
     if not conv:
         raise HTTPException(404, "Conversation introuvable")
@@ -51,7 +53,7 @@ class Reponse(BaseModel):
 
 
 @router.post("/{conversation_id}/repondre")
-async def repondre(conversation_id: str, payload: Reponse, ctx: Contexte = Depends(ventes)):
+async def repondre(conversation_id: str, payload: Reponse, ctx: Contexte = Depends(messagerie_dep)):
     message = {"id": new_id(), "auteur_type": "EQUIPE", "auteur_nom": ctx.user.get("nom", ""),
                "texte": payload.texte.strip(), "date": now_iso(), "lu": True}
     conv = await ctx.tdb.conversations.find_one_and_update(
@@ -70,7 +72,7 @@ class StatutConversation(BaseModel):
 
 
 @router.post("/{conversation_id}/statut")
-async def changer_statut(conversation_id: str, payload: StatutConversation, ctx: Contexte = Depends(ventes)):
+async def changer_statut(conversation_id: str, payload: StatutConversation, ctx: Contexte = Depends(messagerie_dep)):
     conv = await ctx.tdb.conversations.find_one_and_update({"id": conversation_id}, {"$set": {"statut": payload.statut}})
     if not conv:
         raise HTTPException(404, "Conversation introuvable")

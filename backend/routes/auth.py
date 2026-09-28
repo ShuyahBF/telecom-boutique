@@ -1,4 +1,4 @@
-"""Connexion du personnel (gérants, vendeurs, techniciens, super-admin)."""
+"""Connexion du personnel (DG, commerciaux, secrétaires, comptables, techniciens, super-admin)."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException

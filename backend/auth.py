@@ -2,9 +2,16 @@
 
 Rôles :
   - super_admin : administrateur de la PLATEFORME (vous) ; crée les boutiques.
-  - gerant      : administrateur d'UNE boutique (paramètres, équipe, tout).
-  - vendeur     : ventes, stock, clients, commandes, messagerie.
-  - technicien  : maintenance (SAV), consultation du catalogue.
+  - dg          : Directeur Général d'une boutique : tous les droits, dont
+                  paramètres, équipe et dossier KYC.
+  - commercial  : catalogue, clients, proformas/factures, commandes, conseils.
+  - secretaire  : accueil des clients, dépôts SAV, commandes, messagerie.
+  - comptable   : factures et règlements, historique des paiements, stock,
+                  fournisseurs.
+  - technicien  : réparations (SAV), pièces détachées, consultation du catalogue.
+Les droits de chaque rôle sont regroupés dans la table PERMISSIONS ci-dessous
+(une seule table à modifier pour les changer), renvoyée au navigateur à la
+connexion pour afficher uniquement les menus autorisés.
 
 RÈGLE MULTI-TENANT : la boutique d'un membre du personnel est lue dans SA
 fiche en base (résolue côté serveur depuis le jeton), jamais depuis un
@@ -27,7 +34,29 @@ from db import SANS_ID, TenantDB, db
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
 
-ROLES_BOUTIQUE = ("gerant", "vendeur", "technicien")
+ROLES_BOUTIQUE = ("dg", "commercial", "secretaire", "comptable", "technicien")
+TOUS = ROLES_BOUTIQUE
+
+# Qui peut faire quoi (le super-administrateur a toujours tous les droits)
+PERMISSIONS: dict[str, tuple[str, ...]] = {
+    "tableau_de_bord": TOUS,
+    "catalogue.lecture": TOUS,
+    "catalogue.edition": ("dg", "commercial"),
+    "clients": TOUS,
+    "facturation": ("dg", "commercial", "comptable"),
+    "commandes": ("dg", "commercial", "secretaire"),
+    "maintenance": ("dg", "technicien", "secretaire", "commercial"),
+    "stock": ("dg", "comptable", "commercial"),
+    "fournisseurs": ("dg", "comptable", "commercial"),
+    "messagerie": ("dg", "commercial", "secretaire"),
+    "paiements.historique": ("dg", "comptable"),
+    "parametres": ("dg",),
+}
+
+
+def permissions_de(role: str) -> list[str]:
+    """Liste des permissions d'un rôle (toutes pour le super-administrateur)."""
+    return [p for p, roles in PERMISSIONS.items() if role == "super_admin" or role in roles]
 
 
 def hash_password(password: str) -> str:
@@ -54,8 +83,11 @@ def decode_access_token(token: str) -> Optional[str]:
 
 
 def user_public(user: dict) -> dict:
-    """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe)."""
-    return {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+    """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe),
+    avec la liste de ses permissions."""
+    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+    public["permissions"] = permissions_de(user.get("role", ""))
+    return public
 
 
 async def get_current_user(
@@ -91,6 +123,9 @@ class Contexte:
     def role(self) -> str:
         return self.user.get("role", "")
 
+    def peut(self, permission: str) -> bool:
+        return self.role == "super_admin" or self.role in PERMISSIONS.get(permission, ())
+
     @property
     def auteur(self) -> dict:
         """Signature enregistrée sur les opérations (mouvements, documents...)."""
@@ -116,19 +151,18 @@ async def get_contexte(
     return Contexte(user, boutique)
 
 
-def exiger_roles(*roles: str):
-    """Dépendance : limite une route à certains rôles (le super-admin passe toujours)."""
+def permission(nom: str):
+    """Dépendance : limite une route aux rôles qui ont cette permission."""
+    if nom not in PERMISSIONS:
+        raise ValueError(f"Permission inconnue : {nom}")
 
     async def _verif(ctx: Contexte = Depends(get_contexte)) -> Contexte:
-        if ctx.role != "super_admin" and ctx.role not in roles:
+        if not ctx.peut(nom):
             raise HTTPException(403, "Action non autorisée pour votre rôle")
         return ctx
 
     return _verif
 
 
-# Raccourcis lisibles pour les routes
-tout_le_personnel = exiger_roles("gerant", "vendeur", "technicien")
-ventes = exiger_roles("gerant", "vendeur")
-atelier = exiger_roles("gerant", "vendeur", "technicien")
-gerant = exiger_roles("gerant")
+# Raccourci : tout membre du personnel de la boutique
+tout_le_personnel = permission("tableau_de_bord")

@@ -8,10 +8,12 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 
-from auth import Contexte, ventes
+from auth import Contexte, permission
 from journal_paiements import MODES, STATUTS
 
 router = APIRouter(prefix="/journal-paiements", tags=["Historique des paiements"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+historique_dep = permission("paiements.historique")
 
 
 def _filtre(du: str, au: str, statut: str, canal: str, mode: str) -> dict:
@@ -29,7 +31,7 @@ def _filtre(du: str, au: str, statut: str, canal: str, mode: str) -> dict:
 
 @router.get("")
 async def historique(du: str = "", au: str = "", statut: str = "", canal: str = "", mode: str = "",
-                     ctx: Contexte = Depends(ventes)):
+                     ctx: Contexte = Depends(historique_dep)):
     entrees = await ctx.tdb.journal_paiements.find(_filtre(du, au, statut, canal, mode)).sort("date", -1).to_list(5000)
     # Totaux de la période : nombre et montant par statut, encaissé par mode
     par_statut = {k: {"nombre": 0, "montant": 0, "libelle": v} for k, v in STATUTS.items()}
@@ -46,7 +48,7 @@ async def historique(du: str = "", au: str = "", statut: str = "", canal: str = 
 
 @router.get("/export.csv")
 async def export_csv(du: str = "", au: str = "", statut: str = "", canal: str = "", mode: str = "",
-                     ctx: Contexte = Depends(ventes)):
+                     ctx: Contexte = Depends(historique_dep)):
     """Export tableur (séparateur « ; », lisible directement par Excel en français)."""
     entrees = await ctx.tdb.journal_paiements.find(_filtre(du, au, statut, canal, mode)).sort("date", 1).to_list(None)
     tampon = io.StringIO()

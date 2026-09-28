@@ -17,13 +17,15 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import Contexte, ventes
+from auth import Contexte, permission
 from journal_paiements import journaliser
 from routes.tiers import instantane_client
 from services import calculer_lignes, entree_stock, est_stockable, prochain_numero, sorties_groupees, statut_paiement
 from utils import montant_en_lettres, new_id, now_iso, today_iso
 
 router = APIRouter(prefix="/documents", tags=["Factures & proformas"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+facturation = permission("facturation")
 
 MODES_REGLEMENT = {"ESP": "Espèces", "OM": "Orange Money", "MOOV": "Moov Money", "MM": "Mobile Money (PawaPay)",
                    "CB": "Carte bancaire", "VIR": "Virement", "CHQ": "Chèque"}
@@ -122,12 +124,12 @@ async def creer_document(ctx: Contexte, type_document: str, client: dict, lignes
 
 
 @router.get("/modes-reglement")
-async def modes_reglement(_: Contexte = Depends(ventes)):
+async def modes_reglement(_: Contexte = Depends(facturation)):
     return MODES_REGLEMENT
 
 
 @router.get("")
-async def lister(type_document: str = "", statut: str = "", q: str = "", ctx: Contexte = Depends(ventes)):
+async def lister(type_document: str = "", statut: str = "", q: str = "", ctx: Contexte = Depends(facturation)):
     filtre: dict = {}
     if type_document:
         filtre["type_document"] = type_document
@@ -145,12 +147,12 @@ async def lister(type_document: str = "", statut: str = "", q: str = "", ctx: Co
 
 
 @router.get("/{document_id}")
-async def lire(document_id: str, ctx: Contexte = Depends(ventes)):
+async def lire(document_id: str, ctx: Contexte = Depends(facturation)):
     return enrichir(await _lire(ctx, document_id), ctx.boutique)
 
 
 @router.post("", status_code=201)
-async def creer(payload: DocumentSaisie, ctx: Contexte = Depends(ventes)):
+async def creer(payload: DocumentSaisie, ctx: Contexte = Depends(facturation)):
     client = await _client(ctx, payload.client_id)
     doc = await creer_document(ctx, payload.type_document, client, [l.model_dump() for l in payload.lignes],
                                payload.objet, payload.notes, payload.date, payload.date_echeance,
@@ -159,7 +161,7 @@ async def creer(payload: DocumentSaisie, ctx: Contexte = Depends(ventes)):
 
 
 @router.put("/{document_id}")
-async def modifier(document_id: str, payload: DocumentSaisie, ctx: Contexte = Depends(ventes)):
+async def modifier(document_id: str, payload: DocumentSaisie, ctx: Contexte = Depends(facturation)):
     actuel = await _lire(ctx, document_id)
     if actuel["type_document"] != payload.type_document:
         raise HTTPException(400, "Le type d'un document ne peut pas être changé")
@@ -177,7 +179,7 @@ async def modifier(document_id: str, payload: DocumentSaisie, ctx: Contexte = De
 
 
 @router.delete("/{document_id}")
-async def supprimer(document_id: str, ctx: Contexte = Depends(ventes)):
+async def supprimer(document_id: str, ctx: Contexte = Depends(facturation)):
     """Seul un BROUILLON de facture (sans numéro) peut être supprimé."""
     res = await ctx.tdb.documents.delete_one({"id": document_id, "type_document": "FAC", "statut": "BROUILLON"})
     if not res.deleted_count:
@@ -186,7 +188,7 @@ async def supprimer(document_id: str, ctx: Contexte = Depends(ventes)):
 
 
 @router.post("/{document_id}/valider")
-async def valider(document_id: str, ctx: Contexte = Depends(ventes)):
+async def valider(document_id: str, ctx: Contexte = Depends(facturation)):
     # 1) Verrou : BROUILLON -> EN_VALIDATION (atomique : un double-clic ne valide pas deux fois)
     doc = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id, "type_document": "FAC", "statut": "BROUILLON"}, {"$set": {"statut": "EN_VALIDATION"}})
@@ -222,7 +224,7 @@ async def valider(document_id: str, ctx: Contexte = Depends(ventes)):
 
 
 @router.post("/{document_id}/annuler")
-async def annuler(document_id: str, ctx: Contexte = Depends(ventes)):
+async def annuler(document_id: str, ctx: Contexte = Depends(facturation)):
     avant = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id, "statut": {"$in": ["BROUILLON", "VALIDE"]}}, {"$set": {"statut": "ANNULE"}}, apres=False)
     if not avant:
@@ -239,7 +241,7 @@ async def annuler(document_id: str, ctx: Contexte = Depends(ventes)):
 
 
 @router.post("/{document_id}/convertir")
-async def convertir(document_id: str, ctx: Contexte = Depends(ventes)):
+async def convertir(document_id: str, ctx: Contexte = Depends(facturation)):
     """Proforma acceptée -> facture brouillon reprenant toutes ses lignes."""
     pro = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id, "type_document": "PRO", "statut": "BROUILLON"}, {"$set": {"statut": "VALIDE"}})
@@ -263,7 +265,7 @@ class ReglementSaisie(BaseModel):
 
 
 @router.post("/{document_id}/reglements")
-async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Contexte = Depends(ventes)):
+async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Contexte = Depends(facturation)):
     reglement = {"id": new_id(), **payload.model_dump(), "saisi_par": ctx.user.get("nom", ""), "created_at": now_iso()}
     doc = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id, "type_document": "FAC", "statut": {"$ne": "ANNULE"}}, {"$push": {"reglements": reglement}})
@@ -277,7 +279,7 @@ async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Con
 
 
 @router.delete("/{document_id}/reglements/{reglement_id}")
-async def supprimer_reglement(document_id: str, reglement_id: str, ctx: Contexte = Depends(ventes)):
+async def supprimer_reglement(document_id: str, reglement_id: str, ctx: Contexte = Depends(facturation)):
     avant = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id}, {"$pull": {"reglements": {"id": reglement_id, "mode": {"$ne": "MM"}}}}, apres=False)
     if not avant:

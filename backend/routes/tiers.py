@@ -7,10 +7,13 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
-from auth import Contexte, atelier, ventes
+from auth import Contexte, permission
 from utils import new_id, normaliser_telephone, now_iso
 
 router = APIRouter(tags=["Clients & fournisseurs"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+clients_dep = permission("clients")
+fournisseurs_dep = permission("fournisseurs")
 
 
 def _recherche(q: str, champs: list[str]) -> dict:
@@ -42,13 +45,13 @@ def _client_doc(payload: ClientSaisie) -> dict:
 
 
 @router.get("/clients")
-async def lister_clients(q: str = "", ctx: Contexte = Depends(atelier)):
+async def lister_clients(q: str = "", ctx: Contexte = Depends(clients_dep)):
     filtre = _recherche(q, ["nom", "telephone", "email"])
     return await ctx.tdb.clients.find(filtre).sort("nom", 1).to_list(1000)
 
 
 @router.get("/clients/{client_id}")
-async def lire_client(client_id: str, ctx: Contexte = Depends(atelier)):
+async def lire_client(client_id: str, ctx: Contexte = Depends(clients_dep)):
     client = await ctx.tdb.clients.find_one({"id": client_id})
     if not client:
         raise HTTPException(404, "Client introuvable")
@@ -63,14 +66,14 @@ async def lire_client(client_id: str, ctx: Contexte = Depends(atelier)):
 
 
 @router.post("/clients", status_code=201)
-async def creer_client(payload: ClientSaisie, ctx: Contexte = Depends(atelier)):
+async def creer_client(payload: ClientSaisie, ctx: Contexte = Depends(clients_dep)):
     doc = {"id": new_id(), **_client_doc(payload), "created_at": now_iso()}
     await ctx.tdb.clients.insert_one(doc)
     return doc
 
 
 @router.put("/clients/{client_id}")
-async def modifier_client(client_id: str, payload: ClientSaisie, ctx: Contexte = Depends(atelier)):
+async def modifier_client(client_id: str, payload: ClientSaisie, ctx: Contexte = Depends(clients_dep)):
     doc = await ctx.tdb.clients.find_one_and_update({"id": client_id}, {"$set": _client_doc(payload)})
     if not doc:
         raise HTTPException(404, "Client introuvable")
@@ -113,12 +116,12 @@ class FournisseurSaisie(BaseModel):
 
 
 @router.get("/fournisseurs")
-async def lister_fournisseurs(q: str = "", ctx: Contexte = Depends(ventes)):
+async def lister_fournisseurs(q: str = "", ctx: Contexte = Depends(fournisseurs_dep)):
     return await ctx.tdb.fournisseurs.find(_recherche(q, ["nom", "contact", "telephone"])).sort("nom", 1).to_list(1000)
 
 
 @router.post("/fournisseurs", status_code=201)
-async def creer_fournisseur(payload: FournisseurSaisie, ctx: Contexte = Depends(ventes)):
+async def creer_fournisseur(payload: FournisseurSaisie, ctx: Contexte = Depends(fournisseurs_dep)):
     doc = {"id": new_id(), **payload.model_dump(), "email": payload.email or "",
            "telephone": normaliser_telephone(payload.telephone), "created_at": now_iso()}
     await ctx.tdb.fournisseurs.insert_one(doc)
@@ -126,7 +129,7 @@ async def creer_fournisseur(payload: FournisseurSaisie, ctx: Contexte = Depends(
 
 
 @router.put("/fournisseurs/{fournisseur_id}")
-async def modifier_fournisseur(fournisseur_id: str, payload: FournisseurSaisie, ctx: Contexte = Depends(ventes)):
+async def modifier_fournisseur(fournisseur_id: str, payload: FournisseurSaisie, ctx: Contexte = Depends(fournisseurs_dep)):
     maj = {**payload.model_dump(), "email": payload.email or "", "telephone": normaliser_telephone(payload.telephone)}
     doc = await ctx.tdb.fournisseurs.find_one_and_update({"id": fournisseur_id}, {"$set": maj})
     if not doc:

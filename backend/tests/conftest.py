@@ -49,8 +49,8 @@ def nouvelle_boutique(client, super_admin):
         n = _compteur["n"]
         r = client.post("/api/plateforme/boutiques", headers=super_admin, json={
             "nom": nom or f"Boutique {n}", "ville": "Ouagadougou", "telephone": "25 00 00 00",
-            "gerant_nom": f"Gérant {n}", "gerant_email": f"gerant{n}@test.bf",
-            "gerant_mot_de_passe": "motdepasse-123", **extra})
+            "dg_nom": f"DG {n}", "dg_email": f"gerant{n}@test.bf",
+            "dg_mot_de_passe": "motdepasse-123", **extra})
         assert r.status_code == 201, r.text
         login = client.post("/api/auth/login", json={"email": f"gerant{n}@test.bf", "password": "motdepasse-123"})
         return r.json()["boutique"], {"Authorization": f"Bearer {login.json()['access_token']}"}

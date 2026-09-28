@@ -6,12 +6,14 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from auth import Contexte, ventes
+from auth import Contexte, permission
 from messagerie import lien_suivi, notifier_en_fond
 from routes.documents import creer_document, enrichir
 from utils import now_iso
 
 router = APIRouter(prefix="/commandes", tags=["Commandes en ligne"])
+# Droits requis (voir la table PERMISSIONS dans auth.py)
+commandes_dep = permission("commandes")
 
 STATUTS_COMMANDE = {
     "RECUE": "Reçue", "CONFIRMEE": "Confirmée", "PREPARATION": "En préparation",
@@ -26,18 +28,18 @@ def avec_libelles(cmd: dict) -> dict:
 
 
 @router.get("/statuts")
-async def statuts(_: Contexte = Depends(ventes)):
+async def statuts(_: Contexte = Depends(commandes_dep)):
     return STATUTS_COMMANDE
 
 
 @router.get("")
-async def lister(statut: str = "", ctx: Contexte = Depends(ventes)):
+async def lister(statut: str = "", ctx: Contexte = Depends(commandes_dep)):
     filtre = {"statut": statut} if statut else {}
     return [avec_libelles(c) for c in await ctx.tdb.commandes.find(filtre).sort("date", -1).to_list(500)]
 
 
 @router.get("/{commande_id}")
-async def lire(commande_id: str, ctx: Contexte = Depends(ventes)):
+async def lire(commande_id: str, ctx: Contexte = Depends(commandes_dep)):
     cmd = await ctx.tdb.commandes.find_one({"id": commande_id})
     if not cmd:
         raise HTTPException(404, "Commande introuvable")
@@ -50,7 +52,7 @@ class ChangementStatut(BaseModel):
 
 
 @router.post("/{commande_id}/statut")
-async def changer_statut(commande_id: str, payload: ChangementStatut, ctx: Contexte = Depends(ventes)):
+async def changer_statut(commande_id: str, payload: ChangementStatut, ctx: Contexte = Depends(commandes_dep)):
     avant = await ctx.tdb.commandes.find_one({"id": commande_id})
     if not avant:
         raise HTTPException(404, "Commande introuvable")
@@ -68,9 +70,11 @@ async def changer_statut(commande_id: str, payload: ChangementStatut, ctx: Conte
 
 
 @router.post("/{commande_id}/facture")
-async def generer_facture(commande_id: str, ctx: Contexte = Depends(ventes)):
+async def generer_facture(commande_id: str, ctx: Contexte = Depends(commandes_dep)):
     """Crée la facture (brouillon) de la commande ; un paiement Mobile Money
     déjà reçu y est reporté comme règlement."""
+    if not ctx.peut("facturation"):
+        raise HTTPException(403, "La facturation est réservée au DG, aux commerciaux et au comptable")
     cmd = await ctx.tdb.commandes.find_one({"id": commande_id})
     if not cmd:
         raise HTTPException(404, "Commande introuvable")

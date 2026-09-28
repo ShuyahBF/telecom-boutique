@@ -362,3 +362,46 @@ def test_tableau_de_bord(client, boutique_equipee):
     tdb = client.get("/api/tableau-de-bord", headers=a["h"]).json()
     assert tdb["ca_mois_ht"] == f["total_ht"] and tdb["nb_factures_mois"] == 1
     assert len(tdb["ventes_30_jours"]) == 30
+
+
+def test_matrice_des_roles(client, boutique_equipee):
+    """Chaque rôle n'accède qu'à ce que prévoit la table PERMISSIONS."""
+    a = boutique_equipee
+    en_tetes = {}
+    for role in ("commercial", "secretaire", "comptable", "technicien"):
+        email = f"{role}-{a['boutique']['code_marchand'].lower()}@test.bf"
+        r = client.post("/api/boutique/equipe", headers=a["h"], json={
+            "nom": role.capitalize(), "email": email, "mot_de_passe": "motdepasse-123", "role": role})
+        assert r.status_code == 201, r.text
+        session = client.post("/api/auth/login", json={"email": email, "password": "motdepasse-123"}).json()
+        assert "tableau_de_bord" in session["user"]["permissions"]
+        en_tetes[role] = {"Authorization": f"Bearer {session['access_token']}"}
+
+    def code(role, methode, url, **kw):
+        return getattr(client, methode)(url, headers=en_tetes[role], **kw).status_code
+
+    # (url, rôles autorisés) -> les autres doivent recevoir 403
+    lectures = {
+        "/api/documents": {"commercial", "comptable"},
+        "/api/commandes": {"commercial", "secretaire"},
+        "/api/maintenance": {"commercial", "secretaire", "technicien"},
+        "/api/stock/mouvements": {"commercial", "comptable"},
+        "/api/fournisseurs": {"commercial", "comptable"},
+        "/api/conversations": {"commercial", "secretaire"},
+        "/api/journal-paiements": {"comptable"},
+        "/api/clients": {"commercial", "secretaire", "comptable", "technicien"},
+        "/api/produits": {"commercial", "secretaire", "comptable", "technicien"},
+    }
+    for url, autorises in lectures.items():
+        for role in en_tetes:
+            attendu = 200 if role in autorises else 403
+            assert code(role, "get", url) == attendu, (role, url)
+    # Écritures sensibles
+    assert code("secretaire", "post", "/api/categories", json={"nom": "X"}) == 403
+    assert code("commercial", "post", "/api/categories", json={"nom": "X"}) == 201
+    assert code("comptable", "patch", "/api/boutique", json={"slogan": "x"}) == 403
+    d = client.post("/api/maintenance", headers=en_tetes["secretaire"], json={
+        "client_id": a["client"]["id"], "marque": "A", "modele": "B", "panne_declaree": "x", "devis_montant": 5000}).json()
+    assert code("secretaire", "post", f"/api/maintenance/{d['id']}/facture") == 403
+    assert code("technicien", "post", f"/api/maintenance/{d['id']}/facture") == 403
+    assert code("comptable", "get", f"/api/maintenance/{d['id']}") == 403

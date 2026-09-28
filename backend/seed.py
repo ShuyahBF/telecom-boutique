@@ -60,8 +60,8 @@ async def creer_demo() -> None:
                 "mise_en_avant": True, "ordre": 0, "created_at": now_iso(), **boutique_par_defaut("Démo Télécom"),
                 "slogan": "Téléphones, accessoires et réparation", "adresse": "Avenue Kwame Nkrumah, Ouagadougou"}
     await db.boutiques.insert_one(boutique.copy())
-    await db.users.insert_one({"id": new_id(), "email": "demo@demo-telecom.bf", "nom": "Gérant Démo",
-                               "password_hash": hash_password("demo-2026!"), "role": "gerant",
+    await db.users.insert_one({"id": new_id(), "email": "demo@demo-telecom.bf", "nom": "DG Démo",
+                               "password_hash": hash_password("demo-2026!"), "role": "dg",
                                "boutique_id": boutique["id"], "actif": True, "created_at": now_iso()})
     tdb = TenantDB(boutique["id"])
     categories: dict[str, dict] = {}
