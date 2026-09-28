@@ -2,9 +2,10 @@
 
 Boutiques réalistes (villes du Burkina Faso et des pays voisins, adresses,
 géolocalisation, DG, IFU/RCCM/CNSS, catalogue aux prix du marché, stock,
-clients, dossiers de réparation), marquées « internes » : invisibles des
-visiteurs du portail, visibles des seuls super-administrateurs, et aucun
-e-mail/SMS/WhatsApp ne part de chez elles (coordonnées imaginaires).
+clients, dossiers de réparation), visibles de tous sur le portail comme de
+vraies boutiques, mais marquées en base comme boutiques de démonstration
+(drapeau « test », connu du seul super-administrateur) : pas de paiement en
+ligne, et aucun e-mail/SMS/WhatsApp ne part de chez elles (coordonnées imaginaires).
 
 Relançable sans risque : une boutique déjà présente (même nom) est ignorée.
 

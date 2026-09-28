@@ -11,13 +11,11 @@ from __future__ import annotations
 import math
 import re
 import secrets
-from contextvars import ContextVar
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
-from auth import utilisateur_optionnel
 from db import SANS_ID, TenantDB, db
 from messagerie import lien_suivi, notifier_client_en_fond, notifier_en_fond
 from routes.commandes import avec_libelles as cmd_libelles
@@ -27,19 +25,7 @@ from routes.tiers import instantane_client, trouver_ou_creer_client
 from services import est_stockable, prochain_numero
 from utils import new_id, normaliser_telephone, now_iso, motif_recherche
 
-# Boutiques « internes » (champ test=True) : boutiques de présentation créées par
-# la plateforme, invisibles des visiteurs ; seul un super-administrateur connecté
-# les voit sur le portail. Le drapeau est posé pour chaque requête par
-# _detecter_super_admin (dépendance du routeur), puis lu par _visible().
-_voir_boutiques_internes: ContextVar[bool] = ContextVar("voir_boutiques_internes", default=False)
-
-
-async def _detecter_super_admin(request: Request) -> None:
-    user = await utilisateur_optionnel(request)
-    _voir_boutiques_internes.set(bool(user and user.get("role") == "super_admin"))
-
-
-router = APIRouter(prefix="/public", tags=["Portail public"], dependencies=[Depends(_detecter_super_admin)])
+router = APIRouter(prefix="/public", tags=["Portail public"])
 
 CHAMPS_BOUTIQUE_PUBLICS = ("id", "nom", "slug", "code_marchand", "slogan", "logo_url", "pays", "ville", "adresse",
                            "latitude", "longitude", "telephone", "email", "couleur", "devise", "mise_en_avant")
@@ -54,7 +40,11 @@ EN_VENTE = {"actif": True, "visible_portail": True, "prix_vente": {"$gt": 0}}
 
 def _boutique_publique(b: dict) -> dict:
     publique = {k: b.get(k) for k in CHAMPS_BOUTIQUE_PUBLICS}
-    publique["paiement_mobile_money"] = bool(b.get("paiement_mobile_money", True) and paiement_disponible())
+    # Boutique de démonstration (drapeau interne « test ») : jamais de paiement en ligne,
+    # pour qu'un vrai visiteur ne paie pas une boutique fictive. Le drapeau lui-même
+    # n'est jamais renvoyé au public.
+    publique["paiement_mobile_money"] = bool(b.get("paiement_mobile_money", True) and paiement_disponible()
+                                             and not b.get("test"))
     return publique
 
 
@@ -80,17 +70,12 @@ def _produit_public(p: dict) -> dict:
 VISIBLE = {"actif": True, "validee": {"$ne": False}}
 
 
-def _visible() -> dict:
-    """Filtre des boutiques visibles par CE visiteur (les boutiques internes en plus
-    pour un super-administrateur connecté)."""
-    return dict(VISIBLE) if _voir_boutiques_internes.get() else {**VISIBLE, "test": {"$ne": True}}
-
 
 async def _boutique(slug: str) -> dict:
     """Boutique VISIBLE désignée par son adresse (slug) ou son code marchand."""
-    b = await db.boutiques.find_one({"slug": slug, **_visible()}, SANS_ID)
+    b = await db.boutiques.find_one({"slug": slug, **dict(VISIBLE)}, SANS_ID)
     if not b:
-        b = await db.boutiques.find_one({"code_marchand": slug.upper(), **_visible()}, SANS_ID)
+        b = await db.boutiques.find_one({"code_marchand": slug.upper(), **dict(VISIBLE)}, SANS_ID)
     if not b:
         raise HTTPException(404, "Boutique introuvable")
     return b
@@ -102,7 +87,7 @@ async def _boutique(slug: str) -> dict:
 @router.get("/boutiques")
 async def annuaire(q: str = ""):
     """Liste pour le carrousel ; q = nom (partiel) OU code marchand (exact)."""
-    filtre: dict = _visible()
+    filtre: dict = dict(VISIBLE)
     if q.strip():
         motif = motif_recherche(q)
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}},
@@ -179,6 +164,8 @@ class CommandeSaisie(BaseModel):
 @router.post("/b/{slug}/commandes", status_code=201)
 async def commander(slug: str, payload: CommandeSaisie):
     b = await _boutique(slug)
+    if payload.mode_paiement == "MOBILE_MONEY" and b.get("test"):
+        raise HTTPException(400, "Le paiement Mobile Money n'est pas disponible dans cette boutique : choisissez le paiement à la livraison.")
     tdb = TenantDB(b["id"])
     telephone = normaliser_telephone(payload.telephone)
     if len(telephone.lstrip("+")) < 8:
