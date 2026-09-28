@@ -39,9 +39,11 @@ import DossierFiche from "@/pages/gestion/DossierFiche";
 import BonDepot from "@/pages/gestion/BonDepot";
 import Parametres from "@/pages/gestion/Parametres";
 import CataloguePublic from "@/pages/gestion/CataloguePublic";
+import Paiements from "@/pages/gestion/Paiements";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
+import Sauvegardes from "@/pages/plateforme/Sauvegardes";
 
 
 export default function App() {
@@ -84,6 +86,7 @@ export default function App() {
               <Route path="messagerie" element={<RouteProtegee permission="messagerie"><Messagerie /></RouteProtegee>} />
               <Route path="produits" element={<Produits />} />
               <Route path="catalogue-public" element={<CataloguePublic />} />
+              <Route path="paiements" element={<RouteProtegee permission="paiements.historique"><Paiements /></RouteProtegee>} />
               <Route path="produits/nouveau" element={<RouteProtegee permission="catalogue.edition"><ProduitForm /></RouteProtegee>} />
               <Route path="produits/:id" element={<ProduitForm />} />
               <Route path="stock" element={<RouteProtegee permission="stock"><Stock /></RouteProtegee>} />
@@ -100,6 +103,7 @@ export default function App() {
             {/* Administration de la plateforme */}
             <Route path="/plateforme" element={<RouteProtegee roles={["super_admin"]}><Plateforme /></RouteProtegee>} />
             <Route path="/plateforme/catalogue" element={<RouteProtegee roles={["super_admin"]}><CatalogueAdmin /></RouteProtegee>} />
+            <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
