@@ -198,10 +198,15 @@ SCHEMA_FICHE = {
 }
 
 CONSIGNES_RECHERCHE = """Tu aides l'administrateur d'une plateforme de boutiques de téléphonie en Afrique de l'Ouest
-à remplir le catalogue commun des téléphones. Pour le modèle demandé, cherche sur le web en privilégiant
-les sources officielles des fabricants (apple.com, samsung.com, store.google.com, tecno-mobile.com,
-infinixmobility.com, itel-life.com, nokia.com, xiaomi.com...), puis des bases de fiches techniques reconnues
-(GSMArena...) pour compléter. Réponds en français.
+à remplir le catalogue commun des téléphones. Pour le modèle demandé, cherche sur le web dans cet ordre :
+1. les sites officiels des fabricants (apple.com, samsung.com, store.google.com, tecno-mobile.com,
+   infinixmobility.com, itel-life.com, nokia.com, xiaomi.com, oppo.com, vivo.com...), qui font foi ;
+2. les grandes bases de fiches techniques pour compléter et recouper :
+   - gsmarena.com (la plus complète, en anglais ; son « Phone Finder » couvre des milliers de modèles) ;
+   - kimovil.com/fr (en français, couvre aussi les marques chinoises peu connues en Europe) ;
+   - phonesdata.com/fr (en français, plus de 9 000 téléphones de 230 marques).
+Quand deux sources se contredisent, retiens le site du fabricant et signale l'écart dans remarques.
+Réponds en français (les pages françaises de Kimovil et PhonesData aident pour les libellés).
 
 - caracteristiques : une ligne par caractéristique, au format « Libellé : valeur », dans cet ordre quand
   c'est connu : Écran, Processeur, Mémoire vive, Stockage, Carte mémoire, Appareil photo arrière, Appareil
@@ -209,8 +214,8 @@ infinixmobility.com, itel-life.com, nokia.com, xiaomi.com...), puis des bases de
   annoncée), Réseaux (2G/3G/4G/5G), Double SIM / eSIM, NFC, Wi-Fi, Bluetooth, Connecteur, Dimensions,
   Poids, Indice d'étanchéité, Couleurs. N'invente rien : omets une ligne que tu n'as pas pu vérifier.
 - description : 2 à 3 phrases neutres pour un client (à qui s'adresse ce téléphone).
-- photo_url : adresse directe d'une image officielle du produit (fichier .jpg/.png/.webp) si tu en trouves
-  une dans tes résultats, sinon chaîne vide.
+- photo_url : adresse directe d'une image du produit (fichier .jpg/.png/.webp), de préférence celle du site
+  du fabricant (visuel de presse), sinon chaîne vide.
 - pieces_detachees : les pièces de rechange courantes pour ce modèle (écran complet, batterie, connecteur
   de charge, vitre arrière, caméra arrière, haut-parleur...), en précisant la référence de pièce si elle
   est connue.
