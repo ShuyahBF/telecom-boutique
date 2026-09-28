@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -44,7 +45,7 @@ def _instantane(modele: dict) -> dict:
     """Version publiée d'une fiche (ce que voient les boutiques)."""
     return {k: modele.get(k) for k in (
         "id", "reference", "nom", "marque", "type_produit", "annee_sortie", "photo_url", "description",
-        "caracteristiques", "modeles_compatibles", "sources")}
+        "caracteristiques", "modeles_compatibles", "sources", "referentiel_cle")}
 
 
 async def _categorie_boutique(tdb: TenantDB, type_produit: str, cache: dict) -> dict:
@@ -74,6 +75,15 @@ async def ajouter_a_boutique(boutique_id: str, publie: dict, nouveau: bool, cach
     fixe son prix puis décide de le mettre en vente."""
     tdb = TenantDB(boutique_id)
     if await tdb.produits.find_one({"catalogue_id": publie["id"]}, {"_id": 0, "id": 1}):
+        return False
+    # La boutique vend déjà ce modèle (téléphone créé par elle) : pas de doublon,
+    # son produit est seulement RELIÉ à la fiche publique (ses infos restent les siennes)
+    critere = [{"fiche_technique.modele": {"$regex": f"^{re.escape(publie['reference'])}$", "$options": "i"}}]
+    if publie.get("referentiel_cle"):
+        critere.append({"referentiel_cle": publie["referentiel_cle"]})
+    res = await tdb.produits.update_many({"catalogue_id": None, "type_produit": publie["type_produit"], "$or": critere},
+                                         {"$set": {"fiche_publique_id": publie["id"]}})
+    if res.modified_count or await tdb.produits.find_one({"fiche_publique_id": publie["id"]}, {"_id": 0, "id": 1}):
         return False
     cache = cache if cache is not None else {}
     cat = await _categorie_boutique(tdb, publie["type_produit"], cache)

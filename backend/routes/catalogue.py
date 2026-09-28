@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from auth import Contexte, permission, tout_le_personnel
 from services import entree_stock, est_stockable
 from catalogue_public import CHAMPS_PARTAGES
+from db import db
+from fiche_technique import ETATS, OPTIONS, RESEAUX, SYSTEMES, FicheTechnique
 from storage import enregistrer_image, lire_document, lire_image, supprimer_image
 from utils import new_id, now_iso, slugifier, motif_recherche
 
@@ -90,6 +92,18 @@ class ProduitSaisie(BaseModel):
     actif: bool = True
     # Conseils d'utilisation propres à la boutique (affichés sur sa vitrine)
     conseils_utilisation: str = Field("", max_length=5000)
+    # Fiche technique structurée (téléphones créés par la boutique, informations privées)
+    fiche_technique: Optional[FicheTechnique] = None
+    # Appareil correspondant du référentiel mondial (choisi pendant la saisie du modèle)
+    referentiel_cle: Optional[str] = Field(None, max_length=200)
+
+
+async def _completer_depuis_fiche(payload: "ProduitSaisie") -> None:
+    """Contrôle l'appareil du référentiel choisi et reprend le fabricant comme marque si besoin."""
+    if payload.referentiel_cle and not await db.referentiel_appareils.find_one({"cle": payload.referentiel_cle}, {"_id": 0, "cle": 1}):
+        raise HTTPException(400, "Appareil inconnu du référentiel mondial")
+    if payload.fiche_technique and payload.fiche_technique.fabricant and not payload.marque.strip():
+        payload.marque = payload.fiche_technique.fabricant.strip()
 
 
 def _controler_mise_en_vente(payload: "ProduitSaisie") -> None:
@@ -152,6 +166,7 @@ async def creer_produit(payload: ProduitCreation, ctx: Contexte = Depends(editio
     if await ctx.tdb.produits.find_one({"reference": payload.reference.strip()}):
         raise HTTPException(409, "Cette référence existe déjà dans votre catalogue")
     _controler_mise_en_vente(payload)
+    await _completer_depuis_fiche(payload)
     cat = await _categorie(ctx, payload.categorie_id)
     donnees = payload.model_dump(exclude={"stock_initial"})
     produit = {
@@ -177,6 +192,7 @@ async def modifier_produit(produit_id: str, payload: ProduitSaisie, ctx: Context
     if existant and existant["id"] != produit_id:
         raise HTTPException(409, "Cette référence existe déjà dans votre catalogue")
     _controler_mise_en_vente(payload)
+    await _completer_depuis_fiche(payload)
     cat = await _categorie(ctx, payload.categorie_id)
     # Le stock n'est PAS modifiable ici : il ne bouge que par des mouvements
     maj = {**payload.model_dump(), "reference": payload.reference.strip(), "nom": payload.nom.strip(),
@@ -185,7 +201,7 @@ async def modifier_produit(produit_id: str, payload: ProduitSaisie, ctx: Context
         # Modèle issu du catalogue public : les informations partagées (nom,
         # caractéristiques...) sont tenues à jour par la plateforme ; la boutique
         # règle seulement ses prix, sa visibilité, son rayon, sa garantie...
-        for champ in (*CHAMPS_PARTAGES, "reference"):
+        for champ in (*CHAMPS_PARTAGES, "reference", "fiche_technique", "referentiel_cle"):
             maj[champ] = actuel.get(champ)
     maj["slug"] = actuel.get("slug") if actuel.get("catalogue_id") else slugifier(f"{maj['nom']}-{maj['reference']}")
     maj["nouveau"] = False  # modifié = consulté
@@ -217,6 +233,12 @@ async def envoyer_image_produit(produit_id: str, fichier: UploadFile = File(...)
     await supprimer_image(ctx.boutique["id"], produit.get("image_url"))
     return await ctx.tdb.produits.find_one_and_update(
         {"id": produit_id}, {"$set": {"image_url": url, "image_source": "boutique"}})
+
+
+@router.get("/produits-fiche-technique/choix")
+async def choix_fiche_technique(_: Contexte = Depends(tout_le_personnel)):
+    """Listes de valeurs de la fiche technique (systèmes, réseaux, options, états)."""
+    return {"systemes": SYSTEMES, "reseaux": RESEAUX, "options": OPTIONS, "etats": ETATS}
 
 
 # ---------------------------------------------------------------------------

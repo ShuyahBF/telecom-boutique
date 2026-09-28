@@ -50,6 +50,9 @@ def _produit_public(p: dict) -> dict:
     publique["documents"] = [{k: d.get(k) for k in ("titre", "type", "url")}
                              for d in p.get("documents", []) if d.get("visible_clients")]
     publique["conseils_utilisation"] = p.get("conseils_utilisation", "")
+    # Fiche technique structurée de la boutique, en lignes « Libellé : valeur »
+    from fiche_technique import lignes
+    publique["fiche_technique"] = lignes(p.get("fiche_technique"), p.get("garantie_mois", 0))
     publique["modeles_compatibles"] = [m.get("nom") for m in p.get("modeles_compatibles", [])]
     # On indique seulement « disponible ou non », jamais la quantité exacte en stock
     publique["disponible"] = (not est_stockable(p)) or p.get("stock", 0) > 0
