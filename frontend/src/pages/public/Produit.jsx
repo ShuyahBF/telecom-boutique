@@ -4,6 +4,7 @@ import { apiClient, messageErreur } from "@/lib/api";
 import { prix } from "@/lib/format";
 import { ajouterAuPanier, lirePanier } from "@/lib/panier";
 import { TYPES_PRODUIT } from "@/lib/statuts";
+import BoutonAppelWa from "@/components/BoutonAppelWa";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import CarteProduit from "./_composants/CarteProduit";
@@ -148,7 +149,11 @@ export default function Produit() {
             </button>
           )}
 
-          <Link to={lienQuestion} className="btn-outline">💬 Poser une question sur ce produit</Link>
+          {/* Contact : question écrite (actif) et appel WhatsApp (grisé, bientôt disponible) */}
+          <div className="flex flex-wrap gap-2">
+            <Link to={lienQuestion} className="btn-outline flex-1">💬 Poser une question sur ce produit</Link>
+            <BoutonAppelWa />
+          </div>
 
           {/* Description */}
           {produit.description && (
