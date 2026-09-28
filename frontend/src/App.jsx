@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/Toast";
 import RouteProtegee from "@/components/RouteProtegee";
 import BoutiqueLayout from "@/components/BoutiqueLayout";
 import GestionLayout from "@/components/GestionLayout";
+import ChangerMotDePasse from "@/pages/ChangerMotDePasse";
 import Connexion from "@/pages/Connexion";
 // --- Portail public ---
 import Accueil from "@/pages/public/Accueil";
@@ -69,6 +70,7 @@ export default function App() {
             </Route>
 
             <Route path="/connexion" element={<Connexion />} />
+            <Route path="/mot-de-passe" element={<ChangerMotDePasse />} />
 
             {/* Documents imprimables : pleine page, sans menu */}
             <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation"><DocumentImprimable /></RouteProtegee>} />

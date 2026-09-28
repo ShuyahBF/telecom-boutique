@@ -114,7 +114,7 @@ export default function ParamBoutique() {
         <div className="card grid gap-4 sm:grid-cols-2">
           <h2 className="font-bold sm:col-span-2">Identité</h2>
           <Champ label="Nom de la boutique" aide="Modifiable par l'administrateur de la plateforme."><input className="input bg-gray-50" value={boutique.nom} disabled /></Champ>
-          <Champ label="Code marchand" aide="Modifiable par l'administrateur de la plateforme."><input className="input bg-gray-50 font-mono" value={boutique.code_marchand} disabled /></Champ>
+          <Champ label="ID boutique (code marchand)" aide="À taper par votre équipe pour se connecter. Modifiable par l'administrateur de la plateforme."><input className="input bg-gray-50 font-mono" value={boutique.code_marchand} disabled /></Champ>
           <Champ label="Pays" aide="Modifiable par l'administrateur de la plateforme."><input className="input bg-gray-50" value={boutique.pays || "—"} disabled /></Champ>
           <Champ label="Nom du DG (Directeur Général)" aide="Tel qu'il figure sur sa pièce d'identité."><input className="input" maxLength={120} value={fiche.dg_nom} onChange={(e) => maj("dg_nom", e.target.value)} /></Champ>
           <Champ label="Slogan" className="sm:col-span-2"><input className="input" maxLength={200} value={fiche.slogan} onChange={(e) => maj("slogan", e.target.value)} placeholder="ex. Le meilleur prix sur vos smartphones" /></Champ>

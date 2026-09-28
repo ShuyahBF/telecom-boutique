@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import { BadgeKyc, Champ, EnTetePlateforme } from "./_plateforme/composants";
 import CreationBoutique from "./_plateforme/CreationBoutique";
 import DossierBoutique from "./_plateforme/DossierBoutique";
+import JournalWebhook, { LIBELLES_ENVOI } from "./_plateforme/JournalWebhook";
 import Restauration from "./_plateforme/Restauration";
 import { horodatage, messageErreurFichier, STATUTS_KYC, telechargerFichier } from "./_plateforme/outils";
 
@@ -33,6 +34,8 @@ export default function Plateforme() {
   const [dossierId, setDossierId] = useState(null); // boutique dont le « Dossier » est ouvert
   const [restauration, setRestauration] = useState(null); // boutique à restaurer
   const [telechargement, setTelechargement] = useState(null); // id de la boutique en cours de sauvegarde
+  const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
+  const [journalOuvert, setJournalOuvert] = useState(false); // fenêtre « Journal du webhook »
 
   // Chargement des statistiques et de la liste des boutiques
   const charger = useCallback(() => {
@@ -69,6 +72,30 @@ export default function Plateforme() {
     if (ok) setEdition(null);
   }
 
+  // Validation d'une boutique créée par le webhook : elle devient visible du public
+  async function valider(b) {
+    if (!window.confirm(`Valider « ${b.nom} » ? Elle apparaîtra sur le portail public.`)) return;
+    try {
+      remplacer((await apiClient.post(`/plateforme/boutiques/${b.id}/valider`)).data);
+      toast.succes("Boutique validée : elle est maintenant visible du public");
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Validation impossible"));
+    }
+  }
+
+  // Nouveau mot de passe provisoire envoyé au DG (e-mail + SMS)
+  async function renvoyerIdentifiants(b) {
+    if (!window.confirm(`Envoyer un NOUVEAU mot de passe provisoire au DG de « ${b.nom} » ? L'actuel ne fonctionnera plus.`)) return;
+    try {
+      const { data } = await apiClient.post(`/plateforme/boutiques/${b.id}/renvoyer-identifiants`);
+      remplacer({ id: b.id, identifiants_envoi: data });
+      const ok = data.email === "ENVOYE" || data.sms === "ENVOYE";
+      toast[ok ? "succes" : "erreur"](`E-mail : ${LIBELLES_ENVOI[data.email]} · SMS : ${LIBELLES_ENVOI[data.sms]}`);
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Envoi impossible"));
+    }
+  }
+
   // Ouvrir le back-office d'une boutique en tant qu'administrateur
   async function ouvrirBackOffice(b) {
     await choisirBoutique(b.id);
@@ -92,7 +119,10 @@ export default function Plateforme() {
   const q = recherche.trim().toLowerCase();
   const affichees = boutiques.filter((b) =>
     (!q || [b.nom, b.code_marchand, b.ville, b.pays].some((v) => (v || "").toLowerCase().includes(q)))
-    && (!filtreKyc || (b.kyc?.statut || "NON_FOURNI") === filtreKyc));
+    && (!filtreKyc || (b.kyc?.statut || "NON_FOURNI") === filtreKyc)
+    && (!aValiderSeulement || b.validee === false));
+  // Boutiques créées automatiquement (webhook) en attente de validation
+  const nbAValider = boutiques.filter((b) => b.validee === false).length;
 
   // Boutique affichée dans la fenêtre « Dossier » (toujours la version à jour de la liste)
   const dossier = boutiques.find((b) => b.id === dossierId) || null;
@@ -134,15 +164,26 @@ export default function Plateforme() {
                 <option key={code} value={code}>KYC : {s.libelle}{code === "EN_ATTENTE" && nbEnAttente ? ` (${nbEnAttente})` : ""}</option>
               ))}
             </select>
+            <button type="button" className="btn-outline whitespace-nowrap" onClick={() => setJournalOuvert(true)}>🔗 Webhook</button>
             <button type="button" className="btn-primary whitespace-nowrap" onClick={() => setCreation(true)}>+ Créer une boutique</button>
           </div>
         </div>
+
+        {/* Bandeau : boutiques créées par le webhook, invisibles du public tant qu'elles ne sont pas validées */}
+        {nbAValider > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <span>⏳ <b>{nbAValider}</b> boutique(s) créée(s) automatiquement attendent votre validation avant d'apparaître sur le portail.</span>
+            <button type="button" className="btn-outline btn-sm bg-white" onClick={() => setAValiderSeulement(!aValiderSeulement)}>
+              {aValiderSeulement ? "Voir toutes les boutiques" : "Voir seulement celles à valider"}
+            </button>
+          </div>
+        )}
 
         {/* Liste des boutiques : une carte par boutique */}
         {chargement ? <Chargement /> : affichees.length === 0 ? <p className="py-10 text-center text-gray-500">Aucune boutique.</p> : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {affichees.map((b) => (
-              <div key={b.id} className={`card flex flex-col gap-3 ${b.actif === false ? "border-red-200 bg-red-50/40" : ""}`}>
+              <div key={b.id} className={`card flex flex-col gap-3 ${b.actif === false ? "border-red-200 bg-red-50/40" : b.validee === false ? "border-amber-300 bg-amber-50/40" : ""}`}>
                 {/* Identité de la boutique + badges d'état */}
                 <div className="flex items-start gap-3">
                   {b.logo_url
@@ -157,6 +198,8 @@ export default function Plateforme() {
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className="badge bg-gray-100 font-mono text-gray-700">{b.code_marchand}</span>
                       {b.actif === false ? <span className="badge bg-red-100 text-red-700">Suspendue</span> : <span className="badge bg-green-100 text-green-800">Active</span>}
+                      {b.validee === false && <span className="badge bg-amber-100 text-amber-800">⏳ À valider</span>}
+                      {b.origine === "webhook" && <span className="badge bg-purple-50 text-purple-800">Webhook</span>}
                       <BadgeKyc statut={b.kyc?.statut} />
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
                       <span className="badge bg-blue-50 text-blue-800">{b.nb_utilisateurs} utilisateur(s)</span>
@@ -164,8 +207,21 @@ export default function Plateforme() {
                   </div>
                 </div>
 
+                {/* Envoi des identifiants au DG (boutiques créées par le webhook) */}
+                {b.identifiants_envoi && (
+                  <p className="text-xs text-gray-500">
+                    Envoi des identifiants au DG le {date(b.identifiants_envoi.date)} — e-mail : {LIBELLES_ENVOI[b.identifiants_envoi.email]},
+                    SMS : {LIBELLES_ENVOI[b.identifiants_envoi.sms]}
+                  </p>
+                )}
+
                 {/* Actions principales */}
                 <div className="grid grid-cols-2 gap-2">
+                  {b.validee === false && (
+                    <button type="button" className="btn-primary btn-sm col-span-2 bg-green-600 hover:bg-green-700" onClick={() => valider(b)}>
+                      ✅ Valider la boutique (la rendre publique)
+                    </button>
+                  )}
                   <button type="button" className="btn-primary btn-sm col-span-2" onClick={() => ouvrirBackOffice(b)}>Ouvrir le back-office de cette boutique →</button>
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => setDossierId(b.id)}>
                     🗂️ Dossier de la boutique (identification & KYC)
@@ -183,6 +239,7 @@ export default function Plateforme() {
                     {telechargement === b.id ? "Préparation…" : "💾 Sauvegarde"}
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
+                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>✉️ Renvoyer les identifiants au DG</button>
 
                   {b.actif === false
                     ? <button type="button" className="btn-outline btn-sm col-span-2 text-green-700" onClick={() => modifier(b, { actif: true }, "Boutique réactivée")}>Réactiver la boutique</button>
@@ -194,6 +251,9 @@ export default function Plateforme() {
           </div>
         )}
       </main>
+
+      {/* Journal des appels du webhook de création des boutiques */}
+      <JournalWebhook ouvert={journalOuvert} onFermer={() => setJournalOuvert(false)} />
 
       {/* Fenêtre de création d'une boutique */}
       <CreationBoutique ouvert={creation} onFermer={() => setCreation(false)} onCreee={() => { setCreation(false); charger(); }} />
@@ -209,7 +269,7 @@ export default function Plateforme() {
         {edition && (
           <form onSubmit={enregistrerEdition} className="space-y-3">
             <Champ label="Nom" aide="Changer le nom change aussi l'adresse de la vitrine (et donc son QR code)."><input className="input" required minLength={2} maxLength={120} value={edition.nom} onChange={(e) => setEdition({ ...edition, nom: e.target.value })} /></Champ>
-            <Champ label="Code marchand"><input className="input font-mono uppercase" required minLength={3} maxLength={12} value={edition.code_marchand} onChange={(e) => setEdition({ ...edition, code_marchand: e.target.value })} /></Champ>
+            <Champ label="ID boutique (code marchand, 6 caractères)"><input className="input font-mono uppercase" required minLength={6} maxLength={6} pattern="[A-Za-z0-9]{6}" title="6 lettres ou chiffres" value={edition.code_marchand} onChange={(e) => setEdition({ ...edition, code_marchand: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })} /></Champ>
             <Champ label="Ordre dans le carrousel" aide="Les plus petits nombres passent en premier."><input className="input" type="number" value={edition.ordre} onChange={(e) => setEdition({ ...edition, ordre: e.target.value })} /></Champ>
             <p className="text-xs text-gray-500">Pays, adresse, DG, IFU… : bouton « Dossier de la boutique ».</p>
             <button className="btn-primary w-full">Enregistrer</button>
@@ -223,7 +283,7 @@ export default function Plateforme() {
           <div className="flex flex-col items-center gap-3 text-center">
             <QrCode valeur={`${window.location.origin}/b/${qr.slug}`} taille={280} />
             <p className="break-all font-mono text-sm">{window.location.origin}/b/{qr.slug}</p>
-            <p className="text-sm text-gray-500">Code marchand : <b className="font-mono">{qr.code_marchand}</b></p>
+            <p className="text-sm text-gray-500">ID boutique (code marchand) : <b className="font-mono">{qr.code_marchand}</b></p>
           </div>
         )}
       </Modal>

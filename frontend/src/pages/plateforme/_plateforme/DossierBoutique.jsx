@@ -15,7 +15,7 @@ function versFormulaire(b) {
   return {
     pays: b.pays || "", ville: b.ville || "", adresse: b.adresse || "",
     latitude: b.latitude ?? "", longitude: b.longitude ?? "",
-    dg_nom: b.dg_nom || "", ifu: b.ifu || "", cnss: b.cnss || "", rccm: b.rccm || "",
+    dg_nom: b.dg_nom || "", dg_telephone: b.dg_telephone || "", ifu: b.ifu || "", cnss: b.cnss || "", rccm: b.rccm || "",
   };
 }
 
@@ -146,8 +146,11 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
         <section>
           <h3 className="mb-3 text-base font-bold">1. Identification & localisation</h3>
           <form onSubmit={enregistrerInfos} className="grid gap-3 sm:grid-cols-2">
-            <Champ label="Nom du DG *" className="sm:col-span-2" aide="Directeur Général (responsable légal de la boutique).">
+            <Champ label="Nom du DG *" aide="Directeur Général (responsable légal de la boutique).">
               <input className="input" required minLength={2} maxLength={120} value={infos.dg_nom} onChange={(e) => maj("dg_nom", e.target.value)} />
+            </Champ>
+            <Champ label="Téléphone du DG" aide="Reçoit ses identifiants par SMS.">
+              <input className="input" type="tel" maxLength={30} value={infos.dg_telephone} onChange={(e) => maj("dg_telephone", e.target.value)} placeholder="+226 70 00 00 00" />
             </Champ>
             <ChampsIdentification valeurs={infos} maj={maj} />
             <div className="sm:col-span-2 sm:text-right">

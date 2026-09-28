@@ -12,7 +12,7 @@ import { PAYS_DEFAUT } from "./outils";
 const CREATION_VIDE = {
   nom: "", telephone: "", email: "", code_marchand: "",
   pays: PAYS_DEFAUT, ville: "", adresse: "", latitude: "", longitude: "", ifu: "", cnss: "", rccm: "",
-  dg_nom: "", dg_email: "", dg_mot_de_passe: "",
+  dg_nom: "", dg_telephone: "", dg_email: "", dg_mot_de_passe: "",
 };
 
 // Mot de passe provisoire lisible (sans 0/O ni 1/l) proposé au DG
@@ -42,7 +42,7 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
         dg_email: f.dg_email.trim(), dg_mot_de_passe: f.dg_mot_de_passe,
       });
       // Message de succès : code marchand + nombre de modèles du catalogue copiés
-      toast.succes(`Boutique « ${data.boutique.nom} » créée (code ${data.boutique.code_marchand}) — ${data.produits_copies} modèle(s) du catalogue public copié(s).`);
+      toast.succes(`Boutique « ${data.boutique.nom} » créée (ID boutique ${data.boutique.code_marchand}) — ${data.produits_copies} modèle(s) du catalogue public copié(s).`);
       setF(CREATION_VIDE);
       onCreee?.(data);
     } catch (err) {
@@ -62,8 +62,9 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
         </Champ>
         <Champ label="Téléphone"><input className="input" type="tel" value={f.telephone} onChange={(e) => maj("telephone", e.target.value)} placeholder="70 00 00 00" /></Champ>
         <Champ label="E-mail de la boutique"><input className="input" type="email" value={f.email} onChange={(e) => maj("email", e.target.value)} /></Champ>
-        <Champ label="Code marchand" className="sm:col-span-2" aide="Facultatif : laissé vide, un code de 6 caractères est créé automatiquement.">
-          <input className="input font-mono uppercase" maxLength={12} value={f.code_marchand} onChange={(e) => maj("code_marchand", e.target.value)} />
+        <Champ label="ID boutique (code marchand)" className="sm:col-span-2" aide="Facultatif : laissé vide, un ID unique de 6 caractères est créé automatiquement. C'est cet ID que le personnel tape pour se connecter.">
+          <input className="input font-mono uppercase" minLength={6} maxLength={6} pattern="[A-Za-z0-9]{6}" title="6 lettres ou chiffres" value={f.code_marchand}
+            onChange={(e) => maj("code_marchand", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} />
         </Champ>
 
         {/* ----- Section 2 : identification & localisation ----- */}
@@ -73,8 +74,11 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
         {/* ----- Section 3 : compte du Directeur Général ----- */}
         <TitreSection>👤 Compte du DG (Directeur Général)</TitreSection>
         <p className="-mt-2 text-xs text-gray-500 sm:col-span-2">Premier compte de la boutique : le DG a tous les droits et crée ensuite les comptes de son équipe.</p>
-        <Champ label="Nom du DG *" className="sm:col-span-2" aide="C'est aussi le nom affiché sur son compte.">
+        <Champ label="Nom du DG *" aide="C'est aussi le nom affiché sur son compte.">
           <input className="input" required minLength={2} maxLength={120} value={f.dg_nom} onChange={(e) => maj("dg_nom", e.target.value)} />
+        </Champ>
+        <Champ label="Téléphone du DG">
+          <input className="input" type="tel" maxLength={30} value={f.dg_telephone} onChange={(e) => maj("dg_telephone", e.target.value)} placeholder="+226 70 00 00 00" />
         </Champ>
         <Champ label="E-mail de connexion du DG *">
           <input className="input" type="email" required autoComplete="off" value={f.dg_email} onChange={(e) => maj("dg_email", e.target.value)} />

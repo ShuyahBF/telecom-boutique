@@ -1,24 +1,41 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { messageErreur } from "@/lib/api";
+import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 
-// Connexion du personnel des boutiques (et de l'administrateur de la plateforme).
+// Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
+// boutique) + e-mail + mot de passe personnel. L'ID boutique est retenu pour
+// les fois suivantes ; la session reste ouverte 30 jours (cookie sécurisé).
+// L'administrateur de la plateforme se connecte sans ID boutique.
 export default function Connexion() {
   const { connexion } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [codeBoutique, setCodeBoutique] = useState(idBoutiqueMemorise);
+  const [administrateur, setAdministrateur] = useState(false);
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
 
+  // Saisie de l'ID : majuscules, sans espace ni tiret, 6 caractères au plus
+  const saisirCode = (valeur) => setCodeBoutique(valeur.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6));
+
   async function valider(e) {
     e.preventDefault();
     setErreur("");
+    if (!administrateur && codeBoutique.length !== 6) {
+      setErreur("L'ID boutique contient 6 lettres ou chiffres.");
+      return;
+    }
     setEnvoi(true);
     try {
-      const user = await connexion(email, motDePasse);
+      const user = await connexion(administrateur ? "" : codeBoutique, email, motDePasse);
+      // Mot de passe provisoire : changement obligatoire avant tout
+      if (user.doit_changer_mot_de_passe) {
+        navigate("/mot-de-passe", { replace: true, state: { depuis: location.state?.depuis } });
+        return;
+      }
       // Retour à la page demandée avant la connexion, sinon à l'accueil du rôle
       navigate(location.state?.depuis || (user.role === "super_admin" ? "/plateforme" : "/gestion"), { replace: true });
     } catch (err) {
@@ -32,17 +49,34 @@ export default function Connexion() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary-dark p-4">
       <form onSubmit={valider} className="w-full max-w-sm space-y-4 rounded-3xl bg-white p-8 shadow-xl">
         <div className="text-center">
-          <p className="text-4xl">📱</p>
-          <h1 className="mt-2 text-2xl font-extrabold">Espace boutique</h1>
+          <p className="text-3xl font-black tracking-tight text-primary">adLyn</p>
+          <h1 className="mt-1 text-xl font-extrabold">{administrateur ? "Administration de la plateforme" : "Espace boutique"}</h1>
           <p className="text-sm text-gray-500">Connectez-vous pour gérer votre boutique</p>
         </div>
+
+        {/* ID boutique : raccourci unique de 6 caractères (pas de nom à taper, pas d'erreur de frappe) */}
+        {!administrateur && (
+          <div>
+            <label className="label" htmlFor="code">ID boutique</label>
+            <input id="code" className="input text-center font-mono text-lg tracking-[0.4em] uppercase" required
+              autoComplete="organization" inputMode="text" placeholder="K7M2QD" maxLength={6}
+              value={codeBoutique} onChange={(e) => saisirCode(e.target.value)} />
+            <p className="mt-1 text-xs text-gray-500">6 lettres ou chiffres, reçus à la création de votre boutique.</p>
+          </div>
+        )}
         <div><label className="label" htmlFor="email">E-mail</label>
           <input id="email" className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div><label className="label" htmlFor="mdp">Mot de passe</label>
           <input id="mdp" className="input" type="password" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
         <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter"}</button>
-        <p className="text-center text-sm"><Link to="/" className="text-primary">← Retour aux boutiques</Link></p>
+        <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>
+        <div className="flex justify-between text-sm">
+          <Link to="/" className="text-primary">← Retour aux boutiques</Link>
+          <button type="button" className="text-gray-500 hover:text-primary" onClick={() => { setAdministrateur(!administrateur); setErreur(""); }}>
+            {administrateur ? "Personnel d'une boutique" : "Administrateur ?"}
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -9,6 +9,8 @@ export default function RouteProtegee({ roles, permission, children }) {
   const location = useLocation();
   if (chargement) return <Chargement plein />;
   if (!user) return <Navigate to="/connexion" replace state={{ depuis: location.pathname }} />;
+  // Mot de passe provisoire (reçu par e-mail/SMS ou donné par le DG) : à changer d'abord
+  if (user.doit_changer_mot_de_passe) return <Navigate to="/mot-de-passe" replace state={{ depuis: location.pathname }} />;
   if ((roles && !aLeRole(user, ...roles)) || (permission && !peut(user, permission))) {
     return <div className="p-10 text-center text-gray-600">Cette page n'est pas accessible avec votre rôle.</div>;
   }

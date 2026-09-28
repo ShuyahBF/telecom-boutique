@@ -110,7 +110,7 @@ export default function ParamEquipe() {
           <form onSubmit={ajouter} className="space-y-3">
             <Champ label="Nom complet"><input className="input" required minLength={2} value={ajout.nom} onChange={(e) => setAjout({ ...ajout, nom: e.target.value })} /></Champ>
             <Champ label="E-mail (identifiant de connexion)"><input className="input" type="email" required value={ajout.email} onChange={(e) => setAjout({ ...ajout, email: e.target.value })} /></Champ>
-            <Champ label="Mot de passe" aide="8 caractères minimum. Communiquez-le à la personne, qui pourra le changer."><input className="input" type="text" required minLength={8} autoComplete="new-password" value={ajout.mot_de_passe} onChange={(e) => setAjout({ ...ajout, mot_de_passe: e.target.value })} /></Champ>
+            <Champ label="Mot de passe" aide="Mot de passe PROVISOIRE (8 caractères minimum) : communiquez-le à la personne avec l'ID boutique ; elle devra le changer à sa première connexion."><input className="input" type="text" required minLength={8} autoComplete="new-password" value={ajout.mot_de_passe} onChange={(e) => setAjout({ ...ajout, mot_de_passe: e.target.value })} /></Champ>
             <Champ label="Rôle">
               <select className="input" value={ajout.role} onChange={(e) => setAjout({ ...ajout, role: e.target.value })}>
                 {ROLES_BOUTIQUE.map(([r]) => <option key={r} value={r}>{ROLES[r]}</option>)}
@@ -126,7 +126,7 @@ export default function ParamEquipe() {
       <Modal ouvert={!!motDePasse} titre={`Nouveau mot de passe — ${motDePasse?.membre.nom || ""}`} onFermer={() => setMotDePasse(null)}>
         {motDePasse && (
           <form onSubmit={changerMotDePasse} className="space-y-3">
-            <Champ label="Nouveau mot de passe" aide="8 caractères minimum."><input className="input" type="text" required minLength={8} autoComplete="new-password" value={motDePasse.valeur} onChange={(e) => setMotDePasse({ ...motDePasse, valeur: e.target.value })} /></Champ>
+            <Champ label="Nouveau mot de passe" aide="Provisoire (8 caractères minimum) : la personne devra le changer à sa prochaine connexion."><input className="input" type="text" required minLength={8} autoComplete="new-password" value={motDePasse.valeur} onChange={(e) => setMotDePasse({ ...motDePasse, valeur: e.target.value })} /></Champ>
             <button className="btn-primary w-full">Enregistrer</button>
           </form>
         )}

@@ -25,7 +25,7 @@ export function EnTetePlateforme() {
         {/* Logo + nom de l'administrateur connecté */}
         <Link to="/plateforme" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">📱</Link>
         <div className="min-w-0 flex-1">
-          <p className="font-extrabold leading-tight">TelecomBoutique</p>
+          <p className="font-extrabold leading-tight">adLyn</p>
           <p className="truncate text-xs text-gray-300">Administration de la plateforme · {user?.nom}</p>
         </div>
 
@@ -42,8 +42,10 @@ export function EnTetePlateforme() {
         </nav>
 
         <a href="/" target="_blank" rel="noreferrer" className="hidden text-sm font-semibold text-gray-300 hover:text-white lg:inline">Portail public ↗</a>
+        {/* Changer son propre mot de passe */}
+        <Link to="/mot-de-passe" className="text-gray-300 hover:text-white" title="Changer mon mot de passe">🔑</Link>
         <button type="button" className="btn btn-sm border border-white/30 text-white hover:bg-white/10"
-          onClick={() => { deconnexion(); navigate("/connexion"); }}>
+          onClick={async () => { await deconnexion(); navigate("/connexion"); }}>
           Déconnexion
         </button>
       </div>
@@ -157,7 +159,7 @@ export function identificationVersApi(v) {
   return {
     pays: (v.pays || "").trim(), ville: (v.ville || "").trim(), adresse: (v.adresse || "").trim(),
     latitude: nombre(v.latitude), longitude: nombre(v.longitude),
-    dg_nom: (v.dg_nom || "").trim(), ifu: (v.ifu || "").trim(), cnss: (v.cnss || "").trim(), rccm: (v.rccm || "").trim(),
+    dg_nom: (v.dg_nom || "").trim(), dg_telephone: (v.dg_telephone || "").trim(), ifu: (v.ifu || "").trim(), cnss: (v.cnss || "").trim(), rccm: (v.rccm || "").trim(),
   };
 }
 

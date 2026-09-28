@@ -35,6 +35,7 @@ class FicheBoutique(BaseModel):
     rccm: Optional[str] = Field(None, max_length=60)
     cnss: Optional[str] = Field(None, max_length=50)
     dg_nom: Optional[str] = Field(None, max_length=120)
+    dg_telephone: Optional[str] = Field(None, max_length=30)
     # Géolocalisation (affichée aux clients : itinéraire vers la boutique)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)

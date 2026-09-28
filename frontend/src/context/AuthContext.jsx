@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiClient, BOUTIQUE_ACTIVE_KEY, TOKEN_KEY } from "@/lib/api";
+import { apiClient, BOUTIQUE_ACTIVE_KEY, memoriserIdBoutique } from "@/lib/api";
 
 // Session du personnel : utilisateur connecté + sa boutique.
+// La session vit dans un cookie HttpOnly (30 jours) : à l'ouverture du site,
+// /auth/me suffit à retrouver l'utilisateur, sans rien retaper.
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -11,12 +13,6 @@ export function AuthProvider({ children }) {
 
   // Relit la session (utilisateur + boutique) depuis l'API
   const rafraichir = useCallback(async () => {
-    if (!localStorage.getItem(TOKEN_KEY)) {
-      setUser(null);
-      setBoutique(null);
-      setChargement(false);
-      return;
-    }
     try {
       const { data } = await apiClient.get("/auth/me");
       setUser(data.user);
@@ -28,7 +24,7 @@ export function AuthProvider({ children }) {
         setBoutique(data.boutique);
       }
     } catch {
-      localStorage.removeItem(TOKEN_KEY);
+      // Pas de session (ou session expirée) : il faudra se connecter
       setUser(null);
       setBoutique(null);
     } finally {
@@ -40,20 +36,31 @@ export function AuthProvider({ children }) {
     rafraichir();
   }, [rafraichir]);
 
-  async function connexion(email, password) {
-    const { data } = await apiClient.post("/auth/login", { email, password });
-    localStorage.setItem(TOKEN_KEY, data.access_token);
+  /** Connexion : ID boutique (vide pour le super-admin) + e-mail + mot de passe.
+   *  Le serveur pose le cookie de session ; on retient seulement l'ID boutique. */
+  async function connexion(codeBoutique, email, password) {
+    const { data } = await apiClient.post("/auth/login", { code_boutique: codeBoutique || null, email, password });
+    memoriserIdBoutique(codeBoutique);
     localStorage.removeItem(BOUTIQUE_ACTIVE_KEY);
     setUser(data.user);
     setBoutique(data.boutique);
     return data.user;
   }
 
-  function deconnexion() {
-    localStorage.removeItem(TOKEN_KEY);
+  /** Déconnexion : le serveur efface le cookie de session */
+  async function deconnexion() {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch { /* déjà déconnecté ou serveur injoignable : on nettoie quand même */ }
     localStorage.removeItem(BOUTIQUE_ACTIVE_KEY);
     setUser(null);
     setBoutique(null);
+  }
+
+  /** Changement de mot de passe (obligatoire après un mot de passe provisoire) */
+  async function changerMotDePasse(ancien, nouveau) {
+    await apiClient.post("/auth/mot-de-passe", { ancien, nouveau });
+    setUser((u) => (u ? { ...u, doit_changer_mot_de_passe: false } : u));
   }
 
   /** Super-admin : choisir la boutique à consulter dans le back-office */
@@ -64,7 +71,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, boutique, setBoutique, chargement, connexion, deconnexion, rafraichir, choisirBoutique }}>
+    <AuthContext.Provider value={{ user, boutique, setBoutique, chargement, connexion, deconnexion, rafraichir, choisirBoutique, changerMotDePasse }}>
       {children}
     </AuthContext.Provider>
   );

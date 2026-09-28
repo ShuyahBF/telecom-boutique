@@ -1,4 +1,4 @@
-# TelecomBoutique — plateforme SaaS multi-boutiques de téléphonie
+# adLyn — plateforme SaaS multi-boutiques de téléphonie
 
 Plateforme en ligne pour des boutiques de téléphonie : vente de téléphones et d'accessoires, stock, réparations (SAV), factures et proformas, clients et fournisseurs, messagerie, portail public avec paiement Mobile Money. Chaque boutique (« tenant ») a ses données **strictement séparées** de celles des autres.
 
@@ -57,8 +57,16 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 | Comptable | Factures et règlements, historique des paiements, stock, fournisseurs |
 | Technicien | SAV, pièces détachées, consultation du catalogue |
 
+### Connexion du personnel
+- Identifiants : **ID boutique** (code unique de 6 lettres ou chiffres, ex. `K7M2QD`, créé automatiquement) + **e-mail** + **mot de passe personnel**. L'identifiant interne de la boutique n'est jamais montré.
+- L'ID boutique est retenu par le navigateur. La session reste ouverte **30 jours** dans un cookie sécurisé (HttpOnly, illisible par le JavaScript) : le site se reconnecte tout seul à son ouverture. **Le mot de passe n'est jamais enregistré sur l'appareil.**
+- Un mot de passe **provisoire** (reçu par e-mail/SMS, ou donné par le DG) doit être changé à la première connexion. Changer son mot de passe déconnecte les autres appareils.
+- Anti force brute : après 10 échecs en 15 minutes, le compte est bloqué 15 minutes.
+- L'administrateur de la plateforme se connecte sans ID boutique (lien « Administrateur ? »).
+
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
+- **Création automatique par webhook** (voir plus bas) : les boutiques créées ainsi attendent la **validation** de l'administrateur avant d'apparaître sur le portail. Journal des appels (bouton « 🔗 Webhook ») et renvoi des identifiants au DG.
 - Vérification des dossiers **KYC**, suspension des boutiques, mise en avant dans le carrousel.
 - **Référentiel mondial des appareils** (`/plateforme/referentiel`) :
   - liste officielle Google Play de tous les appareils Android certifiés (environ 40 000 modèles de 3 800 marques, avec leurs codes modèle), plus les iPhone ;
@@ -103,7 +111,7 @@ Pages utiles :
 - `/gestion` : back-office ;
 - `/plateforme` : administration de la plateforme.
 
-**Tests automatiques** (42 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes et l'historique des paiements.
+**Tests automatiques** (60 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook et la connexion.
 
 ## Déployer sur Render
 
@@ -116,8 +124,40 @@ Pages utiles :
    - R2 (`R2_ACCOUNT_ID`, clés, `R2_PUBLIC_BASE_URL`) : créer deux buckets, `telecom-boutique-medias` (public) et `telecom-boutique-kyc` (**privé**) ;
    - PawaPay (mêmes jetons que beauthentik) ;
    - `ANTHROPIC_API_KEY` (assistant de recherche) ;
-   - **sauvegardes** : `SAUVEGARDE_CLE`, Google Drive, SMTP de la plateforme (détails ci-dessous).
-3. Noms de domaine : décommenter les blocs `domains` de `render.yaml` et créer les CNAME chez Cloudflare, comme pour beauthentik.
+   - **sauvegardes** : `SAUVEGARDE_CLE`, Google Drive, SMTP de la plateforme (détails ci-dessous) ;
+   - **webhook** : `WEBHOOK_BOUTIQUES_SECRET` ; **SMS** : `ORANGE_SMS_*` (et `OVH_SMS_*` en repli), mêmes comptes que beauthentik.
+3. Noms de domaine : décommenter les blocs `domains` de `render.yaml` et créer les CNAME chez Cloudflare, comme pour beauthentik. **Important pour la connexion** : donnez au site et à l'API deux sous-domaines du **même** domaine (ex. `adlyn.com` et `api.adlyn.com`). Sinon, avec les deux adresses `onrender.com`, Safari (iPhone, Mac) refuse le cookie de session et le personnel devrait se reconnecter à chaque ouverture.
+
+### Webhook de création des boutiques
+Un système externe (formulaire d'inscription, CRM…) peut créer une boutique :
+
+```
+POST https://<api>/api/webhooks/boutiques
+X-Adlyn-Horodatage: <secondes Unix>
+X-Adlyn-Signature: sha256=<HMAC-SHA256(WEBHOOK_BOUTIQUES_SECRET, "<horodatage>." + corps JSON brut)>
+
+{"evenement_id": "insc-2026-000123", "nom": "Boutique Étoile", "pays": "Burkina Faso", "ville": "Ouagadougou",
+ "telephone": "+22625000000", "dg_nom": "Awa Ouédraogo", "dg_email": "awa@exemple.bf", "dg_telephone": "+22670000000"}
+```
+
+Champs facultatifs : `adresse`, `email`, `latitude`, `longitude`, `ifu`, `cnss`, `rccm`, `reference_externe`.
+
+Réponses :
+- `201 {"resultat": "creee", "code_boutique": "K7M2QD", "statut": "EN_ATTENTE_VALIDATION"}` ;
+- `200 {"resultat": "ignoree"}` : la boutique existe déjà (même nom, même `reference_externe` ou DG déjà inscrit) ;
+- `401` pour une signature ou un horodatage invalide, `409` pour un événement rejoué, `422` pour une demande invraisemblable, `429` pour un quota atteint ou une adresse IP bloquée.
+
+Le **mot de passe provisoire du DG n'est jamais dans la réponse** : la plateforme envoie l'ID boutique et ce mot de passe au DG lui-même, par e-mail et par SMS.
+
+Protections contre les inscriptions « pour s'amuser » :
+1. signature HMAC (secret partagé) ;
+2. horodatage à ± 5 minutes et `evenement_id` à usage unique (pas de rejeu) ;
+3. contrôles de vraisemblance : nom réaliste, e-mail non jetable, téléphone valide, pas de lien ;
+4. quota de créations par 24 h (`WEBHOOK_QUOTA_JOUR`) et blocage d'une adresse IP après 10 refus en une heure ;
+5. **boutique invisible du public jusqu'à la validation** par l'administrateur, prévenu par e-mail ;
+6. journal de tous les appels.
+
+Pour essayer : `WEBHOOK_BOUTIQUES_SECRET=… python backend/outils/envoyer_webhook.py https://<api> demande.json`.
 
 ### Sauvegardes : mise en route
 1. **Clé de chiffrement** : générez-la une fois avec `python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"`, puis mettez-la dans `SAUVEGARDE_CLE`. **Gardez-en une copie hors de Render** (gestionnaire de mots de passe) : sans elle, aucune sauvegarde ne peut être restaurée.
@@ -141,6 +181,7 @@ Format d'une sauvegarde (`.tlb.gz.enc`) : données JSON de la boutique → compr
   - le statut d'un paiement est toujours revérifié auprès de PawaPay, et le montant contrôlé ;
   - comme le compte est partagé, une boucle vérifie chaque minute les paiements en attente ;
   - les fonds de toutes les boutiques arrivent sur le compte PawaPay de la plateforme, à reverser aux boutiques.
+- **Sessions** : jeton signé dans un cookie HttpOnly ; toute écriture doit porter l'en-tête `X-Adlyn`, qu'un site tiers ne peut pas ajouter (protection CSRF). Chaque changement de mot de passe révoque les sessions ouvertes ailleurs.
 - **KYC** : fichiers dans un bucket privé, accessibles seulement par le DG de la boutique et l'administrateur, par lien temporaire de 5 minutes.
 
 ## Organisation du code

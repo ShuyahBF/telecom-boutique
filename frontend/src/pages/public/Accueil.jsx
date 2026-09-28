@@ -22,7 +22,7 @@ export default function Accueil() {
 
   // Au chargement de la page : titre de l'onglet + liste des boutiques
   useEffect(() => {
-    document.title = "TelecomBoutique — Trouvez votre boutique de téléphonie";
+    document.title = "adLyn — Trouvez votre boutique de téléphonie";
     apiClient.get("/public/boutiques")
       .then(({ data }) => setBoutiques(data))
       .catch(() => setBoutiques([]));
@@ -91,7 +91,7 @@ export default function Accueil() {
         <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <span className="flex min-w-0 items-center gap-2 text-lg font-extrabold">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15">📱</span>
-            TelecomBoutique
+            adLyn
           </span>
           <Link to="/connexion" className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white">
             Espace boutique
@@ -193,7 +193,7 @@ export default function Accueil() {
       {/* ---------- Pied de page ---------- */}
       <footer className="border-t border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-center text-sm text-gray-500 sm:flex-row sm:text-left">
-          <p>© {new Date().getFullYear()} TelecomBoutique — la plateforme des boutiques de téléphonie</p>
+          <p>© {new Date().getFullYear()} adLyn — la plateforme des boutiques de téléphonie</p>
           <Link to="/connexion" className="font-semibold text-primary">Vous êtes une boutique ? Connexion</Link>
         </div>
       </footer>

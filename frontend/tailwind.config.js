@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-// Charte TelecomBoutique : bleu « télécom » + orange pour les prix et les
+// Charte adLyn : bleu « télécom » + orange pour les prix et les
 // appels à l'action. La couleur de chaque boutique (réglable par son gérant)
 // est appliquée dynamiquement via la variable CSS --couleur-boutique.
 export default {
