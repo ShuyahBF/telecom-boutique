@@ -17,7 +17,7 @@ import catalogue_public as service_catalogue
 import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
-from routes import (abonnements, acces_boutique, auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
+from routes import (abonnements, acces_boutique, auth, boutique, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
                     maintenance, paiements, parametres_plateforme, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
                     tableau_de_bord, tiers, webhooks)
 from seed import creer_demo, ensure_super_admin
@@ -52,6 +52,7 @@ api.include_router(reversements.boutique)
 api.include_router(reversements.admin)
 # Service SMS des boutiques (envois, journal, facturation)
 api.include_router(sms.boutique)
+api.include_router(carrousel.router)  # carrousel de produits par WhatsApp
 api.include_router(sms.admin)
 # Webhook de création des boutiques (signé HMAC) et son journal
 api.include_router(webhooks.router)

@@ -20,6 +20,7 @@ export default function Commander() {
     nom: "", telephone: "", email: "",
     mode_livraison: "RETRAIT", adresse_livraison: "", message_client: "",
     mode_paiement: "A_LA_LIVRAISON", numero_mobile_money: "",
+    accepte_whatsapp: false, // case « recevoir les offres par WhatsApp » (non cochée par défaut)
   });
   const [envoi, setEnvoi] = useState(false); // vrai pendant l'envoi (bouton désactivé)
   const [erreur, setErreur] = useState(""); // message d'erreur renvoyé par l'API
@@ -55,6 +56,7 @@ export default function Commander() {
         // Numéro Mobile Money : par défaut le téléphone du client
         numero_mobile_money: form.mode_paiement === "MOBILE_MONEY" ? (form.numero_mobile_money.trim() || form.telephone.trim()) : "",
         lignes: lignes.map((l) => ({ produit_id: l.produit.id, quantite: l.quantite })),
+        accepte_whatsapp: form.accepte_whatsapp,
       });
       // Commande enregistrée : on vide le panier
       viderPanier(boutique.slug);
@@ -152,6 +154,16 @@ export default function Commander() {
               </div>
             )}
           </section>
+
+          {/* Accord facultatif pour recevoir les offres de la boutique par WhatsApp */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[var(--couleur-boutique)]" checked={form.accepte_whatsapp}
+              onChange={(e) => setForm({ ...form, accepte_whatsapp: e.target.checked })} />
+            <span>
+              J'accepte de recevoir les nouveautés et offres de <b>{boutique.nom}</b> par WhatsApp.
+              <span className="block text-xs text-gray-500">Facultatif. Vous pourrez demander à la boutique d'arrêter à tout moment.</span>
+            </span>
+          </label>
 
           {/* Bouton d'envoi (en bas du formulaire) */}
           <button type="submit" className="btn-boutique w-full py-3.5 text-base" disabled={envoi}>

@@ -1,13 +1,14 @@
 import { useState } from "react";
 
 // Champs d'un client (mêmes champs que ClientSaisie côté serveur, backend/routes/tiers.py).
-export const CLIENT_VIDE = { type_client: "PART", nom: "", telephone: "", email: "", adresse: "", ifu: "", notes: "" };
+export const CLIENT_VIDE = { type_client: "PART", nom: "", telephone: "", email: "", adresse: "", ifu: "", notes: "", accepte_whatsapp: false };
 
 /** Prépare les données à envoyer : l'e-mail vide doit partir à null (sinon refusé). */
 export function payloadClient(f) {
   return {
     type_client: f.type_client || "PART", nom: (f.nom || "").trim(), telephone: (f.telephone || "").trim(),
     email: (f.email || "").trim() || null, adresse: f.adresse || "", ifu: f.ifu || "", notes: f.notes || "",
+    accepte_whatsapp: Boolean(f.accepte_whatsapp), // accord pour recevoir les offres par WhatsApp
   };
 }
 
@@ -48,6 +49,16 @@ export default function ClientFormulaire({ initial, onEnregistrer, libelleBouton
       </div>
       <div><label className="label">Adresse</label><input className="input" maxLength={500} {...champ("adresse")} /></div>
       {f.type_client === "ENTR" && <div><label className="label">IFU</label><input className="input" maxLength={50} {...champ("ifu")} /></div>}
+      {/* Accord du client pour recevoir les offres de la boutique par WhatsApp (carrousels).
+          À cocher UNIQUEMENT si le client l'a demandé ou accepté explicitement. */}
+      <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+        <input type="checkbox" className="mt-0.5" checked={Boolean(f.accepte_whatsapp)}
+          onChange={(e) => setF({ ...f, accepte_whatsapp: e.target.checked })} />
+        <span>
+          <b>Le client accepte de recevoir nos offres par WhatsApp</b>
+          <span className="block text-xs text-gray-500">Nouveautés et promotions en carrousel photo. Il peut changer d'avis à tout moment : décochez alors la case.</span>
+        </span>
+      </label>
       <div><label className="label">Notes internes</label><textarea className="input" rows={3} maxLength={2000} {...champ("notes")} /></div>
       <button className="btn-primary w-full" disabled={enCours}>{enCours ? "Enregistrement…" : libelleBouton}</button>
     </form>

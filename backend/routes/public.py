@@ -167,6 +167,8 @@ class CommandeSaisie(BaseModel):
     mode_paiement: Literal["A_LA_LIVRAISON", "MOBILE_MONEY"] = "A_LA_LIVRAISON"
     numero_mobile_money: str = Field("", max_length=30)
     lignes: list[LignePanier] = Field(..., min_length=1, max_length=50)
+    # Case cochée par le client : il accepte de recevoir les offres de la boutique par WhatsApp
+    accepte_whatsapp: bool = False
 
 
 @router.post("/b/{slug}/commandes", status_code=201)
@@ -197,6 +199,11 @@ async def commander(slug: str, payload: CommandeSaisie):
                        "prix_unitaire": p["prix_vente"], "montant": p["prix_vente"] * l.quantite})
 
     client = await trouver_ou_creer_client(tdb, payload.nom, telephone, payload.email or "")
+    # Accord WhatsApp donné sur la vitrine (jamais retiré ici : seul le client, via la
+    # boutique, peut le retirer depuis sa fiche)
+    if payload.accepte_whatsapp and not client.get("accepte_whatsapp"):
+        await tdb.clients.update_one({"id": client["id"]}, {"$set": {
+            "accepte_whatsapp": True, "accepte_whatsapp_le": now_iso(), "accepte_whatsapp_source": "commande en ligne"}})
     commande = {
         "id": new_id(), "numero": await prochain_numero(b["id"], "CMD"), "client_id": client["id"],
         "client": {**instantane_client(client), "nom": client["nom"], "email": payload.email or client.get("email", "")},
