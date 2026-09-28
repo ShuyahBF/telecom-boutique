@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
 from auth import Contexte, permission
-from utils import new_id, normaliser_telephone, now_iso
+from utils import new_id, normaliser_telephone, now_iso, motif_recherche
 
 router = APIRouter(tags=["Clients & fournisseurs"])
 # Droits requis (voir la table PERMISSIONS dans auth.py)
@@ -19,7 +19,7 @@ fournisseurs_dep = permission("fournisseurs")
 def _recherche(q: str, champs: list[str]) -> dict:
     if not q.strip():
         return {}
-    motif = re.escape(q.strip())
+    motif = motif_recherche(q)
     return {"$or": [{c: {"$regex": motif, "$options": "i"}} for c in champs]}
 
 

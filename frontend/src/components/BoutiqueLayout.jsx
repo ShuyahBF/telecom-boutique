@@ -44,6 +44,16 @@ export default function BoutiqueLayout() {
   if (!boutique) return <Chargement plein />;
 
   const base = `/b/${boutique.slug}`;
+  // Ville et pays sur une ligne (« Ouagadougou, Burkina Faso »), sans répéter
+  // la ville si elle figure déjà dans l'adresse
+  const villeAffichee = boutique.ville && !(boutique.adresse || "").toLowerCase().includes(boutique.ville.toLowerCase()) ? boutique.ville : "";
+  const lieu = [villeAffichee, boutique.pays].filter(Boolean).join(", ");
+  // Lien d'itinéraire Google Maps : seulement si la position GPS est connue
+  // (on teste « != null » car une coordonnée peut valoir 0)
+  const aPosition = boutique.latitude != null && boutique.longitude != null && boutique.latitude !== "" && boutique.longitude !== "";
+  const lienCarte = aPosition
+    ? `https://www.google.com/maps/dir/?api=1&destination=${boutique.latitude},${boutique.longitude}`
+    : "";
   const lien = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? "bg-white/20 text-white" : "text-white/85 hover:text-white"}`;
   return (
     <div style={{ "--couleur-boutique": boutique.couleur || "#0b5ed7" }} className="flex min-h-screen flex-col bg-gray-50">
@@ -90,9 +100,18 @@ export default function BoutiqueLayout() {
             {boutique.slogan && <p>{boutique.slogan}</p>}
             <p className="mt-1 text-xs">Code marchand : <b>{boutique.code_marchand}</b></p>
           </div>
+          {/* Adresse, ville et pays + lien vers Google Maps (itinéraire) si la
+              boutique a renseigné sa position GPS (latitude / longitude) */}
           <div>
             <p className="font-bold text-ink">Nous trouver</p>
-            <p className="whitespace-pre-line">{boutique.adresse || boutique.ville}</p>
+            {boutique.adresse && <p className="whitespace-pre-line">{boutique.adresse}</p>}
+            {lieu && <p>{lieu}</p>}
+            {lienCarte && (
+              <a href={lienCarte} target="_blank" rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 font-semibold text-boutique hover:underline">
+                📍 Voir sur la carte / Itinéraire
+              </a>
+            )}
           </div>
           <div>
             <p className="font-bold text-ink">Nous contacter</p>

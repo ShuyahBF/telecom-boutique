@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
@@ -32,6 +32,11 @@ function etatFiche(f) {
 // ---------------------------------------------------------------------------
 export default function CatalogueAdmin() {
   const toast = useToast();
+  // useToast() renvoie un NOUVEL objet à chaque affichage : s'il figurait dans
+  // les dépendances de `charger`, la liste serait rechargée en boucle (toutes
+  // les 250 ms). On passe donc par une référence stable.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [fiches, setFiches] = useState(null);
   const [publication, setPublication] = useState(null);
   const [filtres, setFiltres] = useState({ q: "", type_produit: "", statut: "" });
@@ -47,9 +52,9 @@ export default function CatalogueAdmin() {
       setFiches(liste.data);
       setPublication(etat.data);
     } catch (err) {
-      toast.erreur(messageErreur(err, "Chargement du catalogue impossible"));
+      toastRef.current.erreur(messageErreur(err, "Chargement du catalogue impossible"));
     }
-  }, [filtres, toast]);
+  }, [filtres]);
 
   useEffect(() => {
     const t = setTimeout(charger, 250); // petit délai pendant la frappe dans la recherche
@@ -104,11 +109,11 @@ export default function CatalogueAdmin() {
         <div className="flex flex-wrap gap-3">
           <input className="input max-w-xs" placeholder="Rechercher (nom, marque, référence)…" value={filtres.q}
             onChange={(e) => setFiltres({ ...filtres, q: e.target.value })} />
-          <select className="input max-w-[12rem]" value={filtres.type_produit} onChange={(e) => setFiltres({ ...filtres, type_produit: e.target.value })}>
+          <select className="input max-w-[12rem] bg-white" value={filtres.type_produit} onChange={(e) => setFiltres({ ...filtres, type_produit: e.target.value })}>
             <option value="">Tous les types</option>
             {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <select className="input max-w-[14rem]" value={filtres.statut} onChange={(e) => setFiltres({ ...filtres, statut: e.target.value })}>
+          <select className="input max-w-[14rem] bg-white" value={filtres.statut} onChange={(e) => setFiltres({ ...filtres, statut: e.target.value })}>
             <option value="">Toutes les fiches</option>
             <option value="BROUILLON">Brouillons</option>
             <option value="PRET">Prêtes</option>
@@ -120,7 +125,7 @@ export default function CatalogueAdmin() {
         {!fiches ? <Chargement /> : (
           <div className="card overflow-x-auto p-0">
             <table className="table">
-              <thead><tr><th /><th>Modèle</th><th>Référence</th><th>Type</th><th>État</th><th>Mise à jour</th></tr></thead>
+              <thead><tr><th /><th>Modèle</th><th className="hidden sm:table-cell">Référence</th><th className="hidden md:table-cell">Type</th><th>État</th><th className="hidden md:table-cell">Mise à jour</th></tr></thead>
               <tbody>
                 {fiches.map((f) => {
                   const etat = etatFiche(f);
@@ -129,11 +134,15 @@ export default function CatalogueAdmin() {
                       <td className="w-14">
                         {f.photo_url ? <img src={f.photo_url} alt="" className="h-10 w-10 rounded-lg object-contain" /> : <span className="text-2xl">📱</span>}
                       </td>
-                      <td><span className="font-semibold">{f.marque} {f.nom}</span>{f.annee_sortie ? <span className="text-gray-500"> · {f.annee_sortie}</span> : null}</td>
-                      <td className="font-mono text-xs">{f.reference}</td>
-                      <td>{TYPES[f.type_produit]}</td>
+                      <td>
+                        <span className="font-semibold">{f.marque} {f.nom}</span>{f.annee_sortie ? <span className="text-gray-500"> · {f.annee_sortie}</span> : null}
+                        {/* Sur téléphone, les colonnes Référence et Type sont masquées : on les rappelle ici */}
+                        <span className="block font-mono text-xs text-gray-500 sm:hidden">{f.reference} · {TYPES[f.type_produit]}</span>
+                      </td>
+                      <td className="hidden font-mono text-xs sm:table-cell">{f.reference}</td>
+                      <td className="hidden md:table-cell">{TYPES[f.type_produit]}</td>
                       <td><span className={`badge ${etat.classe}`}>{etat.libelle}</span></td>
-                      <td className="text-xs text-gray-500">{dateHeure(f.updated_at)}</td>
+                      <td className="hidden text-xs text-gray-500 md:table-cell">{dateHeure(f.updated_at)}</td>
                     </tr>
                   );
                 })}
@@ -396,6 +405,15 @@ function EditeurFiche({ fiche, telephones, onFermer, onEnregistre }) {
   );
 }
 
+// Nom du site d'une adresse (« www.samsung.com »), sans planter si l'adresse est mal formée
+function nomDeSite(adresse) {
+  try {
+    return new URL(adresse).hostname;
+  } catch {
+    return adresse;
+  }
+}
+
 // Proposition renvoyée par l'assistant, à relire avant de l'appliquer
 function Proposition({ r, piecesChoisies, setPiecesChoisies, onAppliquer, onImporterPhoto, onCreerPieces }) {
   if (!r.trouve) {
@@ -413,7 +431,7 @@ function Proposition({ r, piecesChoisies, setPiecesChoisies, onAppliquer, onImpo
         </div>
       )}
       {r.sources?.length > 0 && (
-        <p className="text-xs text-gray-500">Sources : {r.sources.map((s) => <a key={s} href={s} target="_blank" rel="noreferrer" className="mr-2 underline">{new URL(s).hostname}</a>)}</p>
+        <p className="text-xs text-gray-500">Sources : {r.sources.map((s) => <a key={s} href={s} target="_blank" rel="noreferrer" className="mr-2 underline">{nomDeSite(s)}</a>)}</p>
       )}
       <button type="button" className="btn-primary btn-sm" onClick={onAppliquer}>Recopier dans la fiche</button>
       {r.pieces_detachees?.length > 0 && (

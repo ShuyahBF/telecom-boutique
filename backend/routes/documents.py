@@ -21,7 +21,7 @@ from auth import Contexte, permission
 from journal_paiements import journaliser
 from routes.tiers import instantane_client
 from services import calculer_lignes, entree_stock, est_stockable, prochain_numero, sorties_groupees, statut_paiement
-from utils import montant_en_lettres, new_id, now_iso, today_iso
+from utils import montant_en_lettres, new_id, now_iso, today_iso, motif_recherche
 
 router = APIRouter(prefix="/documents", tags=["Factures & proformas"])
 # Droits requis (voir la table PERMISSIONS dans auth.py)
@@ -137,7 +137,7 @@ async def lister(type_document: str = "", statut: str = "", q: str = "", ctx: Co
         filtre["statut"] = statut
     if q.strip():
         import re
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{"numero": {"$regex": motif, "$options": "i"}},
                          {"client.nom": {"$regex": motif, "$options": "i"}},
                          {"client.telephone": {"$regex": motif, "$options": "i"}},

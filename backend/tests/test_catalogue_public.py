@@ -140,3 +140,18 @@ def test_assistant_recherche(client, super_admin, monkeypatch):
     assert len(appels) == 2 and appels[0]["tools"][0]["type"] == "web_search_20260209"
     assert appels[1]["messages"][1]["role"] == "assistant"  # reprise après la pause
     assert cp.prochaine_publication().hour == 23
+
+
+def test_visibilite_du_deuxieme_document_et_recherche_sans_accents(client, boutique_equipee):
+    a = boutique_equipee
+    tel = a["tel"]
+    for titre in ("Premier", "Second"):
+        client.post(f"/api/produits/{tel['id']}/documents", headers=a["h"],
+                    files={"fichier": (f"{titre}.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")},
+                    data={"titre": titre, "type_document": "BROCHURE", "visible_clients": "false"})
+    docs = client.get(f"/api/produits/{tel['id']}", headers=a["h"]).json()["documents"]
+    second = next(d for d in docs if d["titre"] == "Second")
+    r = client.patch(f"/api/produits/{tel['id']}/documents/{second['id']}", headers=a["h"], json={"visible_clients": True}).json()
+    assert {d["titre"]: d["visible_clients"] for d in r["documents"]} == {"Premier": False, "Second": True}
+    # « telephone » retrouve « Téléphone test »
+    assert any(p["id"] == tel["id"] for p in client.get("/api/produits", headers=a["h"], params={"q": "telephone"}).json())

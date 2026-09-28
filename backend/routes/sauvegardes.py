@@ -11,7 +11,9 @@ import taches_nocturnes
 from auth import get_super_admin
 from config import get_settings
 from db import SANS_ID, db
-from storage import enregistrer_prive
+from fastapi.responses import FileResponse, RedirectResponse
+
+from storage import chemin_local_prive, enregistrer_prive, lien_temporaire_prive
 from utils import new_id, now_iso
 
 router = APIRouter(prefix="/plateforme", tags=["Sauvegardes (super-admin)"])
@@ -41,6 +43,21 @@ async def lire_rapport(rapport_id: str, _: dict = Depends(get_super_admin)):
     if not r:
         raise HTTPException(404, "Rapport introuvable")
     return r
+
+
+@router.get("/sauvegardes/{sauvegarde_id}/fichier")
+async def telecharger_sauvegarde_privee(sauvegarde_id: str, _: dict = Depends(get_super_admin)):
+    """Télécharge une sauvegarde gardée sur le serveur (celle faite juste avant une restauration)."""
+    entree = await db.sauvegardes.find_one({"id": sauvegarde_id}, SANS_ID)
+    if not entree or not entree.get("cle_privee"):
+        raise HTTPException(404, "Cette sauvegarde n'est pas conservée sur le serveur")
+    lien = await lien_temporaire_prive(entree["cle_privee"])
+    if lien:
+        return RedirectResponse(lien)
+    chemin = chemin_local_prive(entree["cle_privee"])
+    if not chemin.exists():
+        raise HTTPException(404, "Fichier introuvable")
+    return FileResponse(chemin, media_type="application/octet-stream", filename=entree["fichier"])
 
 
 @router.post("/sauvegardes/lancer")

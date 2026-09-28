@@ -30,6 +30,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Nom des fichiers téléchargés (sauvegardes, exports) lisible par le site
+    expose_headers=["Content-Disposition"],
 )
 
 api = APIRouter(prefix="/api")

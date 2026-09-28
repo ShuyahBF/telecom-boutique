@@ -13,7 +13,7 @@ import catalogue_public as cp
 from auth import Contexte, get_super_admin, tout_le_personnel
 from db import SANS_ID, db
 from storage import TYPES_IMAGES, enregistrer_fichier_catalogue, lire_image
-from utils import new_id, now_iso
+from utils import new_id, now_iso, motif_recherche
 
 admin = APIRouter(prefix="/plateforme/catalogue", tags=["Catalogue public (super-admin)"])
 consultation = APIRouter(prefix="/catalogue-public", tags=["Catalogue public (boutiques)"])
@@ -62,7 +62,7 @@ async def _verifier(d: dict, sauf_id: Optional[str] = None) -> None:
 async def lister(q: str = "", type_produit: str = "", statut: str = "", _: dict = Depends(get_super_admin)):
     filtre: dict = {"supprime": {"$ne": True}}
     if q.strip():
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{k: {"$regex": motif, "$options": "i"}} for k in ("nom", "marque", "reference")]
     if type_produit:
         filtre["type_produit"] = type_produit
@@ -192,7 +192,7 @@ async def rechercher_public(q: str = "", type_produit: str = "", marque: str = "
                             ctx: Contexte = Depends(tout_le_personnel)):
     filtre: dict = {}
     if q.strip():
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{k: {"$regex": motif, "$options": "i"}} for k in ("nom", "marque", "reference")]
     if type_produit:
         filtre["type_produit"] = type_produit

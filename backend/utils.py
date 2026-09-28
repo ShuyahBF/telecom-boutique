@@ -113,3 +113,20 @@ def nombre_en_lettres(n: int) -> str:
 def montant_en_lettres(montant, devise: str = "FCFA") -> str:
     texte = nombre_en_lettres(arrondi(montant))
     return f"{texte[0].upper()}{texte[1:]} {devise}"
+
+
+# Majuscules incluses : on ne dépend pas de la gestion des accents par l'option "i"
+_VARIANTES = {"a": "aàâäAÀÂÄ", "c": "cçCÇ", "e": "eéèêëEÉÈÊË", "i": "iîïIÎÏ", "o": "oôöOÔÖ", "u": "uùûüUÙÛÜ", "y": "yÿYŸ"}
+
+
+def motif_recherche(texte: str) -> str:
+    """Expression de recherche qui ignore les accents : « ecran » trouve « Écran »
+    (et inversement). À utiliser avec l'option "i" (sans majuscules)."""
+    sans = unicodedata.normalize("NFKD", texte.strip().lower()).encode("ascii", "ignore").decode()
+    morceaux = []
+    for car in sans:
+        if car in _VARIANTES:
+            morceaux.append(f"[{_VARIANTES[car]}]")
+        else:
+            morceaux.append(re.escape(car))
+    return "".join(morceaux)

@@ -23,7 +23,7 @@ from routes.maintenance import avec_libelles as sav_libelles
 from routes.paiements import creer_page_paiement, paiement_disponible
 from routes.tiers import instantane_client, trouver_ou_creer_client
 from services import est_stockable, prochain_numero
-from utils import new_id, normaliser_telephone, now_iso
+from utils import new_id, normaliser_telephone, now_iso, motif_recherche
 
 router = APIRouter(prefix="/public", tags=["Portail public"])
 
@@ -75,7 +75,7 @@ async def annuaire(q: str = ""):
     """Liste pour le carrousel ; q = nom (partiel) OU code marchand (exact)."""
     filtre: dict = {"actif": True}
     if q.strip():
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}},
                          {"ville": {"$regex": motif, "$options": "i"}},
                          {"code_marchand": q.strip().upper()}]
@@ -98,7 +98,7 @@ async def produits(slug: str, q: str = "", categorie: str = "", marque: str = ""
     b = await _boutique(slug)
     filtre: dict = dict(EN_VENTE)
     if q.strip():
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}}, {"marque": {"$regex": motif, "$options": "i"}},
                          {"description": {"$regex": motif, "$options": "i"}}]
     if categorie:

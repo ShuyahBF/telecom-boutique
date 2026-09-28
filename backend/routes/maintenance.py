@@ -17,7 +17,7 @@ from messagerie import lien_suivi, notifier_en_fond
 from routes.documents import creer_document, enrichir
 from routes.tiers import instantane_client
 from services import entree_stock, est_stockable, prochain_numero, sortie_stock
-from utils import new_id, now_iso, today_iso
+from utils import new_id, now_iso, today_iso, motif_recherche
 
 router = APIRouter(prefix="/maintenance", tags=["Maintenance (SAV)"])
 # Droits requis (voir la table PERMISSIONS dans auth.py)
@@ -102,7 +102,7 @@ async def lister(statut: str = "", en_cours: bool = False, q: str = "", ctx: Con
         filtre["statut"] = {"$ne": "RESTITUE"}
     if q.strip():
         import re
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{k: {"$regex": motif, "$options": "i"}}
                          for k in ("numero", "imei", "modele", "marque", "client.nom", "client.telephone")]
     return [avec_libelles(d) for d in await ctx.tdb.dossiers.find(filtre).sort("date_depot", -1).to_list(500)]

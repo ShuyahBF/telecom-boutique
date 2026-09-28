@@ -51,6 +51,10 @@ class FicheBoutique(BaseModel):
 async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(parametres)):
     # Le nom et le code marchand sont gérés par l'administrateur de la plateforme
     maj = payload.model_dump(exclude_none=True)
+    # Coordonnées : une valeur vide (null) envoyée explicitement les efface
+    for champ in ("latitude", "longitude"):
+        if champ in payload.model_fields_set and getattr(payload, champ) is None:
+            maj[champ] = None
     if "telephone" in maj:
         maj["telephone"] = normaliser_telephone(maj["telephone"])
     # Les informations légales modifiées doivent être revérifiées par l'administrateur

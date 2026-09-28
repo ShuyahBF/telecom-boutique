@@ -47,6 +47,17 @@ export default function TableauDeBord() {
       { libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: "/gestion/produits", alerte: donnees.nb_produits_alerte > 0 },
     ];
 
+  // Alertes du catalogue, ajoutées seulement quand il y a quelque chose à voir
+  // (pour tous ceux qui peuvent consulter le catalogue)
+  if (peut(user, "catalogue.lecture")) {
+    if (donnees.nb_nouveautes_catalogue > 0) {
+      tuiles.push({ libelle: "Nouveautés du catalogue public", valeur: donnees.nb_nouveautes_catalogue, detail: "nouveaux modèles reçus, à consulter", lien: "/gestion/produits?nouveau=1", alerte: true });
+    }
+    if (donnees.nb_produits_sans_prix > 0) {
+      tuiles.push({ libelle: "Produits sans prix", valeur: donnees.nb_produits_sans_prix, detail: "prix de vente à renseigner", lien: "/gestion/produits?sans_prix=1", alerte: true });
+    }
+  }
+
   return (
     <div>
       {/* En-tête avec les raccourcis vers les saisies les plus fréquentes */}
@@ -56,6 +67,8 @@ export default function TableauDeBord() {
         {vendeur && <Link to="/gestion/documents/nouveau?type=PRO" className="btn-outline btn-sm">+ Nouvelle proforma</Link>}
         <Link to="/gestion/maintenance/nouveau" className="btn-accent btn-sm">🔧 Dépôt SAV</Link>
         {vendeur && <Link to="/gestion/stock/bons/nouveau" className="btn-outline btn-sm">🚚 Réception fournisseur</Link>}
+        {/* Raccourci réservé au DG et au comptable (permission « paiements.historique ») */}
+        {peut(user, "paiements.historique") && <Link to="/gestion/paiements" className="btn-outline btn-sm">💳 Historique des paiements</Link>}
       </EnTetePage>
 
       {/* Tuiles d'indicateurs (2 colonnes sur téléphone, 4 sur grand écran) */}

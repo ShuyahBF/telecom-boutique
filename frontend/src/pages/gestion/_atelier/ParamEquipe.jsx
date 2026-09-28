@@ -7,8 +7,8 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Champ } from "./communs";
 
-// Rôles qu'un gérant peut attribuer, avec leur explication en une ligne
-// Rôles proposés, avec leur description (définies dans lib/statuts.js)
+// Les 5 rôles qu'un DG peut attribuer (DG, commercial, secrétaire, comptable,
+// technicien), avec leur description en une ligne (définies dans lib/statuts.js)
 const ROLES_BOUTIQUE = Object.entries(DESCRIPTIONS_ROLES);
 
 // Onglet « Équipe » : comptes du personnel de la boutique.

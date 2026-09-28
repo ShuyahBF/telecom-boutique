@@ -120,3 +120,20 @@ def test_google_drive_envoi():
 def test_cle_de_chiffrement():
     import sauvegarde
     assert len(base64.b64decode(sauvegarde.generer_cle())) == 32
+
+
+def test_sauvegarde_avant_restauration_telechargeable(client, super_admin, boutique_equipee):
+    import io
+    bid = boutique_equipee["boutique"]["id"]
+    archive = client.get(f"/api/plateforme/boutiques/{bid}/sauvegarde", headers=super_admin).content
+    client.post(f"/api/plateforme/boutiques/{bid}/restauration", headers=super_admin,
+                files={"fichier": ("s.tlb.gz.enc", io.BytesIO(archive), "application/octet-stream")},
+                data={"confirmation": boutique_equipee["boutique"]["code_marchand"]})
+    liste = client.get("/api/plateforme/sauvegardes", headers=super_admin, params={"boutique_id": bid}).json()["sauvegardes"]
+    avant = next(s for s in liste if s["declencheur"] == "avant_restauration")
+    r = client.get(f"/api/plateforme/sauvegardes/{avant['id']}/fichier", headers=super_admin)
+    assert r.status_code == 200 and r.content.startswith(b"TLB1")
+    # Coordonnées effaçables
+    client.patch("/api/boutique", headers=boutique_equipee["h"], json={"latitude": 12.3, "longitude": -1.5})
+    b = client.patch("/api/boutique", headers=boutique_equipee["h"], json={"latitude": None, "longitude": None}).json()
+    assert b["latitude"] is None and b["longitude"] is None

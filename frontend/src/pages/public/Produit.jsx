@@ -7,10 +7,12 @@ import { TYPES_PRODUIT } from "@/lib/statuts";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import CarteProduit from "./_composants/CarteProduit";
+import DocumentsProduit from "./_composants/DocumentsProduit";
 import VisuelProduit from "./_composants/VisuelProduit";
 
 // FICHE PRODUIT (/b/:slug/produit/:produitSlug) : photo, prix, disponibilité,
-// ajout au panier, description, caractéristiques et produits similaires.
+// ajout au panier, description, caractéristiques, compatibilité (pièces et
+// accessoires), conseils d'utilisation, documents et produits similaires.
 export default function Produit() {
   const { boutique } = useOutletContext();
   const { produitSlug } = useParams();
@@ -167,6 +169,29 @@ export default function Produit() {
               </ul>
             </div>
           )}
+          {/* Compatibilité : liste des téléphones avec lesquels la pièce / l'accessoire fonctionne */}
+          {produit.modeles_compatibles?.length > 0 && (
+            <div>
+              <h2 className="mb-2 font-bold">Compatible avec</h2>
+              <div className="flex flex-wrap gap-2">
+                {produit.modeles_compatibles.map((nom) => (
+                  <span key={nom} className="badge bg-gray-100 px-3 py-1 text-sm text-gray-700">📱 {nom}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conseils d'utilisation rédigés par la boutique (texte libre, retours à la ligne conservés) */}
+          {produit.conseils_utilisation?.trim() && (
+            <div>
+              <h2 className="mb-1 font-bold">💡 Conseils d'utilisation</h2>
+              <p className="whitespace-pre-line rounded-2xl bg-amber-50 p-4 text-sm text-gray-700">{produit.conseils_utilisation}</p>
+            </div>
+          )}
+
+          {/* Documents que la boutique a rendus visibles (brochure, manuel...) */}
+          <DocumentsProduit documents={produit.documents} />
+
           {produit.reference && <p className="text-xs text-gray-400">Réf. {produit.reference}</p>}
         </div>
       </div>

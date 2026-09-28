@@ -8,8 +8,10 @@ import { montant } from "@/lib/format";
 export default function ProduitSelect({ onChoisir, filtre, placeholder = "Ajouter un produit (nom, référence)…" }) {
   const [recherche, setRecherche] = useState("");
   const [resultats, setResultats] = useState([]);
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvert, setOuvert] = useState(false); // liste des résultats affichée ou non
 
+  // Recherche dans le catalogue, seulement quand la liste est ouverte
+  // (petit délai pour ne pas interroger l'API à chaque lettre tapée)
   useEffect(() => {
     if (!ouvert) return undefined;
     const t = setTimeout(() => {
@@ -22,9 +24,15 @@ export default function ProduitSelect({ onChoisir, filtre, placeholder = "Ajoute
 
   return (
     <div className="relative">
+      {/* Champ de recherche. La liste s'ouvre :
+          - quand le champ reçoit le focus ;
+          - au clic dans le champ (utile s'il a gardé le focus après un premier choix) ;
+          - dès qu'on tape une lettre (onChange).
+          Elle se ferme quand on quitte le champ (petit délai pour laisser le clic sur un résultat se faire). */}
       <input className="input" placeholder={placeholder} value={recherche}
-        onFocus={() => setOuvert(true)} onBlur={() => setTimeout(() => setOuvert(false), 200)}
-        onChange={(e) => setRecherche(e.target.value)} />
+        onFocus={() => setOuvert(true)} onClick={() => setOuvert(true)}
+        onBlur={() => setTimeout(() => setOuvert(false), 200)}
+        onChange={(e) => { setRecherche(e.target.value); setOuvert(true); }} />
       {ouvert && (
         <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
           {resultats.map((p) => (

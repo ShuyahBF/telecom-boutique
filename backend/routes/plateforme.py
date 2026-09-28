@@ -143,6 +143,10 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = De
     if not boutique:
         raise HTTPException(404, "Boutique introuvable")
     maj = payload.model_dump(exclude_none=True)
+    # Coordonnées : une valeur vide (null) envoyée explicitement les efface
+    for champ in ("latitude", "longitude"):
+        if champ in payload.model_fields_set and getattr(payload, champ) is None:
+            maj[champ] = None
     if "code_marchand" in maj:
         maj["code_marchand"] = _normaliser_code(maj["code_marchand"])
         autre = await db.boutiques.find_one({"code_marchand": maj["code_marchand"]}, {"_id": 0, "id": 1})

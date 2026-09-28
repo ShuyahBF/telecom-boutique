@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 // Petites notifications en bas de l'écran (« Enregistré », erreurs...).
 // Utilisation : const toast = useToast(); toast.succes("Enregistré"); toast.erreur("…")
@@ -13,11 +13,13 @@ export function ToastProvider({ children }) {
     setTimeout(() => setMessages((m) => m.filter((x) => x.id !== id)), 4000);
   }, []);
 
-  const api = {
+  // useMemo : le même objet est renvoyé à chaque affichage, ce qui permet de
+  // l'utiliser sans risque dans les dépendances des useEffect/useCallback
+  const api = useMemo(() => ({
     succes: (t) => afficher(t, "succes"),
     erreur: (t) => afficher(t, "erreur"),
     info: (t) => afficher(t, "info"),
-  };
+  }), [afficher]);
 
   const couleurs = { succes: "bg-green-600", erreur: "bg-red-600", info: "bg-gray-800" };
   return (

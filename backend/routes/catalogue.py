@@ -12,7 +12,7 @@ from auth import Contexte, permission, tout_le_personnel
 from services import entree_stock, est_stockable
 from catalogue_public import CHAMPS_PARTAGES
 from storage import enregistrer_image, lire_document, lire_image, supprimer_image
-from utils import new_id, now_iso, slugifier
+from utils import new_id, now_iso, slugifier, motif_recherche
 
 router = APIRouter(tags=["Catalogue"])
 # Droits requis (voir la table PERMISSIONS dans auth.py)
@@ -124,7 +124,7 @@ async def lister_produits(q: str = "", categorie_id: str = "", type_produit: str
     if sans_prix:
         filtre["prix_vente"] = {"$lte": 0}
     if q:
-        motif = re.escape(q.strip())
+        motif = motif_recherche(q)
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}},
                          {"reference": {"$regex": motif, "$options": "i"}},
                          {"marque": {"$regex": motif, "$options": "i"}}]
@@ -254,12 +254,14 @@ class VisibiliteDocument(BaseModel):
 @router.patch("/produits/{produit_id}/documents/{document_id}")
 async def visibilite_document(produit_id: str, document_id: str, payload: VisibiliteDocument,
                               ctx: Contexte = Depends(edition)):
-    produit = await ctx.tdb.produits.find_one_and_update(
+    # update_one puis relecture : l'opérateur positionnel « $ » est mal géré par
+    # find_one_and_update dans la base de test (seul le 1er document changeait)
+    res = await ctx.tdb.produits.update_one(
         {"id": produit_id, "documents.id": document_id},
         {"$set": {"documents.$.visible_clients": payload.visible_clients}})
-    if not produit:
+    if not res.matched_count:
         raise HTTPException(404, "Document introuvable")
-    return produit
+    return await ctx.tdb.produits.find_one({"id": produit_id})
 
 
 @router.delete("/produits/{produit_id}/documents/{document_id}")

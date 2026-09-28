@@ -85,6 +85,7 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
     paiement = {
         "id": new_id(), "deposit_id": deposit_id, "boutique_id": boutique["id"], "commande_id": commande["id"],
         "commande_numero": commande["numero"], "montant": commande["total"], "devise": corps["amountDetails"]["currency"],
+        "client_nom": commande["client"]["nom"],
         "pays": pays, "environnement": s.pawapay_environment, "statut": "initie", "api_statut": None,
         "api_message": None, "redirect_url": None, "created_at": now_iso(), "updated_at": now_iso(),
     }
@@ -113,7 +114,7 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
                                   {"$set": {"statut": "en_attente", "redirect_url": url, "updated_at": now_iso()}})
     await TenantDB(boutique["id"]).commandes.update_one(
         {"id": commande["id"]}, {"$set": {"paiement.statut": "EN_ATTENTE", "paiement.deposit_id": deposit_id}})
-    await _tracer({**paiement, "client_nom": commande["client"]["nom"]}, "EN_ATTENTE", "")
+    await _tracer(paiement, "EN_ATTENTE", "")
     return url
 
 
@@ -122,7 +123,9 @@ async def _tracer(paiement: Dict[str, Any], statut: str, motif: str) -> None:
     await journaliser(paiement["boutique_id"], f"pawapay-{paiement['deposit_id']}", canal="PAWAPAY", mode="MM",
                       montant=paiement["montant"], statut=statut, motif=motif or "",
                       objet=f"Commande {paiement['commande_numero']}", reference=paiement["deposit_id"],
-                      client_nom=paiement.get("client_nom", ""), devise=paiement.get("devise", "XOF"),
+                      client_nom=paiement.get("client_nom", ""),
+                      # XOF (code ISO utilisé par PawaPay) = FCFA : même libellé que les règlements en caisse
+                      devise="FCFA" if paiement.get("devise", "XOF") == "XOF" else paiement["devise"],
                       liens={"commande_id": paiement["commande_id"]})
 
 

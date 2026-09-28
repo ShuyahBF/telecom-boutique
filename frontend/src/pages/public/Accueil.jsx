@@ -154,7 +154,7 @@ export default function Accueil() {
                       <LogoBoutique boutique={b} taille="h-12 w-12 text-2xl" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-bold">{b.nom}</p>
-                        <p className="truncate text-sm text-gray-500">{[b.ville, b.slogan].filter(Boolean).join(" · ") || "Boutique de téléphonie"}</p>
+                        <p className="truncate text-sm text-gray-500">{[lieuBoutique(b), b.slogan].filter(Boolean).join(" · ") || "Boutique de téléphonie"}</p>
                       </div>
                       <span className="badge bg-gray-100 font-mono text-gray-600">{b.code_marchand}</span>
                     </Link>
@@ -202,6 +202,12 @@ export default function Accueil() {
       <ScannerQr ouvert={scannerOuvert} onFermer={fermerScanner} onResultat={surScan} />
     </div>
   );
+}
+
+// Lieu d'une boutique : « Ouagadougou, Burkina Faso », ou seulement ce qui est
+// renseigné (ville seule, pays seul), ou "" si rien n'est connu.
+function lieuBoutique(b) {
+  return [b.ville, b.pays].filter(Boolean).join(", ");
 }
 
 // Logo d'une boutique, ou emoji 📱 sur fond de la couleur de la boutique s'il n'y en a pas.
@@ -288,7 +294,8 @@ function Carrousel({ boutiques }) {
             {/* Nom, ville, slogan et code marchand */}
             <div className="flex flex-1 flex-col px-4 pb-4 pt-10">
               <p className="truncate text-lg font-extrabold group-hover:text-primary">{b.nom}</p>
-              <p className="text-sm text-gray-500">📍 {b.ville || "Ville non précisée"}</p>
+              {/* Lieu : « Ville, Pays » (seulement les informations renseignées) */}
+              <p className="truncate text-sm text-gray-500">📍 {lieuBoutique(b) || "Ville non précisée"}</p>
               <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-gray-600">{b.slogan || "Téléphones, accessoires et réparations."}</p>
               <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
                 <span className="text-xs text-gray-400">Code <b className="font-mono text-gray-600">{b.code_marchand}</b></span>
