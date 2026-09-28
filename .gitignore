@@ -1,9 +1,12 @@
-# Base de données locale, fichiers envoyés et fichiers statiques collectés
-db.sqlite3
-media/
-staticfiles/
+# Python
 __pycache__/
 *.pyc
 .venv/
 venv/
-.env
+.pytest_cache/
+backend/.env
+backend/uploads/
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
