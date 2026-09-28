@@ -50,6 +50,7 @@ import Paiements from "@/pages/gestion/Paiements";
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 import Sauvegardes from "@/pages/plateforme/Sauvegardes";
+import ParametresPlateforme from "@/pages/plateforme/Parametres";
 import Referentiel from "@/pages/plateforme/Referentiel";
 
 
@@ -118,6 +119,8 @@ export default function App() {
             <Route path="/plateforme/abonnements" element={<RouteProtegee roles={["super_admin"]}><Abonnements /></RouteProtegee>} />
             <Route path="/plateforme/reversements" element={<RouteProtegee roles={["super_admin"]}><ReversementsPlateforme /></RouteProtegee>} />
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
+            {/* Paramètres généraux : serveur d'envoi des e-mails (SMTP) */}
+            <Route path="/plateforme/parametres" element={<RouteProtegee roles={["super_admin"]}><ParametresPlateforme /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

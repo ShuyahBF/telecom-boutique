@@ -16,6 +16,7 @@ const MENU_PLATEFORME = [
   { to: "/plateforme/abonnements", label: "Abonnements", court: "Abonnements", icone: "💰" },
   { to: "/plateforme/reversements", label: "Reversements", court: "Reversements", icone: "💸" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
+  { to: "/plateforme/parametres", label: "Paramètres", court: "Paramètres", icone: "⚙️" },
 ];
 
 export function EnTetePlateforme() {

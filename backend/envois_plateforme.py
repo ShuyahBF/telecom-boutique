@@ -35,25 +35,67 @@ _jeton_orange: dict = {}  # jeton OAuth Orange gardé en mémoire jusqu'à son e
 # ---------------------------------------------------------------------------
 # E-mail (serveur SMTP de la plateforme)
 # ---------------------------------------------------------------------------
+# Le serveur d'envoi se règle dans l'administration (/plateforme/parametres) ; il est
+# gardé en base (mot de passe chiffré). À défaut, les variables PLATEFORME_SMTP_*.
+def _cle_chiffrement() -> bytes:
+    """Clé de chiffrement des secrets gardés en base, dérivée de JWT_SECRET."""
+    return base64.urlsafe_b64encode(hashlib.sha256(("adlyn-secrets|" + get_settings().jwt_secret).encode()).digest())
+
+
+def chiffrer(valeur: str) -> str:
+    from cryptography.fernet import Fernet
+    return Fernet(_cle_chiffrement()).encrypt(valeur.encode()).decode()
+
+
+def dechiffrer(valeur: str) -> str:
+    from cryptography.fernet import Fernet, InvalidToken
+    try:
+        return Fernet(_cle_chiffrement()).decrypt(valeur.encode()).decode()
+    except (InvalidToken, ValueError):
+        return ""  # clé changée : le mot de passe est à ressaisir
+
+
+async def config_smtp() -> dict:
+    """Réglages en vigueur : ceux de l'administration, sinon les variables d'environnement."""
+    from db import db
+    doc = await db.parametres_plateforme.find_one({"_id": "smtp"}) or {}
+    if doc.get("hote"):
+        return {"hote": doc["hote"], "port": int(doc.get("port") or 587), "utilisateur": doc.get("utilisateur", ""),
+                "mot_de_passe": dechiffrer(doc.get("mot_de_passe_chiffre", "")) if doc.get("mot_de_passe_chiffre") else "",
+                "expediteur": doc.get("expediteur", ""), "nom_expediteur": doc.get("nom_expediteur", "adLyn"),
+                "ssl": bool(doc.get("ssl")), "actif": doc.get("actif", True), "source": "administration"}
+    s = get_settings()
+    return {"hote": s.plateforme_smtp_hote or "", "port": s.plateforme_smtp_port, "utilisateur": s.plateforme_smtp_utilisateur or "",
+            "mot_de_passe": s.plateforme_smtp_mot_de_passe or "", "expediteur": s.plateforme_expediteur or "",
+            "nom_expediteur": "adLyn", "ssl": s.plateforme_smtp_ssl, "actif": bool(s.plateforme_smtp_hote),
+            "source": "variables d'environnement"}
+
+
 def email_configure() -> bool:
     return bool(get_settings().plateforme_smtp_hote)
 
 
-def envoyer_smtp(sujet: str, corps: str, destinataire: str) -> None:
-    """Envoi SYNCHRONE (à appeler dans un thread) ; lève une exception en cas d'échec."""
-    s = get_settings()
+def envoyer_smtp(sujet: str, corps: str, destinataire: str, c: Optional[dict] = None) -> None:
+    """Envoi SYNCHRONE (à appeler dans un thread) ; lève une exception en cas d'échec.
+    `c` : réglages (config_smtp) ; à défaut, variables d'environnement."""
+    if c is None:
+        s = get_settings()
+        c = {"hote": s.plateforme_smtp_hote, "port": s.plateforme_smtp_port, "utilisateur": s.plateforme_smtp_utilisateur,
+             "mot_de_passe": s.plateforme_smtp_mot_de_passe, "expediteur": s.plateforme_expediteur,
+             "nom_expediteur": "adLyn", "ssl": s.plateforme_smtp_ssl}
+    from email.utils import formataddr
     msg = EmailMessage()
     msg["Subject"], msg["To"] = sujet, destinataire
-    msg["From"] = s.plateforme_expediteur or s.plateforme_smtp_utilisateur
+    msg["From"] = formataddr((c.get("nom_expediteur") or "adLyn", c.get("expediteur") or c.get("utilisateur") or ""))
     msg.set_content(corps)
-    if s.plateforme_smtp_ssl:
-        serveur = smtplib.SMTP_SSL(s.plateforme_smtp_hote, s.plateforme_smtp_port, timeout=20)
+    if c.get("ssl"):
+        serveur = smtplib.SMTP_SSL(c["hote"], int(c["port"]), timeout=20)
     else:
-        serveur = smtplib.SMTP(s.plateforme_smtp_hote, s.plateforme_smtp_port, timeout=20)
+        serveur = smtplib.SMTP(c["hote"], int(c["port"]), timeout=20)
         serveur.starttls()
     with serveur:
-        if s.plateforme_smtp_utilisateur:
-            serveur.login(s.plateforme_smtp_utilisateur, s.plateforme_smtp_mot_de_passe or "")
+        if c.get("utilisateur"):
+            serveur.login(c["utilisateur"], c.get("mot_de_passe") or "")
         serveur.send_message(msg)
 
 
@@ -61,10 +103,11 @@ async def envoyer_email(sujet: str, corps: str, destinataire: str) -> tuple[str,
     """E-mail de la plateforme -> (statut, erreur)."""
     if not destinataire:
         return "NON_CONFIGURE", "Aucune adresse e-mail"
-    if not email_configure():
-        return "NON_CONFIGURE", "PLATEFORME_SMTP_HOTE non configuré"
+    c = await config_smtp()
+    if not (c["hote"] and c["actif"]):
+        return "NON_CONFIGURE", "Serveur d'envoi de la plateforme non réglé (Plateforme > Paramètres)"
     try:
-        await asyncio.to_thread(envoyer_smtp, sujet, corps, destinataire)
+        await asyncio.to_thread(envoyer_smtp, sujet, corps, destinataire, c)
         return "ENVOYE", ""
     except Exception as exc:  # noqa: BLE001 — l'échec est rapporté, pas propagé
         logger.warning("E-mail plateforme vers %s en échec : %s", destinataire, exc)
