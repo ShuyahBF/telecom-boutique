@@ -159,7 +159,7 @@ export default function ParamBoutique() {
           <Champ label="Taux de TVA par défaut (%)"><input className="input" type="number" min={0} max={100} step="0.01" value={fiche.taux_tva_defaut} onChange={(e) => maj("taux_tva_defaut", e.target.value)} /></Champ>
           <Champ label="Validité des proformas (jours)"><input className="input" type="number" min={1} max={365} value={fiche.validite_proforma_jours} onChange={(e) => maj("validite_proforma_jours", e.target.value)} /></Champ>
           <div className="sm:col-span-2"><Case label="Prix du catalogue exprimés TTC" aide="Coché : les prix de vente saisis incluent la TVA. Décoché : ils sont hors taxes." checked={fiche.prix_ttc} onChange={(v) => maj("prix_ttc", v)} /></div>
-          <div className="sm:col-span-2"><Case label="Paiement Mobile Money activé" aide="Les clients peuvent payer leurs commandes en ligne par Orange Money, Moov Money…" checked={fiche.paiement_mobile_money} onChange={(v) => maj("paiement_mobile_money", v)} /></div>
+          <div className="sm:col-span-2"><Case label="Paiement Mobile Money activé" aide="Les clients peuvent payer leurs commandes en ligne par Orange Money, Moov Money… Actif seulement une fois votre dossier d'identification (onglet KYC) validé par adLyn." checked={fiche.paiement_mobile_money} onChange={(v) => maj("paiement_mobile_money", v)} /></div>
           <Champ label="Mentions en pied de facture" className="sm:col-span-2"><textarea className="input" rows={3} maxLength={1000} value={fiche.conditions_facture} onChange={(e) => maj("conditions_facture", e.target.value)} /></Champ>
         </div>
 
