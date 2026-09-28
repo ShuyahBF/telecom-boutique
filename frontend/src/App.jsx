@@ -44,6 +44,7 @@ import Paiements from "@/pages/gestion/Paiements";
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 import Sauvegardes from "@/pages/plateforme/Sauvegardes";
+import Referentiel from "@/pages/plateforme/Referentiel";
 
 
 export default function App() {
@@ -103,6 +104,7 @@ export default function App() {
             {/* Administration de la plateforme */}
             <Route path="/plateforme" element={<RouteProtegee roles={["super_admin"]}><Plateforme /></RouteProtegee>} />
             <Route path="/plateforme/catalogue" element={<RouteProtegee roles={["super_admin"]}><CatalogueAdmin /></RouteProtegee>} />
+            <Route path="/plateforme/referentiel" element={<RouteProtegee roles={["super_admin"]}><Referentiel /></RouteProtegee>} />
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />

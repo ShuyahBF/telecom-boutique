@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
 import { TYPES_PRODUIT } from "@/lib/statuts";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import { EnTetePlateforme } from "./_plateforme/composants";
 
 // Types de fiches du catalogue public (pas de « service » ici)
 const TYPES = { TEL: TYPES_PRODUIT.TEL, PIE: TYPES_PRODUIT.PIE, ACC: TYPES_PRODUIT.ACC };
@@ -41,6 +42,17 @@ export default function CatalogueAdmin() {
   const [publication, setPublication] = useState(null);
   const [filtres, setFiltres] = useState({ q: "", type_produit: "", statut: "" });
   const [edition, setEdition] = useState(null); // fiche ouverte dans l'éditeur (null = fermé)
+  const [params, setParams] = useSearchParams();
+
+  // Ouverture directe d'une fiche depuis le référentiel mondial (?fiche=<id>)
+  useEffect(() => {
+    const id = params.get("fiche");
+    if (!id) return;
+    apiClient.get(`/plateforme/catalogue/${id}`)
+      .then(({ data }) => setEdition(versFormulaire(data)))
+      .catch(() => toastRef.current.erreur("Fiche introuvable"))
+      .finally(() => setParams({}, { replace: true }));
+  }, [params, setParams]);
 
   // Chargement de la liste (avec les filtres) et de l'état de la publication
   const charger = useCallback(async () => {
@@ -78,13 +90,17 @@ export default function CatalogueAdmin() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3">
+      <EnTetePlateforme />
+      <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-3 px-4 pt-6 sm:px-6">
         <div>
-          <Link to="/plateforme" className="text-sm font-semibold text-primary">← Plateforme</Link>
-          <h1 className="text-xl font-extrabold">Catalogue public commun</h1>
+          <h1 className="text-2xl font-extrabold">Catalogue public commun</h1>
+          <p className="text-sm text-gray-500">
+            Fiches détaillées publiées chaque soir dans toutes les boutiques. Pour partir d'un appareil existant,
+            passez par le <Link to="/plateforme/referentiel" className="font-semibold text-primary">référentiel mondial</Link>.
+          </p>
         </div>
         <button type="button" className="btn-primary" onClick={() => setEdition({ ...FICHE_VIDE })}>+ Nouvelle fiche</button>
-      </header>
+      </div>
 
       <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
         {/* Bandeau de publication : prochaine publication automatique + fiches en attente */}

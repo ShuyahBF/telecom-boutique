@@ -17,6 +17,8 @@ export default function CataloguePublic() {
   const [resultat, setResultat] = useState(null);
   const [erreur, setErreur] = useState("");
   const [ficheId, setFicheId] = useState(null);
+  // Vue : fiches détaillées du catalogue public, ou référentiel mondial (tous les appareils)
+  const [vue, setVue] = useState("fiches");
 
   // Recherche (avec un petit délai pendant la frappe)
   useEffect(() => {
@@ -31,6 +33,16 @@ export default function CataloguePublic() {
   return (
     <div>
       <EnTetePage titre="Catalogue public" sousTitre="Fiches communes à toutes les boutiques, mises à jour chaque soir. Vos prix et documents restent privés." />
+
+      {/* Choix de la vue */}
+      <div className="mb-4 inline-flex rounded-xl border border-gray-200 bg-white p-1">
+        {[["fiches", "📋 Fiches détaillées"], ["monde", "📚 Tous les appareils du monde"]].map(([cle, libelle]) => (
+          <button key={cle} type="button" onClick={() => setVue(cle)}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${vue === cle ? "bg-primary text-white" : "text-gray-600"}`}>{libelle}</button>
+        ))}
+      </div>
+
+      {vue === "monde" ? <ReferentielMondial onOuvrir={setFicheId} /> : (<>
 
       {/* Filtres de recherche */}
       <div className="mb-4 flex flex-wrap gap-3">
@@ -68,6 +80,8 @@ export default function CataloguePublic() {
           {resultat.modeles.length === 0 && <p className="text-gray-500">Aucun modèle trouvé.</p>}
         </div>
       )}
+
+      </>)}
 
       <FicheModele id={ficheId} devise={boutique?.devise} onFermer={() => setFicheId(null)} onOuvrir={setFicheId} />
     </div>
@@ -150,5 +164,68 @@ function FicheModele({ id, devise, onFermer, onOuvrir }) {
         </div>
       )}
     </Modal>
+  );
+}
+
+// Recherche dans le référentiel mondial (liste officielle Google Play + iPhone) :
+// identité de n'importe quel appareil (marque, nom, codes modèle), et accès à sa
+// fiche détaillée quand elle a été publiée dans le catalogue public.
+function ReferentielMondial({ onOuvrir }) {
+  const [q, setQ] = useState("");
+  const [marque, setMarque] = useState("");
+  const [marques, setMarques] = useState([]);
+  const [page, setPage] = useState(1);
+  const [resultat, setResultat] = useState(null);
+
+  // Liste des marques (une seule fois)
+  useEffect(() => {
+    apiClient.get("/referentiel/marques").then(({ data }) => setMarques(data)).catch(() => {});
+  }, []);
+
+  // Recherche, avec un petit délai pendant la frappe
+  useEffect(() => {
+    const t = setTimeout(() => {
+      apiClient.get("/referentiel", { params: { q, marque, page } }).then(({ data }) => setResultat(data)).catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, marque, page]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        <input className="input max-w-sm" placeholder="Nom ou code modèle (ex. Galaxy A15, SM-A155F)…" value={q}
+          onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="input max-w-[14rem]" value={marque} onChange={(e) => { setMarque(e.target.value); setPage(1); }}>
+          <option value="">Toutes les marques</option>
+          {marques.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+      {!resultat ? <Chargement /> : (
+        <>
+          <p className="text-sm text-gray-500">{resultat.total.toLocaleString("fr-FR")} appareil(s) — liste officielle Google Play et iPhone</p>
+          <div className="card divide-y divide-gray-100 p-0">
+            {resultat.appareils.map((a) => (
+              <div key={a.cle} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{a.marque} {a.nom}</p>
+                  <p className="truncate font-mono text-xs text-gray-500">{a.codes_modele.join(" · ") || "—"}</p>
+                </div>
+                {a.fiche_publiee
+                  ? <button type="button" className="btn-outline btn-sm" onClick={() => onOuvrir(a.catalogue_id)}>Voir la fiche détaillée</button>
+                  : <span className="w-full text-xs text-gray-400 sm:w-auto">Fiche détaillée pas encore disponible</span>}
+              </div>
+            ))}
+            {resultat.appareils.length === 0 && <p className="p-4 text-gray-500">Aucun appareil trouvé.</p>}
+          </div>
+          {resultat.pages > 1 && (
+            <div className="flex items-center justify-center gap-3 text-sm">
+              <button type="button" className="btn-outline btn-sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>← Précédent</button>
+              Page {page} / {resultat.pages}
+              <button type="button" className="btn-outline btn-sm" disabled={page >= resultat.pages} onClick={() => setPage(page + 1)}>Suivant →</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

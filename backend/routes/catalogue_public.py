@@ -145,6 +145,8 @@ async def supprimer(modele_id: str, _: dict = Depends(get_super_admin)):
     res = await db.catalogue_modeles.delete_one({"id": modele_id, "publie": {"$ne": True}})
     if not res.deleted_count:
         raise HTTPException(409, "Fiche introuvable ou déjà publiée dans les boutiques")
+    # L'appareil du référentiel mondial n'a plus de fiche
+    await db.referentiel_appareils.update_many({"catalogue_id": modele_id}, {"$set": {"catalogue_id": None}})
     return {"ok": True}
 
 

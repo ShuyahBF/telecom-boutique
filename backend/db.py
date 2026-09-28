@@ -143,4 +143,10 @@ async def ensure_indexes() -> None:
     await db.modeles_messages.create_index([("boutique_id", 1), ("code", 1)], unique=True)
     await db.journal_envois.create_index([("boutique_id", 1), ("date", -1)])
     await db.paiements.create_index("deposit_id", unique=True)
+    # Référentiel mondial des appareils
+    # En base de test en mémoire (mongomock), un index d'unicité rend l'import des
+    # ~40 000 appareils extrêmement lent : index simple dans ce cas seulement
+    # (l'unicité est de toute façon garantie par le code d'import).
+    await db.referentiel_appareils.create_index("cle", unique=not _settings.mongo_url.startswith("mongomock://"))
+    await db.referentiel_appareils.create_index([("marque", 1), ("nom", 1)])
     await db.paiements.create_index([("statut", 1), ("created_at", 1)])

@@ -7,10 +7,11 @@ import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATU
 
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
-// Boutiques / Catalogue public / Sauvegardes.
+// Boutiques / Référentiel mondial / Catalogue public / Sauvegardes.
 // ---------------------------------------------------------------------------
 const MENU_PLATEFORME = [
   { to: "/plateforme", label: "Boutiques", court: "Boutiques", icone: "🏪", end: true },
+  { to: "/plateforme/referentiel", label: "Référentiel mondial", court: "Appareils", icone: "📚" },
   { to: "/plateforme/catalogue", label: "Catalogue public", court: "Catalogue", icone: "🌍" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
 ];
@@ -29,8 +30,8 @@ export function EnTetePlateforme() {
         </div>
 
         {/* Menu : sur téléphone il passe sur une seconde ligne (order-last),
-            en 3 colonnes égales avec des libellés courts */}
-        <nav className="order-last grid w-full grid-cols-3 gap-1 sm:order-none sm:flex sm:w-auto">
+            en 4 colonnes égales avec des libellés courts */}
+        <nav className="order-last grid w-full grid-cols-4 gap-1 sm:order-none sm:flex sm:w-auto">
           {MENU_PLATEFORME.map((m) => (
             <NavLink key={m.to} to={m.to} end={m.end}
               className={({ isActive }) => `whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:px-3 sm:text-sm ${isActive ? "bg-white/15 text-white" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}>

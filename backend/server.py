@@ -17,7 +17,7 @@ import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
 from routes import (auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
-                    maintenance, paiements, plateforme, public, sauvegardes, stock, tableau_de_bord, tiers)
+                    maintenance, paiements, plateforme, public, referentiel, sauvegardes, stock, tableau_de_bord, tiers)
 from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
@@ -38,6 +38,9 @@ api = APIRouter(prefix="/api")
 for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
+# Référentiel mondial des appareils (déclaré AVANT le catalogue public)
+api.include_router(referentiel.admin)
+api.include_router(referentiel.consultation)
 # Catalogue public commun : administration (super-admin) et consultation (boutiques)
 api.include_router(catalogue_public.admin)
 api.include_router(catalogue_public.consultation)
