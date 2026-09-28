@@ -16,7 +16,7 @@ from config import get_settings
 from db import ensure_indexes
 from routes import (auth, boutique, catalogue, commandes, conversations, documents, maintenance, paiements,
                     plateforme, public, stock, tableau_de_bord, tiers)
-from seed import ensure_super_admin
+from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
 
@@ -54,6 +54,8 @@ if settings.storage_backend == "local":
 async def au_demarrage():
     await ensure_indexes()
     await ensure_super_admin()
+    if settings.demo_au_demarrage:
+        await creer_demo()
     # Rapprochement automatique des paiements PawaPay en attente (compte partagé :
     # le callback PawaPay ne pointe pas vers ce site)
     asyncio.create_task(paiements.boucle_rapprochement())

@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # "true" le temps d'UN redéploiement pour réinitialiser le mot de passe oublié
     super_admin_reset_password: bool = False
 
+    # Développement : crée la boutique de démonstration au démarrage
+    # (pratique avec MONGO_URL=mongomock://, dont les données sont perdues à l'arrêt)
+    demo_au_demarrage: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:
