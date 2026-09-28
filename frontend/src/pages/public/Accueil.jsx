@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient, messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
+import { LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
 import ScannerQr from "@/components/ScannerQr";
 import { useToast } from "@/components/Toast";
@@ -101,12 +102,10 @@ export default function Accueil() {
         {/* Barre de navigation : logo + nom, sous-titre espacé, lien vers l'espace boutique */}
         <div className="relative border-b border-white/10">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
-            <Link to="/" className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-xl">📱</span>
-              <span className="min-w-0 leading-tight">
-                <span className="block font-display text-lg font-bold">adLyn</span>
-                <span className="block truncate pt-0.5 text-[10px] font-semibold uppercase leading-normal tracking-[0.2em] text-primary-clair sm:tracking-[0.3em]">Boutiques de téléphonie</span>
-              </span>
+            {/* Logo officiel adLyn (version claire pour le fond bleu nuit) */}
+            <Link to="/" className="flex min-w-0 items-center gap-4" aria-label="adLyn, accueil">
+              <LogoAdlyn clair className="h-8 sm:h-10" />
+              <span className="hidden border-l border-white/15 pl-4 text-[10px] font-semibold uppercase leading-normal tracking-[0.3em] text-primary-clair md:block">Boutiques de téléphonie</span>
             </Link>
             {/* Libellé court sur téléphone pour laisser la place au nom de la plateforme */}
             <Link to="/connexion" className="btn-clair btn-sm whitespace-nowrap">
@@ -248,8 +247,8 @@ export default function Accueil() {
       <footer className="bg-nuit-950 text-gray-400">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm sm:grid-cols-3">
           <div>
-            <p className="font-display text-lg font-bold text-white">adLyn</p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Boutiques de téléphonie</p>
+            <LogoAdlyn clair className="h-9" />
+            <p className="mt-2 text-xs text-gray-300">Le SaaS qui fait grandir votre boutique de téléphonie</p>
             <p className="mt-3 leading-relaxed">La plateforme qui relie les boutiques de téléphonie à leurs clients : catalogue, commandes et réparations.</p>
           </div>
           <div>

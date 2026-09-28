@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATUTS_KYC } from "./outils";
+import { LogoAdlyn } from "@/components/Marque";
 
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
@@ -26,10 +27,12 @@ export function EnTetePlateforme() {
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-ink text-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         {/* Logo + nom de l'administrateur connecté */}
-        <Link to="/plateforme" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary">📱</Link>
+        <Link to="/plateforme" className="shrink-0" aria-label="adLyn, administration"><LogoAdlyn clair className="h-8" /></Link>
         <div className="min-w-0 flex-1">
-          <p className="font-extrabold leading-tight">adLyn</p>
+          <div className="hidden border-l border-white/15 pl-3 2xl:block">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-clair">Plateforme</p>
           <p className="truncate text-xs text-gray-300">Administration de la plateforme · {user?.nom}</p>
+          </div>
         </div>
 
         {/* Menu : sur téléphone il passe sur une seconde ligne (order-last) qui
@@ -44,7 +47,7 @@ export function EnTetePlateforme() {
           ))}
         </nav>
 
-        <a href="/" target="_blank" rel="noreferrer" className="hidden text-sm font-semibold text-gray-300 hover:text-white lg:inline">Portail public ↗</a>
+        <a href="/" target="_blank" rel="noreferrer" className="hidden text-sm font-semibold text-gray-300 hover:text-white 2xl:inline">Portail public ↗</a>
         {/* Changer son propre mot de passe */}
         <Link to="/mot-de-passe" className="text-gray-300 hover:text-white" title="Changer mon mot de passe">🔑</Link>
         <button type="button" className="btn btn-sm border border-white/30 text-white hover:bg-white/10"

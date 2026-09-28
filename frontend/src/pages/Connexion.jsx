@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
@@ -54,7 +55,7 @@ export default function Connexion() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" />
       <form onSubmit={valider} className="relative w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
         <div className="text-center">
-          <p className="font-display text-3xl font-bold tracking-tight text-ink">adLyn</p>
+          <LogoAdlyn className="mx-auto h-12" />
           <p className="surtitre mt-1">{administrateur ? "Administration" : "Espace boutique"}</p>
           <h1 className="mt-3 text-xl font-bold">{administrateur ? "Administration de la plateforme" : "Connexion à votre boutique"}</h1>
           <p className="text-sm text-gray-500">Connectez-vous pour gérer votre boutique</p>
