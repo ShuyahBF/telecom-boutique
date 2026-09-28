@@ -1,0 +1,13 @@
+{
+  "name": "adLyn",
+  "short_name": "adLyn",
+  "description": "Le SaaS qui fait grandir votre boutique de téléphonie",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#081226",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

@@ -3,6 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/api";
 import { ROLES } from "@/lib/statuts";
+import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
 
 // Menu du back-office : chaque entrée indique la permission nécessaire pour la
@@ -139,13 +140,15 @@ export default function GestionLayout() {
           <div className="flex items-center gap-2 px-2">
             {boutique.logo_url
               ? <img src={boutique.logo_url} alt="" className="h-9 w-9 rounded-lg object-contain" />
-              : <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">📱</span>}
+              : <IconeAdlyn clair className="h-9 w-9" />}
             <div className="min-w-0">
               <p className="truncate font-display font-bold text-white">{boutique.nom}</p>
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary-clair">{boutique.code_marchand}</p>
             </div>
           </div>
           {menu}
+          {/* Signature de la plateforme en bas du menu */}
+          <div className="mt-auto border-t border-white/5 pt-4"><LogoAdlyn clair className="h-6 opacity-70" /></div>
         </aside>
 
         <div className="min-w-0 flex-1">
