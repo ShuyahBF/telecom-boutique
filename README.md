@@ -66,7 +66,7 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 
 ### Abonnements (modèle SaaS)
 - Chaque nouvelle boutique a **14 jours d'essai complet** à partir de sa création (les boutiques plus anciennes aussi, comptés depuis leur création).
-- Ensuite, **abonnement** selon une formule : 1 mois, 3 mois, 6 mois, 1 an… Les durées et les prix se règlent dans `/plateforme/abonnements` > Formules. **Les prix installés au départ sont des exemples à ajuster.**
+- Ensuite, **abonnement** selon une formule : 1 mois (5 000 FCFA), 3 mois (14 000), 6 mois (27 000) ou 1 an (50 000). Les durées et les prix se modifient dans `/plateforme/abonnements` > Formules.
 - Un paiement repousse l'échéance du nombre de mois de la formule, à partir de l'échéance en cours : aucun jour perdu, même payé pendant l'essai. Une boutique suspendue pour impayé repart du jour du paiement.
 - Deux façons de payer :
   - le DG paie en ligne par Mobile Money (PawaPay) depuis sa page **Abonnement adLyn** ; l'argent arrive sur le compte de la plateforme ;
@@ -77,6 +77,22 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
   - WhatsApp (même compte que beauthentik), avec le SMS en repli si WhatsApp échoue ;
   - e-mail au DG.
   Un journal des envois est disponible.
+
+### Service SMS des boutiques (volet communication, facturé à part)
+- **Configuration** par l'administrateur, une fois par boutique (`/plateforme/abonnements` > Service SMS) :
+  - nom d'expéditeur OVH déclaré pour elle (3 à 11 lettres ou chiffres) ;
+  - service OVH dédié (facultatif, sinon celui de la plateforme) ;
+  - prix d'un SMS ;
+  - SMS automatiques oui ou non.
+  La boutique ne peut pas modifier ces réglages.
+- **Envois** :
+  - SMS automatiques aux clients (commande reçue ou changée, paiement, dépôt et suivi de réparation), en plus des e-mails ;
+  - SMS écrits par le personnel (page **SMS** du back-office).
+  Tous les envois sont listés **par contact**, côté boutique et côté administrateur.
+- **Facturation** : une facture par boutique et par mois (SMS envoyés × prix ; un long message compte plusieurs SMS ; les échecs ne sont pas facturés).
+  - Elle est créée automatiquement le 1er du mois, ou à la demande pour une période.
+  - Elle se paie en ligne par le DG (page Abonnement) ou s'enregistre à la main par l'administrateur.
+- **Retard** : liste des factures SMS impayées après leur échéance (10 jours). L'administrateur choisit les boutiques dont il **suspend le seul service SMS** ; le reste de la boutique continue. Le paiement des factures en retard rétablit le service automatiquement.
 
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
@@ -125,7 +141,7 @@ Pages utiles :
 - `/gestion` : back-office ;
 - `/plateforme` : administration de la plateforme.
 
-**Tests automatiques** (68 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook, la connexion et les abonnements.
+**Tests automatiques** (72 tests) : `cd backend && python -m pytest tests -q`. Ils couvrent notamment le cloisonnement entre boutiques, les droits des rôles, les factures, le stock, le catalogue public, le KYC, les sauvegardes, l'historique des paiements, le webhook, la connexion, les abonnements et le service SMS.
 
 ## Déployer sur Render
 

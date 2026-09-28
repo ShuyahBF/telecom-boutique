@@ -6,6 +6,7 @@ import BoutiqueLayout from "@/components/BoutiqueLayout";
 import GestionLayout from "@/components/GestionLayout";
 import Abonnement from "@/pages/gestion/Abonnement";
 import Abonnements from "@/pages/plateforme/Abonnements";
+import Sms from "@/pages/gestion/Sms";
 import ChangerMotDePasse from "@/pages/ChangerMotDePasse";
 import Connexion from "@/pages/Connexion";
 // --- Portail public ---
@@ -103,6 +104,7 @@ export default function App() {
               <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
               <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
               <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
+              <Route path="sms" element={<RouteProtegee permission="messagerie"><Sms /></RouteProtegee>} />
               <Route path="abonnement" element={<RouteProtegee permission="parametres"><Abonnement /></RouteProtegee>} />
             </Route>
 

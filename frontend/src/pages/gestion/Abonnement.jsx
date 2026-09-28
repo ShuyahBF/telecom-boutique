@@ -22,10 +22,12 @@ export default function Abonnement() {
   const [telephone, setTelephone] = useState(boutique?.dg_telephone || boutique?.telephone || "");
   const [paiementEnCours, setPaiementEnCours] = useState(""); // formule dont la page PawaPay se prépare
   const [verification, setVerification] = useState(null); // retour de PawaPay : « en cours », « payé », « échec »
+  const [facturesSms, setFacturesSms] = useState([]); // factures du service SMS
 
   const charger = useCallback(() => {
     apiClient.get("/boutique/abonnement").then(({ data }) => setDonnees(data))
       .catch((err) => toast.erreur(messageErreur(err, "Abonnement indisponible")));
+    apiClient.get("/boutique/sms/factures").then(({ data }) => setFacturesSms(data)).catch(() => {});
   }, [toast]);
   useEffect(() => { charger(); }, [charger]);
 
@@ -44,7 +46,7 @@ export default function Abonnement() {
         if (arret) return;
         if (data.statut === "paye") {
           setVerification("paye");
-          toast.succes("Paiement reçu : votre abonnement est prolongé.");
+          toast.succes(data.type === "facture_sms" ? "Paiement reçu : facture SMS réglée." : "Paiement reçu : votre abonnement est prolongé.");
           charger();
           rafraichir(); // la boutique peut avoir été réactivée
           setParams({}, { replace: true });
@@ -62,6 +64,18 @@ export default function Abonnement() {
     verifier();
     return () => { arret = true; };
   }, [depot]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Paiement en ligne d'une facture SMS (redirection vers PawaPay)
+  async function payerFactureSms(f) {
+    setPaiementEnCours(f.id);
+    try {
+      const { data } = await apiClient.post(`/boutique/sms/factures/${f.id}/payer`, { telephone });
+      window.location.href = data.url;
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Paiement impossible pour le moment"));
+      setPaiementEnCours("");
+    }
+  }
 
   // Paiement en ligne : redirection vers la page sécurisée PawaPay
   async function payer(formule) {
@@ -138,6 +152,34 @@ export default function Abonnement() {
           </>
         )}
       </div>
+
+      {/* Factures du service SMS (volet communication, facturé au SMS envoyé) */}
+      {facturesSms.length > 0 && (
+        <div className="card overflow-x-auto p-0">
+          <h2 className="p-4 pb-1 font-bold">Factures SMS</h2>
+          <p className="px-4 pb-2 text-xs text-gray-500">Une facture par mois pour les SMS envoyés à vos clients. En cas de retard, le service SMS peut être suspendu (le reste de la boutique continue de fonctionner).</p>
+          <table className="table min-w-[640px]">
+            <thead><tr><th>N°</th><th>Période</th><th className="text-right">SMS</th><th className="text-right">Montant</th><th>Échéance</th><th /></tr></thead>
+            <tbody>
+              {facturesSms.map((f) => (
+                <tr key={f.id}>
+                  <td className="font-mono text-xs">{f.numero}</td>
+                  <td className="whitespace-nowrap">{date(f.debut)} → {date(f.fin)}</td>
+                  <td className="text-right">{f.nb_sms}</td>
+                  <td className="text-right font-semibold">{fcfa(f.montant)}</td>
+                  <td className="whitespace-nowrap">{date(f.echeance)}{f.jours_retard > 0 && <span className="block text-xs font-semibold text-red-600">{f.jours_retard} j de retard</span>}</td>
+                  <td className="text-right">
+                    {f.statut === "PAYEE" ? <span className="badge bg-green-100 text-green-800">Payée</span>
+                      : donnees.paiement_en_ligne
+                        ? <button type="button" className="btn-primary btn-sm" disabled={!!paiementEnCours} onClick={() => payerFactureSms(f)}>{paiementEnCours === f.id ? "Ouverture…" : `Payer ${fcfa(f.montant)}`}</button>
+                        : <span className="badge bg-amber-100 text-amber-800">À payer</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Historique des paiements */}
       <div className="card overflow-x-auto p-0">

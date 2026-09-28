@@ -7,11 +7,12 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Champ, EnTetePlateforme } from "./_plateforme/composants";
 import { MODES_ABONNEMENT, STATUTS_ABONNEMENT } from "./_plateforme/outils";
+import ServiceSms from "./_plateforme/ServiceSms";
 
 // Onglets de la page (gardés dans l'adresse : ?onglet=...)
 const ONGLETS = [
   ["retards", "⏰ Retards"], ["boutiques", "🏪 Toutes les boutiques"], ["paiements", "💵 Paiements reçus"],
-  ["formules", "📋 Formules"], ["rappels", "🔔 Rappels"],
+  ["formules", "📋 Formules"], ["rappels", "🔔 Rappels"], ["sms", "📱 Service SMS"],
 ];
 
 // Montant en FCFA
@@ -68,6 +69,7 @@ export default function Abonnements() {
         {onglet === "paiements" && <Paiements key={version} />}
         {onglet === "formules" && <Formules formules={formules} onMaj={chargerFormules} />}
         {onglet === "rappels" && <Rappels />}
+        {onglet === "sms" && <ServiceSms />}
       </main>
 
       <SaisiePaiement boutique={paiementPour} formules={formules} onFermer={() => setPaiementPour(null)}
