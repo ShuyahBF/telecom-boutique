@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import re
 import secrets
-from typing import Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
+import kyc as service_kyc
 from auth import get_super_admin, hash_password, user_public
 from db import SANS_ID, db
 from routes.auth import _sans_secrets
@@ -37,9 +38,21 @@ async def _slug_unique(nom: str, sauf_id: Optional[str] = None) -> str:
         slug, n = f"{base}-{n}", n + 1
 
 
-class BoutiqueCreation(BaseModel):
+class Identification(BaseModel):
+    """Informations légales et de localisation d'une boutique (KYC)."""
+    pays: str = Field("Burkina Faso", max_length=60)
+    ville: str = Field("", max_length=80)
+    adresse: str = Field("", max_length=500)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    dg_nom: str = Field("", max_length=120)  # nom du Directeur Général
+    ifu: str = Field("", max_length=50)
+    cnss: str = Field("", max_length=50)
+    rccm: str = Field("", max_length=60)
+
+
+class BoutiqueCreation(Identification):
     nom: str = Field(..., min_length=2, max_length=120)
-    ville: str = ""
     telephone: str = ""
     email: Optional[EmailStr] = None
     code_marchand: Optional[str] = Field(None, max_length=12)
@@ -51,6 +64,15 @@ class BoutiqueCreation(BaseModel):
 
 class BoutiqueMaj(BaseModel):
     nom: Optional[str] = Field(None, min_length=2, max_length=120)
+    pays: Optional[str] = Field(None, max_length=60)
+    ville: Optional[str] = Field(None, max_length=80)
+    adresse: Optional[str] = Field(None, max_length=500)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    dg_nom: Optional[str] = Field(None, max_length=120)
+    ifu: Optional[str] = Field(None, max_length=50)
+    cnss: Optional[str] = Field(None, max_length=50)
+    rccm: Optional[str] = Field(None, max_length=60)
     code_marchand: Optional[str] = Field(None, max_length=12)
     actif: Optional[bool] = None
     mise_en_avant: Optional[bool] = None  # affichée en tête du carrousel
@@ -67,7 +89,7 @@ def _normaliser_code(code: str) -> str:
 def boutique_par_defaut(nom: str) -> dict:
     """Valeurs initiales d'une nouvelle boutique (modifiables par son gérant)."""
     return {
-        "slogan": "", "adresse": "", "ifu": "", "rccm": "", "logo_url": None,
+        "slogan": "", "logo_url": None, "kyc": service_kyc.kyc_vide(),
         "devise": "FCFA", "taux_tva_defaut": 18.0, "prix_ttc": True, "validite_proforma_jours": 15,
         "conditions_facture": "Les marchandises vendues ne sont ni reprises ni échangées.",
         "couleur": "#0b5ed7", "paiement_mobile_money": True,
@@ -95,10 +117,10 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
         raise HTTPException(409, "Ce code marchand est déjà utilisé")
     boutique = {
         "id": new_id(), "nom": payload.nom.strip(), "slug": await _slug_unique(payload.nom),
-        "code_marchand": code, "ville": payload.ville.strip(),
-        "telephone": normaliser_telephone(payload.telephone), "email": payload.email or "",
+        "code_marchand": code, "telephone": normaliser_telephone(payload.telephone), "email": payload.email or "",
         "actif": True, "mise_en_avant": False, "ordre": 0, "created_at": now_iso(),
         **boutique_par_defaut(payload.nom.strip()),
+        **Identification(**payload.model_dump(include=set(Identification.model_fields))).model_dump(),
     }
     await db.boutiques.insert_one(boutique.copy())
     gerant = {
@@ -140,3 +162,40 @@ async def statistiques(_: dict = Depends(get_super_admin)):
         "commandes": await db.commandes.count_documents({}),
         "factures_validees": await db.documents.count_documents({"type_document": "FAC", "statut": "VALIDE"}),
     }
+
+
+# ---------------------------------------------------------------------------
+# Dossier KYC d'une boutique (vérification par l'administrateur)
+# ---------------------------------------------------------------------------
+@router.post("/boutiques/{boutique_id}/kyc/documents")
+async def ajouter_justificatif(boutique_id: str, fichier: UploadFile = File(...), type_piece: str = Form(...),
+                               admin: dict = Depends(get_super_admin)):
+    boutique = await service_kyc.boutique_ou_404(boutique_id)
+    return await service_kyc.ajouter_piece(boutique, fichier, type_piece, admin.get("nom", "Administrateur"))
+
+
+@router.get("/boutiques/{boutique_id}/kyc/documents/{piece_id}")
+async def ouvrir_justificatif(boutique_id: str, piece_id: str, _: dict = Depends(get_super_admin)):
+    return await service_kyc.ouvrir_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id)
+
+
+@router.delete("/boutiques/{boutique_id}/kyc/documents/{piece_id}")
+async def retirer_justificatif(boutique_id: str, piece_id: str, _: dict = Depends(get_super_admin)):
+    return await service_kyc.retirer_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id)
+
+
+class DecisionKyc(BaseModel):
+    statut: Literal["VERIFIE", "REJETE", "EN_ATTENTE"]
+    motif_rejet: str = Field("", max_length=500)
+
+
+@router.post("/boutiques/{boutique_id}/kyc/decision")
+async def decider_kyc(boutique_id: str, payload: DecisionKyc, admin: dict = Depends(get_super_admin)):
+    boutique = await service_kyc.boutique_ou_404(boutique_id)
+    kyc = boutique.get("kyc") or service_kyc.kyc_vide()
+    if payload.statut == "REJETE" and not payload.motif_rejet.strip():
+        raise HTTPException(400, "Indiquez le motif du rejet (il sera affiché au DG)")
+    kyc.update({"statut": payload.statut, "motif_rejet": payload.motif_rejet.strip(),
+                "verifie_par": admin.get("nom", ""), "date_verification": now_iso()})
+    await db.boutiques.update_one({"id": boutique_id}, {"$set": {"kyc": kyc}})
+    return service_kyc.kyc_public(kyc)

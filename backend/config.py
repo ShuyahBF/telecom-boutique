@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     r2_secret_access_key: Optional[str] = None
     r2_bucket_public: str = "telecom-boutique-medias"  # bucket PUBLIC (images)
     r2_public_base_url: Optional[str] = None  # domaine public du bucket (ou URL r2.dev)
+    # Bucket PRIVÉ : pièces d'identité et documents KYC des boutiques. Jamais
+    # d'adresse publique : lien temporaire (quelques minutes) généré à la demande.
+    r2_bucket_prive: str = "telecom-boutique-kyc"
+    r2_lien_prive_duree_secondes: int = 300
 
     # --- Premier compte super-administrateur de la plateforme ---
     # Créé (ou promu) au démarrage s'il est renseigné.

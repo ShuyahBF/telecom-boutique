@@ -99,3 +99,65 @@ async def supprimer_image(boutique_id: str, url: str | None) -> None:
         await asyncio.to_thread(_delete)
         return
     (Path(s.uploads_dir) / cle).unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Fichiers PRIVÉS (KYC : pièce d'identité du DG, registre du commerce...)
+# Ils ne sont JAMAIS servis par une adresse publique : on garde seulement
+# leur « clé » en base, et on crée un accès temporaire après contrôle des droits.
+# ---------------------------------------------------------------------------
+def _dossier_prive() -> Path:
+    # Mode local : dossier SÉPARÉ du dossier public (qui est servi sur /api/files)
+    s = get_settings()
+    base = Path(s.uploads_dir)
+    return base.parent / f"{base.name}-prive"
+
+
+async def enregistrer_prive(boutique_id: str, contenu: bytes, content_type: str) -> str:
+    """Range un fichier privé et renvoie sa CLÉ (pas une URL)."""
+    s = get_settings()
+    cle = f"boutiques/{boutique_id}/kyc/{uuid.uuid4().hex}{TYPES_DOCUMENTS[content_type]}"
+    if s.storage_backend == "r2":
+        def _put():
+            _r2_client().put_object(Bucket=s.r2_bucket_prive, Key=cle, Body=contenu, ContentType=content_type)
+
+        await asyncio.to_thread(_put)
+        return cle
+    chemin = _dossier_prive() / cle
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    chemin.write_bytes(contenu)
+    return cle
+
+
+async def lien_temporaire_prive(cle: str) -> str | None:
+    """R2 : adresse temporaire signée. Mode local : None (le fichier est
+    alors renvoyé directement par l'API, voir chemin_local_prive)."""
+    s = get_settings()
+    if s.storage_backend != "r2":
+        return None
+
+    def _signer():
+        return _r2_client().generate_presigned_url(
+            "get_object", Params={"Bucket": s.r2_bucket_prive, "Key": cle}, ExpiresIn=s.r2_lien_prive_duree_secondes)
+
+    return await asyncio.to_thread(_signer)
+
+
+def chemin_local_prive(cle: str) -> Path:
+    chemin = (_dossier_prive() / cle).resolve()
+    if not str(chemin).startswith(str(_dossier_prive().resolve())):
+        raise HTTPException(400, "Clé invalide")  # protection contre « ../ »
+    return chemin
+
+
+async def supprimer_prive(cle: str | None) -> None:
+    if not cle:
+        return
+    s = get_settings()
+    if s.storage_backend == "r2":
+        def _delete():
+            _r2_client().delete_object(Bucket=s.r2_bucket_prive, Key=cle)
+
+        await asyncio.to_thread(_delete)
+        return
+    chemin_local_prive(cle).unlink(missing_ok=True)

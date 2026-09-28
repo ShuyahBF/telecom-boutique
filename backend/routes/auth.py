@@ -28,10 +28,13 @@ async def _reponse_session(user: dict) -> dict:
 
 
 def _sans_secrets(boutique: dict | None) -> dict | None:
-    """Ne jamais renvoyer le mot de passe SMTP au navigateur."""
+    """Ne jamais renvoyer le mot de passe SMTP ni les clés des pièces KYC au navigateur."""
     if not boutique:
         return None
+    from kyc import kyc_public
+
     b = dict(boutique)
+    b["kyc"] = kyc_public(b.get("kyc"))
     if b.get("messagerie"):
         m = dict(b["messagerie"])
         m["a_mot_de_passe"] = bool(m.pop("smtp_mot_de_passe", None))

@@ -1,0 +1,115 @@
+# Déploiement Render — backend FastAPI + frontend statique (Vite/React).
+# Même organisation que beauthentik.net (ShuyahBF/site-meetafrican).
+#
+# Deux services connectés à ce dépôt GitHub : chaque push sur la branche
+# configurée redéploie les deux automatiquement.
+#
+# Les variables marquées "sync: false" ne sont PAS stockées ici (donc pas
+# dans git) : Render les demande au premier déploiement (tableau de bord),
+# puis les garde chiffrées.
+
+services:
+  - type: web
+    name: telecom-boutique-backend
+    runtime: python
+    plan: starter
+    autoDeploy: true
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    # Nom de domaine de l'API (à décommenter quand il sera choisi, puis créer
+    # l'enregistrement CNAME chez Cloudflare vers ce service Render) :
+    # domains:
+    #   - api.votre-domaine.com
+    envVars:
+      # Python figé : les versions de dépendances sont celles éprouvées sur beauthentik
+      - key: PYTHON_VERSION
+        value: 3.11.10
+
+      # --- MongoDB Atlas (cluster partagé : collections préfixées "tlb_") ---
+      - key: MONGO_URL
+        sync: false
+      - key: MONGO_DB_NAME
+        value: telecom_boutique
+      - key: MONGO_COLLECTION_PREFIX
+        value: tlb_
+
+      # --- Connexion du personnel ---
+      - key: JWT_SECRET
+        generateValue: true
+
+      # --- Adresse(s) du site public, séparées par des virgules. La PREMIÈRE
+      # sert dans les liens envoyés aux clients, les QR codes et le retour
+      # après paiement.
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+      # --- Premier compte administrateur de la plateforme ---
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      # "true" le temps d'UN redéploiement pour réinitialiser le mot de passe
+      - key: SUPER_ADMIN_RESET_PASSWORD
+        value: "false"
+
+      # --- PawaPay (Mobile Money) : même compte que beauthentik / Sawali ---
+      - key: PAWAPAY_ENVIRONMENT
+        sync: false
+      - key: PAWAPAY_API_TOKEN_SANDBOX
+        sync: false
+      - key: PAWAPAY_API_TOKEN_PRODUCTION
+        sync: false
+      - key: PAWAPAY_CALLBACK_SECRET
+        generateValue: true
+      - key: PAWAPAY_DEFAULT_COUNTRY
+        value: BFA
+      - key: PAWAPAY_CUSTOMER_MESSAGE
+        value: TelecomBoutique
+
+      # --- Stockage Cloudflare R2 (obligatoire en production : le disque de
+      # Render est effacé à chaque déploiement) ---
+      - key: STORAGE_BACKEND
+        value: r2
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_PUBLIC
+        value: telecom-boutique-medias
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+
+      # --- Catalogue public : publication quotidienne et assistant de recherche ---
+      - key: CATALOGUE_HEURE_PUBLICATION
+        value: "23"
+      - key: FUSEAU_HORAIRE
+        value: Africa/Ouagadougou
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CATALOGUE_IA_MODELE
+        value: claude-opus-5
+
+  - type: web
+    name: telecom-boutique-frontend
+    runtime: static
+    autoDeploy: true
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    # domains:
+    #   - votre-domaine.com
+    #   - www.votre-domaine.com
+    envVars:
+      # Adresse de l'API = URL du service backend ci-dessus + /api
+      - key: VITE_API_BASE_URL
+        sync: false
+    routes:
+      # Application React (React Router) : toute adresse retombe sur index.html,
+      # sinon recharger /b/ma-boutique ou /gestion donnerait une erreur 404.
+      - type: rewrite
+        source: /*
+        destination: /index.html

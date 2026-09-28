@@ -40,6 +40,7 @@ import BonDepot from "@/pages/gestion/BonDepot";
 import Parametres from "@/pages/gestion/Parametres";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
+import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 
 // Raccourcis de rôles
 const VENTES = ["gerant", "vendeur"];
@@ -99,6 +100,7 @@ export default function App() {
 
             {/* Administration de la plateforme */}
             <Route path="/plateforme" element={<RouteProtegee roles={["super_admin"]}><Plateforme /></RouteProtegee>} />
+            <Route path="/plateforme/catalogue" element={<RouteProtegee roles={["super_admin"]}><CatalogueAdmin /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

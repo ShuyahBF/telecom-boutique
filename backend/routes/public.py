@@ -27,8 +27,8 @@ from utils import new_id, normaliser_telephone, now_iso
 
 router = APIRouter(prefix="/public", tags=["Portail public"])
 
-CHAMPS_BOUTIQUE_PUBLICS = ("id", "nom", "slug", "code_marchand", "slogan", "logo_url", "ville", "adresse",
-                           "telephone", "email", "couleur", "devise", "mise_en_avant")
+CHAMPS_BOUTIQUE_PUBLICS = ("id", "nom", "slug", "code_marchand", "slogan", "logo_url", "pays", "ville", "adresse",
+                           "latitude", "longitude", "telephone", "email", "couleur", "devise", "mise_en_avant")
 CHAMPS_PRODUIT_PUBLICS = ("id", "reference", "nom", "slug", "type_produit", "categorie_id", "categorie_nom", "marque",
                           "description", "caracteristiques", "image_url", "prix_vente", "garantie_mois", "created_at")
 

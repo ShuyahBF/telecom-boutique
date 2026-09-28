@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
+import kyc as service_kyc
 from auth import Contexte, gerant, hash_password, tout_le_personnel, user_public
 from db import SANS_ID, db
 from messagerie import MODELES_PAR_DEFAUT, envoyer_email, modeles_de
@@ -29,7 +30,12 @@ class FicheBoutique(BaseModel):
     telephone: Optional[str] = Field(None, max_length=30)
     email: Optional[EmailStr] = None
     ifu: Optional[str] = Field(None, max_length=50)
-    rccm: Optional[str] = Field(None, max_length=50)
+    rccm: Optional[str] = Field(None, max_length=60)
+    cnss: Optional[str] = Field(None, max_length=50)
+    dg_nom: Optional[str] = Field(None, max_length=120)
+    # Géolocalisation (affichée aux clients : itinéraire vers la boutique)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     devise: Optional[str] = Field(None, max_length=10)
     taux_tva_defaut: Optional[float] = Field(None, ge=0, le=100)
     prix_ttc: Optional[bool] = None  # prix du catalogue exprimés TTC (défaut) ou HT
@@ -45,6 +51,10 @@ async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(gerant)
     maj = payload.model_dump(exclude_none=True)
     if "telephone" in maj:
         maj["telephone"] = normaliser_telephone(maj["telephone"])
+    # Les informations légales modifiées doivent être revérifiées par l'administrateur
+    legales = ("ifu", "rccm", "cnss", "dg_nom")
+    if any(k in maj and maj[k] != ctx.boutique.get(k) for k in legales) and (ctx.boutique.get("kyc") or {}).get("documents"):
+        maj["kyc.statut"] = "EN_ATTENTE"
     if maj:
         await db.boutiques.update_one({"id": ctx.boutique["id"]}, {"$set": maj})
     return _sans_secrets(await db.boutiques.find_one({"id": ctx.boutique["id"]}, SANS_ID))
@@ -57,6 +67,31 @@ async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(
     await supprimer_image(ctx.boutique["id"], ctx.boutique.get("logo_url"))
     await db.boutiques.update_one({"id": ctx.boutique["id"]}, {"$set": {"logo_url": url}})
     return {"logo_url": url}
+
+
+# ---------------------------------------------------------------------------
+# Dossier KYC (justificatifs privés, envoyés par le DG)
+# ---------------------------------------------------------------------------
+@router.get("/kyc/types")
+async def types_kyc(_: Contexte = Depends(gerant)):
+    return {"types": service_kyc.TYPES_PIECES_KYC, "statuts": service_kyc.STATUTS_KYC}
+
+
+@router.post("/kyc/documents")
+async def envoyer_justificatif(fichier: UploadFile = File(...), type_piece: str = Form(...), ctx: Contexte = Depends(gerant)):
+    return await service_kyc.ajouter_piece(ctx.boutique, fichier, type_piece, ctx.user.get("nom", ""))
+
+
+@router.get("/kyc/documents/{piece_id}")
+async def ouvrir_justificatif(piece_id: str, ctx: Contexte = Depends(gerant)):
+    return await service_kyc.ouvrir_piece(ctx.boutique, piece_id)
+
+
+@router.delete("/kyc/documents/{piece_id}")
+async def retirer_justificatif(piece_id: str, ctx: Contexte = Depends(gerant)):
+    if (ctx.boutique.get("kyc") or {}).get("statut") == "VERIFIE" and ctx.role != "super_admin":
+        raise HTTPException(409, "Dossier vérifié : contactez l'administrateur pour retirer un justificatif")
+    return await service_kyc.retirer_piece(ctx.boutique, piece_id)
 
 
 # ---------------------------------------------------------------------------
