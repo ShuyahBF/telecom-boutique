@@ -62,6 +62,8 @@ class BoutiqueCreation(Identification):
     # Compte du DG (son nom est celui de dg_nom, obligatoire ici)
     dg_email: EmailStr
     dg_mot_de_passe: str = Field(..., min_length=8)
+    # Boutique interne (présentation) : créée d'emblée invisible des visiteurs
+    test: bool = False
 
 
 class BoutiqueMaj(BaseModel):
@@ -78,6 +80,8 @@ class BoutiqueMaj(BaseModel):
     rccm: Optional[str] = Field(None, max_length=60)
     code_marchand: Optional[str] = Field(None, max_length=12)
     actif: Optional[bool] = None
+    # Boutique interne (présentation) : invisible des visiteurs, aucun message envoyé
+    test: Optional[bool] = None
     mise_en_avant: Optional[bool] = None  # affichée en tête du carrousel
     ordre: Optional[int] = None
 
@@ -98,7 +102,7 @@ def mot_de_passe_temporaire() -> str:
 
 async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe: str, validee: bool,
                                origine: str, doit_changer_mot_de_passe: bool = False,
-                               code: Optional[str] = None) -> tuple[dict, dict, int]:
+                               code: Optional[str] = None, test: bool = False) -> tuple[dict, dict, int]:
     """Crée la boutique, le compte de son DG et copie le catalogue public.
     Utilisé par la création manuelle (super-admin) ET par le webhook.
     `donnees` : nom, telephone, email + champs d'Identification."""
@@ -109,7 +113,7 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "telephone": normaliser_telephone(donnees.get("telephone")), "email": donnees.get("email") or "",
         "actif": True, "mise_en_avant": False, "ordre": 0, "created_at": now_iso(),
         # validee = False : créée automatiquement, invisible du public jusqu'à validation
-        "validee": validee, "origine": origine,
+        "validee": validee, "origine": origine, "test": test,
         # 14 jours de démo complète, puis abonnement (voir abonnements.py)
         "abonnement": abonnement_initial(now_iso()),
         **boutique_par_defaut(nom),
@@ -136,6 +140,11 @@ async def envoyer_identifiants(boutique: dict, dg: dict, mot_de_passe: str, tele
     sans jamais le mot de passe."""
     from config import get_settings
     import envois_plateforme as envois
+
+    if boutique.get("test"):
+        # Boutique interne : coordonnées imaginaires, rien n'est envoyé
+        return {"date": now_iso(), "email": "NON_CONFIGURE", "email_erreur": "Boutique interne",
+                "sms": "NON_CONFIGURE", "sms_erreur": "Boutique interne"}
 
     url = get_settings().public_site_url
     sujet = f"[adLyn] Votre boutique « {boutique['nom']} » est créée"
@@ -191,10 +200,10 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
     code = _normaliser_code(payload.code_marchand) if payload.code_marchand else None
     if code and await db.boutiques.find_one({"code_marchand": code}):
         raise HTTPException(409, "Ce code marchand est déjà utilisé")
-    donnees = payload.model_dump(exclude={"dg_email", "dg_mot_de_passe", "code_marchand"})
+    donnees = payload.model_dump(exclude={"dg_email", "dg_mot_de_passe", "code_marchand", "test"})
     boutique, dg, nb_produits = await enregistrer_boutique(
         donnees, dg_email=payload.dg_email, dg_mot_de_passe=payload.dg_mot_de_passe,
-        validee=True, origine="super_admin", code=code)
+        validee=True, origine="super_admin", code=code, test=payload.test)
     return {"boutique": _sans_secrets(boutique), "dg": user_public(dg), "produits_copies": nb_produits}
 
 

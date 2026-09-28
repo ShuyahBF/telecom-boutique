@@ -151,6 +151,21 @@ async def get_current_user(
     return user
 
 
+async def utilisateur_optionnel(request: Request) -> Optional[dict]:
+    """Utilisateur connecté s'il y en a un (jeton Bearer ou cookie de session),
+    None sinon — pour les pages PUBLIQUES qui s'adaptent au visiteur (lecture seule :
+    aucune vérification CSRF nécessaire)."""
+    entete = request.headers.get("authorization", "")
+    jeton = entete[7:] if entete.lower().startswith("bearer ") else request.cookies.get(get_settings().session_cookie_nom)
+    contenu = decode_access_token(jeton) if jeton else None
+    if not contenu or not contenu.get("sub"):
+        return None
+    user = await db.users.find_one({"id": contenu["sub"]}, SANS_ID)
+    if not user or not user.get("actif", True) or int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
+        return None
+    return user
+
+
 async def get_super_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "super_admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Réservé à l'administrateur de la plateforme")

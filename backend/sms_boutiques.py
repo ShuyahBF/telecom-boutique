@@ -90,7 +90,10 @@ async def envoyer(boutique: dict, telephone: str, texte: str, *, origine: str, c
     ligne = {"id": new_id(), "boutique_id": boutique["id"], "date": now_iso(), "jour": aujourd_hui().isoformat(),
              "telephone": normaliser_telephone(telephone), "contact_nom": contact_nom[:120], "texte": texte,
              "nb_sms": nombre_sms(texte), "origine": origine, "auteur": auteur, "facture_id": None}
-    if not peut_envoyer(boutique):
+    if boutique.get("test"):
+        # Boutique interne (numéros imaginaires) : aucun SMS ne part
+        ligne.update({"statut": "NON_ENVOYE", "erreur": "Boutique interne : envoi désactivé", "nb_sms": 0})
+    elif not peut_envoyer(boutique):
         ligne.update({"statut": "NON_ENVOYE", "erreur": etat(boutique)["libelle"], "nb_sms": 0})
     else:
         c = config(boutique)
