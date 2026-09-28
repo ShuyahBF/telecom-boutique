@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
 from db import SANS_ID, TenantDB, db
-from messagerie import lien_suivi, notifier_en_fond
+from messagerie import lien_suivi, notifier_client_en_fond, notifier_en_fond
 from routes.commandes import avec_libelles as cmd_libelles
 from routes.maintenance import avec_libelles as sav_libelles
 from routes.paiements import creer_page_paiement, paiement_disponible
@@ -194,8 +194,7 @@ async def commander(slug: str, payload: CommandeSaisie):
     await tdb.commandes.insert_one(commande)
 
     lien = lien_suivi(b, "commande", commande)
-    if commande["client"].get("email"):
-        notifier_en_fond(b, "CMD_RECUE", commande["client"]["email"], {"commande": commande, "client": commande["client"]}, lien)
+    notifier_client_en_fond(b, "CMD_RECUE", commande["client"], {"commande": commande, "client": commande["client"]}, lien)
     notifier_en_fond(b, "EQUIPE_CMD", None, {"commande": commande, "client": commande["client"]}, lien)
 
     redirection = None

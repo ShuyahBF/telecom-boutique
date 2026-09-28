@@ -18,8 +18,8 @@ import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
 from routes import (abonnements, auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
-                    maintenance, paiements, plateforme, public, referentiel, sauvegardes, stock, tableau_de_bord, tiers,
-                    webhooks)
+                    maintenance, paiements, plateforme, public, referentiel, sauvegardes, sms, stock, tableau_de_bord,
+                    tiers, webhooks)
 from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
@@ -43,6 +43,9 @@ for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, c
 # Abonnements : page du DG et administration (super-admin)
 api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
+# Service SMS des boutiques (envois, journal, facturation)
+api.include_router(sms.boutique)
+api.include_router(sms.admin)
 # Webhook de création des boutiques (signé HMAC) et son journal
 api.include_router(webhooks.router)
 api.include_router(webhooks.admin)

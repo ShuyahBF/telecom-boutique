@@ -188,3 +188,14 @@ def notifier_en_fond(boutique: dict, code: str, destinataire: Optional[str], con
             logger.exception("Notification %s impossible", code)
 
     asyncio.create_task(_run())
+
+
+def notifier_client_en_fond(boutique: dict, code: str, client: dict, contexte: dict, lien: str = "") -> None:
+    """Notification d'un CLIENT : par e-mail s'il en a un, et par SMS si la
+    boutique a le service SMS actif et que le client a un numéro."""
+    import sms_boutiques
+
+    if (client or {}).get("email"):
+        notifier_en_fond(boutique, code, client["email"], contexte, lien)
+    if (client or {}).get("telephone"):
+        sms_boutiques.notifier_en_fond(boutique, code, client, contexte, lien)

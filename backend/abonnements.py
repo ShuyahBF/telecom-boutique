@@ -34,12 +34,12 @@ from utils import new_id, now_iso
 logger = logging.getLogger(__name__)
 
 # Formules proposées au premier démarrage (modifiables dans /plateforme/abonnements).
-# MONTANTS D'EXEMPLE : à ajuster par le super-administrateur avant la mise en ligne.
+# Tarifs fixés par le propriétaire de la plateforme (modifiables ensuite dans l'écran « Formules »)
 FORMULES_PAR_DEFAUT = [
-    {"code": "MENSUEL", "libelle": "Mensuel (30 jours)", "mois": 1, "montant": 10000, "ordre": 1},
-    {"code": "TRIMESTRIEL", "libelle": "3 mois", "mois": 3, "montant": 27000, "ordre": 2},
-    {"code": "SEMESTRIEL", "libelle": "6 mois", "mois": 6, "montant": 50000, "ordre": 3},
-    {"code": "ANNUEL", "libelle": "1 an", "mois": 12, "montant": 96000, "ordre": 4},
+    {"code": "MENSUEL", "libelle": "Mensuel (30 jours)", "mois": 1, "montant": 5000, "ordre": 1},
+    {"code": "TRIMESTRIEL", "libelle": "3 mois", "mois": 3, "montant": 14000, "ordre": 2},
+    {"code": "SEMESTRIEL", "libelle": "6 mois", "mois": 6, "montant": 27000, "ordre": 3},
+    {"code": "ANNUEL", "libelle": "1 an", "mois": 12, "montant": 50000, "ordre": 4},
 ]
 FORMULE_DEFAUT = "MENSUEL"
 

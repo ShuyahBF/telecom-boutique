@@ -142,11 +142,21 @@ async def creer_page_abonnement(boutique: dict, formule: dict, msisdn: str = "")
                               retour, msisdn)
 
 
+async def creer_page_facture_sms(boutique: dict, facture: dict, msisdn: str = "") -> str:
+    """Page PawaPay pour payer une facture du service SMS (argent versé à la plateforme)."""
+    if not _token():
+        raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
+    paiement = _nouveau_paiement(boutique["id"], int(facture["montant"]), type="facture_sms",
+                                 facture_id=facture["id"], facture_numero=facture["numero"], boutique_nom=boutique["nom"])
+    retour = f"{get_settings().public_site_url}/gestion/abonnement?depot={paiement['deposit_id']}"
+    return await _ouvrir_page(paiement, f"Facture SMS adLyn {facture['numero']}", retour, msisdn)
+
+
 async def _tracer(paiement: Dict[str, Any], statut: str, motif: str) -> None:
     """Ligne de l'historique des paiements de la boutique pour ce dépôt PawaPay.
     Les abonnements (argent versé PAR la boutique à la plateforme) n'y figurent pas :
     ils ont leur propre historique (abonnement_paiements)."""
-    if paiement.get("type") == "abonnement":
+    if paiement.get("type", "commande") != "commande":
         return
     await journaliser(paiement["boutique_id"], f"pawapay-{paiement['deposit_id']}", canal="PAWAPAY", mode="MM",
                       montant=paiement["montant"], statut=statut, motif=motif or "",
@@ -203,7 +213,7 @@ def _montant(depot: Dict[str, Any]) -> Optional[float]:
 async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> Dict[str, Any]:
     """Point d'entrée UNIQUE (webhook, page de retour, rapprochement) : la
     commande ne peut être marquée payée ni oubliée, ni deux fois."""
-    from messagerie import lien_suivi, notifier_en_fond
+    from messagerie import lien_suivi, notifier_client_en_fond
 
     deposit_id = paiement["deposit_id"]
     brut = (depot.get("status") or "").upper()
@@ -228,6 +238,13 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
         return {"ok": True, "applique": False}  # déjà traité (idempotence)
 
     await _tracer(paiement, "SUCCES" if final == "paye" else "ECHEC", "" if final == "paye" else (message or brut))
+    if paiement.get("type") == "facture_sms":
+        # Facture du service SMS payée en ligne (rétablit le service s'il était suspendu)
+        if final == "paye":
+            import sms_boutiques
+            await sms_boutiques.payer_facture(paiement["facture_id"], "PAWAPAY", reference=deposit_id,
+                                              saisi_par="PawaPay", cle=f"pawapay-{deposit_id}")
+        return {"ok": True, "applique": True}
     if paiement.get("type") == "abonnement":
         # Abonnement payé en ligne : l'échéance est repoussée (une seule fois grâce à la clé)
         if final == "paye":
@@ -248,9 +265,9 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
             await tdb.documents.update_one({"id": commande["facture_id"], "reglements.id": {"$ne": reglement["id"]}},
                                            {"$push": {"reglements": reglement}})
         boutique = await db.boutiques.find_one({"id": paiement["boutique_id"]}, SANS_ID)
-        if commande and boutique and commande["client"].get("email"):
-            notifier_en_fond(boutique, "CMD_PAYEE", commande["client"]["email"],
-                             {"commande": commande, "client": commande["client"]}, lien_suivi(boutique, "commande", commande))
+        if commande and boutique:
+            notifier_client_en_fond(boutique, "CMD_PAYEE", commande["client"],
+                                    {"commande": commande, "client": commande["client"]}, lien_suivi(boutique, "commande", commande))
     else:
         await tdb.commandes.update_one({"id": paiement["commande_id"], "paiement.statut": {"$ne": "PAYEE"}},
                                        {"$set": {"paiement.statut": "ECHEC"}})

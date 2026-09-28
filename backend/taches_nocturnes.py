@@ -120,8 +120,12 @@ async def envoyer_rapport(sauvegardes: list[dict]) -> dict:
 
 
 async def nuit(declencheur: str = "planification") -> dict:
+    import sms_boutiques
+
     resultats = await sauvegarder_toutes(declencheur)
-    return {"sauvegardes": resultats, "rapport": await envoyer_rapport(resultats)}
+    # Le 1er du mois : factures du service SMS pour le mois écoulé
+    factures_sms = await sms_boutiques.facturation_mensuelle()
+    return {"sauvegardes": resultats, "factures_sms": factures_sms, "rapport": await envoyer_rapport(resultats)}
 
 
 def prochaine_execution(maintenant: datetime | None = None) -> datetime:

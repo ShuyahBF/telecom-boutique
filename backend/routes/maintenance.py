@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import Contexte, permission
-from messagerie import lien_suivi, notifier_en_fond
+from messagerie import lien_suivi, notifier_client_en_fond
 from routes.documents import creer_document, enrichir
 from routes.tiers import instantane_client
 from services import entree_stock, est_stockable, prochain_numero, sortie_stock
@@ -126,10 +126,9 @@ async def deposer(payload: DossierSaisie, ctx: Contexte = Depends(maintenance_de
         "historique": [{"date": now_iso(), "statut": "RECU", "commentaire": "", "par": ctx.user.get("nom", "")}],
     }
     await ctx.tdb.dossiers.insert_one(dossier)
-    if client.get("email"):
-        notifier_en_fond(ctx.boutique, "MAINT_DEPOT", client["email"],
-                         {"dossier": avec_libelles(dossier), "client": dossier["client"]},
-                         lien_suivi(ctx.boutique, "dossier", dossier))
+    notifier_client_en_fond(ctx.boutique, "MAINT_DEPOT", {**client, **dossier["client"]},
+                            {"dossier": avec_libelles(dossier), "client": dossier["client"]},
+                            lien_suivi(ctx.boutique, "dossier", dossier))
     return avec_libelles(dossier)
 
 
@@ -161,9 +160,9 @@ async def changer_statut(dossier_id: str, payload: ChangementStatut, ctx: Contex
         {"id": dossier_id},
         {"$set": maj, "$push": {"historique": {"date": now_iso(), "statut": payload.statut,
                                                "commentaire": payload.commentaire, "par": ctx.user.get("nom", "")}}})
-    if avant["statut"] != payload.statut and d["client"].get("email"):
-        notifier_en_fond(ctx.boutique, "MAINT_STATUT", d["client"]["email"],
-                         {"dossier": avec_libelles(d), "client": d["client"]}, lien_suivi(ctx.boutique, "dossier", d))
+    if avant["statut"] != payload.statut:
+        notifier_client_en_fond(ctx.boutique, "MAINT_STATUT", d["client"],
+                                {"dossier": avec_libelles(d), "client": d["client"]}, lien_suivi(ctx.boutique, "dossier", d))
     return avec_libelles(d)
 
 

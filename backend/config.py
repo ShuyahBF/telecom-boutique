@@ -136,6 +136,10 @@ class Settings(BaseSettings):
     abonnement_rappel_retard_max_jours: int = 60  # plus de rappel au-delà de ce retard
     abonnement_rappel_heure: int = 9  # heure locale d'envoi des rappels
 
+    # --- Service SMS des boutiques (OVH, facturé à part) ---
+    sms_prix_defaut: int = 25  # FCFA par SMS, modifiable boutique par boutique
+    sms_facture_delai_jours: int = 10  # délai de paiement d'une facture SMS
+
     # --- Webhook de création automatique des boutiques (signé HMAC-SHA256) ---
     # Secret partagé avec le système appelant ; sans lui le webhook est fermé (503).
     webhook_boutiques_secret: Optional[str] = None

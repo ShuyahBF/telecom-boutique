@@ -146,14 +146,16 @@ async def _sms_orange(numero: str, texte: str) -> bool:
     return False
 
 
-async def _sms_ovh(numero: str, texte: str) -> bool:
-    """OVH : requête signée « $1$ » + SHA1(secret+consumer+méthode+url+corps+horodatage)."""
+async def _sms_ovh(numero: str, texte: str, expediteur: Optional[str] = None, service: Optional[str] = None) -> bool:
+    """OVH : requête signée « $1$ » + SHA1(secret+consumer+méthode+url+corps+horodatage).
+    expediteur / service : ceux d'une boutique (sinon ceux de la plateforme)."""
     s = get_settings()
     hote = "https://ca.api.ovh.com/1.0" if (s.ovh_sms_endpoint or "").lower() == "ovh-ca" else "https://eu.api.ovh.com/1.0"
-    url = f"{hote}/sms/{s.ovh_sms_service_name}/jobs"
+    url = f"{hote}/sms/{service or s.ovh_sms_service_name}/jobs"
     corps = json.dumps({"charset": "UTF-8", "class": "phoneDisplay", "coding": "8bit", "message": texte,
                         "noStopClause": True, "priority": "high", "receivers": [f"+{numero}"],
-                        "senderForResponse": False, "sender": s.ovh_sms_sender or "adLyn", "validityPeriod": 60})
+                        "senderForResponse": False, "sender": expediteur or s.ovh_sms_sender or "adLyn",
+                        "validityPeriod": 60})
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             # Horloge du serveur OVH (la signature exige son horodatage)
@@ -171,6 +173,19 @@ async def _sms_ovh(numero: str, texte: str) -> bool:
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("SMS OVH vers %s… en échec : %r", numero[:5], exc)
     return False
+
+
+async def envoyer_sms_ovh(telephone: str, texte: str, expediteur: str, service: Optional[str] = None) -> tuple[str, str]:
+    """SMS d'une BOUTIQUE à ses clients, par OVH, avec l'expéditeur déclaré pour elle
+    (et son service OVH dédié s'il existe). -> (statut, erreur)."""
+    numero = msisdn(telephone)
+    if not numero:
+        return "ECHEC", "Numéro de téléphone invalide"
+    if not ovh_configure():
+        return "NON_CONFIGURE", "Compte OVH SMS non configuré (OVH_SMS_*)"
+    if await _sms_ovh(numero, texte, expediteur, service):
+        return "ENVOYE", ""
+    return "ECHEC", "Envoi refusé par OVH (voir les journaux du serveur)"
 
 
 async def envoyer_sms(telephone: str, texte: str) -> tuple[str, str]:

@@ -52,7 +52,7 @@ def test_retard_suspension_et_paiement(client, super_admin, nouvelle_boutique, c
     retards = client.get("/api/plateforme/abonnements/retards", headers=super_admin).json()
     ligne = next(x for x in retards["boutiques"] if x["id"] == b["id"])
     assert ligne["abonnement"]["jours_retard"] == 5 and ligne["abonnement"]["statut"] == "EN_RETARD"
-    assert ligne["abonnement"]["montant_attendu"] == 10000  # formule mensuelle par défaut
+    assert ligne["abonnement"]["montant_attendu"] == 5000  # formule mensuelle par défaut
     assert client.get("/api/produits", headers=hc).status_code == 200  # pas de blocage automatique
 
     # Le super-admin sélectionne la boutique et suspend son accès
@@ -69,7 +69,7 @@ def test_retard_suspension_et_paiement(client, super_admin, nouvelle_boutique, c
     r = client.post(f"/api/plateforme/abonnements/boutiques/{b['id']}/paiements", headers=super_admin,
                     json={"formule": "TRIMESTRIEL", "mode": "ESPECES", "reference": "Reçu 42"})
     assert r.status_code == 201, r.text
-    assert r.json()["montant"] == 27000 and r.json()["reactivee"] is True
+    assert r.json()["montant"] == 14000 and r.json()["reactivee"] is True
     e = etat(client, h)
     assert e["statut"] == "ACTIF" and e["en_essai"] is False
     assert e["echeance"] == ajouter_mois(AUJ - timedelta(days=1), 3).isoformat()
@@ -99,10 +99,10 @@ def test_paiement_en_ligne_applique_une_seule_fois(client, super_admin, nouvelle
     fixer_echeance(client, super_admin, b, -2)
     # PawaPay non configuré dans les tests : pas de page de paiement
     assert client.post("/api/boutique/abonnement/payer", headers=h, json={"formule": "MENSUEL"}).status_code == 503
-    paiement = {"deposit_id": f"dep-{b['id']}", "boutique_id": b["id"], "montant": 10000, "type": "abonnement",
+    paiement = {"deposit_id": f"dep-{b['id']}", "boutique_id": b["id"], "montant": 5000, "type": "abonnement",
                 "formule": "MENSUEL", "statut": "en_attente", "created_at": "2026-01-01"}
     client.portal.call(lambda: abonnements.db.paiements.insert_one(dict(paiement)))
-    depot = {"depositId": paiement["deposit_id"], "status": "COMPLETED", "amount": "10000"}
+    depot = {"depositId": paiement["deposit_id"], "status": "COMPLETED", "amount": "5000"}
     for _ in range(2):  # webhook + rapprochement : appliqué une seule fois
         client.portal.call(lambda: appliquer_statut(paiement, depot))
     e = etat(client, h)
@@ -137,7 +137,7 @@ def test_rappels(client, super_admin, nouvelle_boutique, monkeypatch):
     ids = {r["boutique_id"] for r in envoyes}
     assert proche["id"] in ids and en_retard["id"] in ids and loin["id"] not in ids
     wa = next(e for e in envois if e[0] == "wa" and e[1] == "70112233")
-    assert "dans 2 jour(s)" in wa[2] and "10 000 FCFA" in wa[2]
+    assert "dans 2 jour(s)" in wa[2] and "5 000 FCFA" in wa[2]
     # Même jour : pas de second rappel
     encore = client.post("/api/plateforme/abonnements/rappels/envoyer", headers=super_admin).json()["envoyes"]
     assert not {r["boutique_id"] for r in encore} & ids
@@ -156,7 +156,7 @@ def test_formules(client, super_admin, nouvelle_boutique):
     # Réservé au super-admin
     assert client.get("/api/plateforme/abonnements/retards", headers=h).status_code == 403
     client.put("/api/plateforme/abonnements/formules/MENSUEL", headers=super_admin,
-               json={"libelle": "Mensuel (30 jours)", "mois": 1, "montant": 10000, "ordre": 1})
+               json={"libelle": "Mensuel (30 jours)", "mois": 1, "montant": 5000, "ordre": 1})
 
 
 @pytest.mark.parametrize("champ", [{"formule": "INCONNUE"}])

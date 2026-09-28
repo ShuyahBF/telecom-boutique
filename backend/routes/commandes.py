@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import Contexte, permission
-from messagerie import lien_suivi, notifier_en_fond
+from messagerie import lien_suivi, notifier_client_en_fond
 from routes.documents import creer_document, enrichir
 from utils import now_iso
 
@@ -65,10 +65,10 @@ async def changer_statut(commande_id: str, payload: ChangementStatut, ctx: Conte
     if avant["statut"] != payload.statut:
         operation["$push"] = {"historique": {"date": now_iso(), "statut": payload.statut, "par": ctx.user.get("nom", "")}}
     cmd = await ctx.tdb.commandes.find_one_and_update({"id": commande_id}, operation)
-    if avant["statut"] != payload.statut and cmd["client"].get("email"):
+    if avant["statut"] != payload.statut:
         cmd_l = avec_libelles(cmd)
-        notifier_en_fond(ctx.boutique, "CMD_STATUT", cmd["client"]["email"],
-                         {"commande": cmd_l, "client": cmd["client"]}, lien_suivi(ctx.boutique, "commande", cmd))
+        notifier_client_en_fond(ctx.boutique, "CMD_STATUT", cmd["client"],
+                                {"commande": cmd_l, "client": cmd["client"]}, lien_suivi(ctx.boutique, "commande", cmd))
     return avec_libelles(cmd)
 
 
