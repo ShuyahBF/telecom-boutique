@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+{# Bouton d'impression du bon de dépôt (à remettre au client) #}
+{% block object-tools-items %}
+  {% if original.pk %}
+    <li><a href="{% url 'core:imprimer_depot' original.pk %}" target="_blank">🖨 Bon de dépôt</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

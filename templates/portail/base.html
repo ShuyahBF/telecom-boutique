@@ -1,0 +1,52 @@
+{% load static %}<!doctype html>
+{# Gabarit commun à toutes les pages publiques : en-tête, menu, messages, pied de page #}
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}{{ entreprise.nom }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+</head>
+<body>
+<header class="entete">
+  <div class="conteneur">
+    <a class="logo" href="{% url 'portail:accueil' %}">
+      {% if entreprise.logo %}<img src="{{ entreprise.logo.url }}" alt="">{% else %}📱{% endif %}
+      {{ entreprise.nom }}
+    </a>
+    <nav class="menu">
+      <a href="{% url 'portail:catalogue' %}">Catalogue</a>
+      <a href="{% url 'portail:suivi_commande' %}">Suivre ma commande</a>
+      <a href="{% url 'portail:suivi_maintenance' %}">Suivre ma réparation</a>
+      <a href="{% url 'portail:conseil' %}">Demander conseil</a>
+    </nav>
+    <form class="recherche" action="{% url 'portail:catalogue' %}">
+      <input type="text" name="q" placeholder="Rechercher un téléphone..." value="{{ q|default:'' }}">
+      <button type="submit" aria-label="Rechercher">🔍</button>
+    </form>
+    <a class="panier-lien" href="{% url 'portail:panier' %}">🛒 Panier <span class="pastille">{{ panier_nb }}</span></a>
+  </div>
+</header>
+
+{% block hero %}{% endblock %}
+
+<main>
+  <div class="conteneur">
+    {# Messages de confirmation / d'erreur (« Produit ajouté au panier »...) #}
+    {% if messages %}
+      <ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% block contenu %}{% endblock %}
+  </div>
+</main>
+
+<footer class="pied">
+  <div class="conteneur">
+    <div><b>{{ entreprise.nom }}</b><br>{{ entreprise.slogan }}</div>
+    <div><b>Nous trouver</b><br>{{ entreprise.adresse|linebreaksbr }}</div>
+    <div><b>Nous contacter</b><br>{{ entreprise.telephone }}<br>{{ entreprise.email }}</div>
+    <div><b>Espace personnel</b><br><a href="{% url 'core:tableau_de_bord' %}">Back-office</a></div>
+  </div>
+</footer>
+</body>
+</html>

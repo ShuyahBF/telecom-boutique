@@ -1,0 +1,39 @@
+{% extends "portail/base.html" %}
+{% block titre %}Catalogue — {{ entreprise.nom }}{% endblock %}
+{% block contenu %}
+<h1>Catalogue</h1>
+{# Filtres : le formulaire recharge la page avec les paramètres dans l'adresse (méthode GET) #}
+<form class="filtres" method="get">
+  <div><label for="q">Recherche</label><input type="text" id="q" name="q" value="{{ q }}"></div>
+  <div><label for="categorie">Rayon</label>
+    <select id="categorie" name="categorie"><option value="">Tous</option>
+      {% for c in categories %}<option value="{{ c.slug }}" {% if c.slug == categorie %}selected{% endif %}>{{ c.nom }}</option>{% endfor %}
+    </select></div>
+  <div><label for="marque">Marque</label>
+    <select id="marque" name="marque"><option value="">Toutes</option>
+      {% for m in marques %}<option value="{{ m.pk }}" {% if m.pk|stringformat:"s" == marque %}selected{% endif %}>{{ m.nom }}</option>{% endfor %}
+    </select></div>
+  <div><label for="tri">Trier par</label>
+    <select id="tri" name="tri">
+      <option value="recent" {% if tri == "recent" %}selected{% endif %}>Nouveautés</option>
+      <option value="prix_asc" {% if tri == "prix_asc" %}selected{% endif %}>Prix croissant</option>
+      <option value="prix_desc" {% if tri == "prix_desc" %}selected{% endif %}>Prix décroissant</option>
+      <option value="nom" {% if tri == "nom" %}selected{% endif %}>Nom</option>
+    </select></div>
+  <div style="flex:0"><button class="bouton" type="submit">Filtrer</button></div>
+</form>
+
+<p class="muted">{{ page.paginator.count }} produit(s)</p>
+<div class="grille">
+  {% for p in page %}{% include "portail/_carte_produit.html" %}{% empty %}<p>Aucun produit ne correspond à votre recherche.</p>{% endfor %}
+</div>
+
+{# Pagination #}
+{% if page.has_other_pages %}
+<p style="margin-top:20px;text-align:center">
+  {% if page.has_previous %}<a class="bouton secondaire petit" href="?{{ filtres }}&page={{ page.previous_page_number }}">← Précédent</a>{% endif %}
+  Page {{ page.number }} / {{ page.paginator.num_pages }}
+  {% if page.has_next %}<a class="bouton secondaire petit" href="?{{ filtres }}&page={{ page.next_page_number }}">Suivant →</a>{% endif %}
+</p>
+{% endif %}
+{% endblock %}

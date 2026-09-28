@@ -1,0 +1,24 @@
+{% extends "portail/base.html" %}
+{% load outils %}
+{% block titre %}Commander — {{ entreprise.nom }}{% endblock %}
+{% block contenu %}
+<h1>Finaliser ma commande</h1>
+<div class="deux-colonnes">
+  <div class="carte">
+    <h3 style="margin-top:0">Vos coordonnées</h3>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button class="bouton accent" type="submit">✔ Confirmer la commande</button>
+      <p class="muted">Le paiement s'effectue au retrait ou à la livraison (espèces, Orange Money, Moov Money).</p>
+    </form>
+  </div>
+  <div class="carte">
+    <h3 style="margin-top:0">Récapitulatif</h3>
+    <table class="tableau">
+      {% for l in lignes %}<tr><td>{{ l.quantite }} × {{ l.produit.nom }}</td><td class="droite">{{ l.sous_total|montant }}</td></tr>{% endfor %}
+      <tr><th>Total</th><th class="droite prix">{{ total|montant }} {{ entreprise.devise }}</th></tr>
+    </table>
+  </div>
+</div>
+{% endblock %}

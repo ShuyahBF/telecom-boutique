@@ -1,0 +1,13 @@
+{% load outils %}
+{# Vignette d'un produit, réutilisée sur l'accueil, le catalogue et la fiche produit #}
+<div class="produit">
+  <a class="image" href="{{ p.get_absolute_url }}">
+    {% if p.image %}<img src="{{ p.image.url }}" alt="{{ p.nom }}" loading="lazy">{% else %}{% if p.type_produit == "TEL" %}📱{% else %}🎧{% endif %}{% endif %}
+  </a>
+  <div class="infos">
+    <span class="muted">{{ p.marque|default:p.categorie }}</span>
+    <a class="nom" href="{{ p.get_absolute_url }}">{{ p.nom }}</a>
+    <span class="prix">{{ p.prix_vente|montant }} {{ entreprise.devise }}</span>
+    {% if p.disponible %}<span class="dispo">✔ En stock</span>{% else %}<span class="dispo non">✖ Rupture de stock</span>{% endif %}
+  </div>
+</div>

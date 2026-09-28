@@ -1,0 +1,9 @@
+# Base de données locale, fichiers envoyés et fichiers statiques collectés
+db.sqlite3
+media/
+staticfiles/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env

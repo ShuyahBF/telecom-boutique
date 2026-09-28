@@ -1,0 +1,39 @@
+{% extends "portail/base.html" %}
+{% load outils %}
+{% block titre %}{{ produit.nom }} — {{ entreprise.nom }}{% endblock %}
+{% block contenu %}
+<p class="muted"><a href="{% url 'portail:catalogue' %}">Catalogue</a> › <a href="{% url 'portail:catalogue' %}?categorie={{ produit.categorie.slug }}">{{ produit.categorie }}</a></p>
+<div class="deux-colonnes">
+  <div class="carte" style="display:flex;align-items:center;justify-content:center;min-height:320px;font-size:6rem;color:#cbd5e1">
+    {% if produit.image %}<img src="{{ produit.image.url }}" alt="{{ produit.nom }}">{% else %}📱{% endif %}
+  </div>
+  <div>
+    <span class="muted">{{ produit.marque|default:"" }} · Réf. {{ produit.reference }}</span>
+    <h1 style="margin-top:4px">{{ produit.nom }}</h1>
+    <p class="prix" style="font-size:1.8rem">{{ produit.prix_vente|montant }} {{ entreprise.devise }}</p>
+    {% if produit.garantie_mois %}<p>🛡 Garantie {{ produit.garantie_mois }} mois</p>{% endif %}
+    {% if produit.disponible %}
+      <p class="dispo">✔ En stock</p>
+      {# Ajout au panier : formulaire POST protégé par le jeton CSRF #}
+      <form method="post" action="{% url 'portail:panier_ajouter' produit.pk %}" style="display:flex;gap:10px;align-items:end">
+        {% csrf_token %}
+        <div style="width:100px"><label for="qte">Quantité</label>
+          <input id="qte" type="number" name="quantite" value="1" min="1" {% if produit.est_stockable %}max="{{ produit.stock }}"{% endif %}></div>
+        <button class="bouton accent" type="submit">🛒 Ajouter au panier</button>
+      </form>
+    {% else %}
+      <p class="dispo non">✖ Actuellement en rupture de stock</p>
+    {% endif %}
+    <p style="margin-top:18px"><a class="bouton secondaire" href="{% url 'portail:conseil' %}?produit={{ produit.pk }}">💬 Poser une question sur ce produit</a></p>
+    {% if produit.description %}<h3>Description</h3><p>{{ produit.description|linebreaksbr }}</p>{% endif %}
+    {% if produit.liste_caracteristiques %}
+      <h3>Caractéristiques</h3>
+      <table class="tableau">{% for c in produit.liste_caracteristiques %}<tr><td>{{ c }}</td></tr>{% endfor %}</table>
+    {% endif %}
+  </div>
+</div>
+{% if similaires %}
+  <h2 class="titre">Dans le même rayon</h2>
+  <div class="grille">{% for p in similaires %}{% include "portail/_carte_produit.html" %}{% endfor %}</div>
+{% endif %}
+{% endblock %}

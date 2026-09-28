@@ -1,0 +1,21 @@
+{% extends "portail/base.html" %}
+{% block titre %}{{ conv.sujet }} — {{ entreprise.nom }}{% endblock %}
+{% block contenu %}
+<h1>{{ conv.sujet }}</h1>
+<p class="muted">Demande ouverte le {{ conv.date_creation|date:"d/m/Y à H:i" }} — <b>{{ conv.get_statut_display }}</b>
+  {% if conv.produit %} — produit : <a href="{{ conv.produit.get_absolute_url }}">{{ conv.produit.nom }}</a>{% endif %}</p>
+<div class="carte">
+  {# Bulles de discussion : à droite le client, à gauche l'équipe #}
+  {% for m in conv.messages.all %}
+    <div class="bulle {% if m.auteur_type == 'CLIENT' %}client{% else %}equipe{% endif %}">{{ m.texte }}
+      <span class="muted">{% if m.auteur_type == 'CLIENT' %}Vous{% else %}{{ entreprise.nom }}{% endif %} — {{ m.date|date:"d/m/Y H:i" }}</span></div>
+  {% endfor %}
+</div>
+{% if conv.statut != "CLOS" %}
+  <div class="carte" style="margin-top:16px">
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="bouton" type="submit">Envoyer</button></form>
+  </div>
+{% else %}
+  <p class="muted">Cette conversation est close. <a href="{% url 'portail:conseil' %}">Poser une nouvelle question</a></p>
+{% endif %}
+{% endblock %}

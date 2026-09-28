@@ -1,0 +1,3 @@
+# Dépendances de la plateforme TelecomPro
+Django>=5.2,<6.0   # framework web (site public + back-office + base de données)
+Pillow>=10.0       # gestion des images (photos produits, logo de l'entreprise)

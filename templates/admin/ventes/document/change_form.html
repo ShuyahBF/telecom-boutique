@@ -1,0 +1,26 @@
+{% extends "admin/change_form.html" %}
+{% comment %}
+  Ajoute des boutons d'action en haut de la fiche d'une facture/proforma.
+  Chaque bouton est un petit formulaire POST (protégé par le jeton CSRF)
+  qui appelle l'URL d'action définie dans ventes/admin.py (get_urls).
+{% endcomment %}
+{% block object-tools-items %}
+  {% if original.pk %}
+    <li><a href="{% url 'core:imprimer_document' original.pk %}" target="_blank">🖨 Imprimer / PDF</a></li>
+    {% if original.type_document == "FAC" and original.statut == "BROUILLON" %}
+      <li><form method="post" action="{% url 'admin:ventes_document_valider' original.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="button" style="background:#1e8449;color:#fff;border:0;padding:6px 12px;border-radius:15px;cursor:pointer"
+          onclick="return confirm('Valider la facture ? Elle recevra son numéro définitif et le stock sera déstocké.')">✔ Valider la facture</button></form></li>
+    {% endif %}
+    {% if original.type_document == "PRO" and original.statut != "ANNULE" %}
+      <li><form method="post" action="{% url 'admin:ventes_document_convertir' original.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="button" style="background:#2471a3;color:#fff;border:0;padding:6px 12px;border-radius:15px;cursor:pointer">➜ Convertir en facture</button></form></li>
+    {% endif %}
+    {% if original.statut != "ANNULE" %}
+      <li><form method="post" action="{% url 'admin:ventes_document_annuler' original.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="button" style="background:#c0392b;color:#fff;border:0;padding:6px 12px;border-radius:15px;cursor:pointer"
+          onclick="return confirm('Annuler ce document ?')">✖ Annuler</button></form></li>
+    {% endif %}
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

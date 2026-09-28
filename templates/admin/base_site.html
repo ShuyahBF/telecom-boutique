@@ -1,0 +1,6 @@
+{% extends "admin/base_site.html" %}
+{# Ajoute un lien « Tableau de bord » dans la barre du haut de l'administration #}
+{% block userlinks %}
+  <a href="{% url 'core:tableau_de_bord' %}">📊 Tableau de bord</a> /
+  {{ block.super }}
+{% endblock %}
