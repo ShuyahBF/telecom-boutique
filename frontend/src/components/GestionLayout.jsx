@@ -11,6 +11,7 @@ const MENU = [
   { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", roles: ["gerant", "vendeur"] },
   { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", roles: ["gerant", "vendeur", "technicien"] },
   { to: "/gestion/produits", label: "Catalogue", icone: "📱", roles: ["gerant", "vendeur", "technicien"] },
+  { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", roles: ["gerant", "vendeur", "technicien"] },
   { to: "/gestion/stock", label: "Stock", icone: "🏷️", roles: ["gerant", "vendeur"] },
   { to: "/gestion/clients", label: "Clients", icone: "👥", roles: ["gerant", "vendeur", "technicien"] },
   { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", roles: ["gerant", "vendeur"] },

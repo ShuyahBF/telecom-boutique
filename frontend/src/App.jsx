@@ -38,6 +38,7 @@ import Maintenance from "@/pages/gestion/Maintenance";
 import DossierFiche from "@/pages/gestion/DossierFiche";
 import BonDepot from "@/pages/gestion/BonDepot";
 import Parametres from "@/pages/gestion/Parametres";
+import CataloguePublic from "@/pages/gestion/CataloguePublic";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="clients/:id" element={<ClientFiche />} />
               <Route path="messagerie" element={<RouteProtegee roles={VENTES}><Messagerie /></RouteProtegee>} />
               <Route path="produits" element={<Produits />} />
+              <Route path="catalogue-public" element={<CataloguePublic />} />
               <Route path="produits/nouveau" element={<RouteProtegee roles={VENTES}><ProduitForm /></RouteProtegee>} />
               <Route path="produits/:id" element={<ProduitForm />} />
               <Route path="stock" element={<RouteProtegee roles={VENTES}><Stock /></RouteProtegee>} />
