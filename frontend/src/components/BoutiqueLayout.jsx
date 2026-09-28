@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 import { apiClient } from "@/lib/api";
 import { nombreArticles } from "@/lib/panier";
+import BoutonAppelWa from "@/components/BoutonAppelWa";
 import Chargement from "@/components/Chargement";
 
 // Mise en page de l'espace PUBLIC d'une boutique (/b/:slug/...) : en-tête aux
@@ -117,7 +118,10 @@ export default function BoutiqueLayout() {
             <p className="mb-2 font-display font-semibold text-white">Nous contacter</p>
             {boutique.telephone && <p>{boutique.telephone}</p>}
             {boutique.email && <p>{boutique.email}</p>}
-            <Link to="/" className="mt-2 inline-block font-semibold text-primary-clair hover:underline">← Toutes les boutiques</Link>
+            {/* Appel WhatsApp : bouton grisé en attendant l'ouverture du service */}
+            <BoutonAppelWa sombre className="btn-sm mt-3" />
+            <br />
+            <Link to="/" className="mt-3 inline-block font-semibold text-primary-clair hover:underline">← Toutes les boutiques</Link>
           </div>
         </div>
         {/* Mention de la plateforme, comme la ligne de copyright de Sawali */}
