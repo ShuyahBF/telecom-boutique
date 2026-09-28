@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api";
 import { nombreArticles } from "@/lib/panier";
 import BoutonAppelWa from "@/components/BoutonAppelWa";
 import Chargement from "@/components/Chargement";
+import PoweredBySawali from "@/components/PoweredBySawali";
 
 // Mise en page de l'espace PUBLIC d'une boutique (/b/:slug/...) : en-tête aux
 // couleurs de la boutique, menu, panier, pied de page. Les pages enfants
@@ -39,6 +40,7 @@ export default function BoutiqueLayout() {
         <h1 className="text-2xl font-bold">Boutique introuvable</h1>
         <p className="text-gray-500">Cette boutique n'existe pas ou n'est plus active.</p>
         <Link to="/" className="btn-primary">Voir toutes les boutiques</Link>
+        <PoweredBySawali sombre={false} className="mt-6" />
       </div>
     );
   }
@@ -125,8 +127,10 @@ export default function BoutiqueLayout() {
           </div>
         </div>
         {/* Mention de la plateforme, comme la ligne de copyright de Sawali */}
-        <div className="border-t border-white/5 py-4 text-center text-xs text-gray-500">
-          Boutique propulsée par <Link to="/" className="text-gray-300 hover:text-white">adLyn</Link>
+        {/* Bas de page : plateforme adLyn + mention obligatoire « Powered by Sawali Smart Systems » */}
+        <div className="space-y-1 border-t border-white/5 py-4 text-center text-xs text-gray-500">
+          <p>Boutique en ligne sur <Link to="/" className="text-gray-300 hover:text-white">adLyn</Link></p>
+          <PoweredBySawali />
         </div>
       </footer>
     </div>

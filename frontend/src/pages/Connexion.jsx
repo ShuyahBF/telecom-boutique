@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import PoweredBySawali from "@/components/PoweredBySawali";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 
@@ -46,7 +47,7 @@ export default function Connexion() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4 pb-14">
       {/* Décor : halos de couleur et quadrillage discret (style Sawali) */}
       <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
@@ -83,6 +84,8 @@ export default function Connexion() {
           </button>
         </div>
       </form>
+      {/* Mention obligatoire, en bas de l'écran */}
+      <PoweredBySawali className="absolute bottom-4 left-0 right-0 text-center" />
     </div>
   );
 }

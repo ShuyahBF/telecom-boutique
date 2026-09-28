@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient, messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
+import PoweredBySawali from "@/components/PoweredBySawali";
 import ScannerQr from "@/components/ScannerQr";
 import { useToast } from "@/components/Toast";
 
@@ -265,8 +266,10 @@ export default function Accueil() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/5 py-5 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} adLyn · une solution <span className="text-gray-300">SAWALI SMART SYSTEMS</span>
+        {/* Bas de page : copyright + mention obligatoire « Powered by Sawali Smart Systems » */}
+        <div className="space-y-1 border-t border-white/5 py-5 text-center text-xs text-gray-500">
+          <p>© {new Date().getFullYear()} adLyn</p>
+          <PoweredBySawali />
         </div>
       </footer>
 
