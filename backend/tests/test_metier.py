@@ -52,13 +52,12 @@ def test_numerotation_propre_a_chaque_boutique(client, boutique_equipee, nouvell
     assert r.status_code == 400
 
 
-def test_roles(client, boutique_equipee):
+def test_roles(client, boutique_equipee, connecter_membre):
     a = boutique_equipee
     r = client.post("/api/boutique/equipe", headers=a["h"], json={
         "nom": "Tech", "email": "tech@test.bf", "mot_de_passe": "motdepasse-123", "role": "technicien"})
     assert r.status_code == 201
-    tok = client.post("/api/auth/login", json={"email": "tech@test.bf", "password": "motdepasse-123"}).json()["access_token"]
-    ht = {"Authorization": f"Bearer {tok}"}
+    ht, _ = connecter_membre(a["boutique"]["code_marchand"], "tech@test.bf")
     assert client.get("/api/maintenance", headers=ht).status_code == 200
     assert client.post("/api/documents", headers=ht, json={"client_id": a["client"]["id"]}).status_code == 403
     assert client.patch("/api/boutique", headers=ht, json={"slogan": "x"}).status_code == 403
@@ -364,7 +363,7 @@ def test_tableau_de_bord(client, boutique_equipee):
     assert len(tdb["ventes_30_jours"]) == 30
 
 
-def test_matrice_des_roles(client, boutique_equipee):
+def test_matrice_des_roles(client, boutique_equipee, connecter_membre):
     """Chaque rôle n'accède qu'à ce que prévoit la table PERMISSIONS."""
     a = boutique_equipee
     en_tetes = {}
@@ -373,9 +372,8 @@ def test_matrice_des_roles(client, boutique_equipee):
         r = client.post("/api/boutique/equipe", headers=a["h"], json={
             "nom": role.capitalize(), "email": email, "mot_de_passe": "motdepasse-123", "role": role})
         assert r.status_code == 201, r.text
-        session = client.post("/api/auth/login", json={"email": email, "password": "motdepasse-123"}).json()
+        en_tetes[role], session = connecter_membre(a["boutique"]["code_marchand"], email)
         assert "tableau_de_bord" in session["user"]["permissions"]
-        en_tetes[role] = {"Authorization": f"Bearer {session['access_token']}"}
 
     def code(role, methode, url, **kw):
         return getattr(client, methode)(url, headers=en_tetes[role], **kw).status_code

@@ -1,4 +1,4 @@
-"""Point d'entrée FastAPI — TelecomBoutique (plateforme SaaS multi-boutiques).
+"""Point d'entrée FastAPI — adLyn (plateforme SaaS multi-boutiques).
 
 Lancement local : uvicorn server:app --reload
 Documentation interactive de l'API : http://localhost:8000/docs
@@ -17,12 +17,13 @@ import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
 from routes import (auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
-                    maintenance, paiements, plateforme, public, referentiel, sauvegardes, stock, tableau_de_bord, tiers)
+                    maintenance, paiements, plateforme, public, referentiel, sauvegardes, stock, tableau_de_bord, tiers,
+                    webhooks)
 from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
 
-app = FastAPI(title="TelecomBoutique API", version="1.0.0")
+app = FastAPI(title="adLyn API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +39,9 @@ api = APIRouter(prefix="/api")
 for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
+# Webhook de création des boutiques (signé HMAC) et son journal
+api.include_router(webhooks.router)
+api.include_router(webhooks.admin)
 # Référentiel mondial des appareils (déclaré AVANT le catalogue public)
 api.include_router(referentiel.admin)
 api.include_router(referentiel.consultation)

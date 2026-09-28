@@ -60,11 +60,17 @@ def _produit_public(p: dict) -> dict:
     return publique
 
 
+# Boutique visible du public : active ET validée par l'administrateur de la
+# plateforme (une boutique créée par le webhook reste cachée jusqu'à sa validation ;
+# les anciennes boutiques sans ce champ sont considérées comme validées)
+VISIBLE = {"actif": True, "validee": {"$ne": False}}
+
+
 async def _boutique(slug: str) -> dict:
-    """Boutique ACTIVE désignée par son adresse (slug) ou son code marchand."""
-    b = await db.boutiques.find_one({"slug": slug, "actif": True}, SANS_ID)
+    """Boutique VISIBLE désignée par son adresse (slug) ou son code marchand."""
+    b = await db.boutiques.find_one({"slug": slug, **VISIBLE}, SANS_ID)
     if not b:
-        b = await db.boutiques.find_one({"code_marchand": slug.upper(), "actif": True}, SANS_ID)
+        b = await db.boutiques.find_one({"code_marchand": slug.upper(), **VISIBLE}, SANS_ID)
     if not b:
         raise HTTPException(404, "Boutique introuvable")
     return b
@@ -76,7 +82,7 @@ async def _boutique(slug: str) -> dict:
 @router.get("/boutiques")
 async def annuaire(q: str = ""):
     """Liste pour le carrousel ; q = nom (partiel) OU code marchand (exact)."""
-    filtre: dict = {"actif": True}
+    filtre: dict = dict(VISIBLE)
     if q.strip():
         motif = motif_recherche(q)
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}},

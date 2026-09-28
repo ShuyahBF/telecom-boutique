@@ -205,6 +205,8 @@ async def ajouter_membre(payload: MembreCreation, ctx: Contexte = Depends(parame
         "id": new_id(), "email": payload.email.lower(), "nom": payload.nom.strip(),
         "password_hash": hash_password(payload.mot_de_passe), "role": payload.role,
         "boutique_id": ctx.boutique["id"], "actif": True, "created_at": now_iso(),
+        # Mot de passe choisi par le DG : provisoire, à changer à la 1re connexion
+        "doit_changer_mot_de_passe": True,
     }
     await db.users.insert_one(membre.copy())
     return user_public(membre)
@@ -219,8 +221,15 @@ async def modifier_membre(user_id: str, payload: MembreMaj, ctx: Contexte = Depe
     if user_id == ctx.user["id"] and (payload.actif is False or (payload.role and payload.role != "dg")):
         raise HTTPException(400, "Vous ne pouvez pas vous retirer vous-même le rôle de DG")
     maj = payload.model_dump(exclude_none=True)
+    operation: dict = {}
     if "mot_de_passe" in maj:
         maj["password_hash"] = hash_password(maj.pop("mot_de_passe"))
+        # Mot de passe donné par le DG : provisoire, le membre le changera à sa connexion
+        maj["doit_changer_mot_de_passe"] = user_id != ctx.user["id"]
+    if ("password_hash" in maj and user_id != ctx.user["id"]) or payload.actif is False:
+        operation["$inc"] = {"version_session": 1}  # ses sessions ouvertes sont fermées
     if maj:
-        await db.users.update_one({"id": user_id, "boutique_id": ctx.boutique["id"]}, {"$set": maj})
+        operation["$set"] = maj
+    if operation:
+        await db.users.update_one({"id": user_id, "boutique_id": ctx.boutique["id"]}, operation)
     return user_public(await db.users.find_one({"id": user_id}, SANS_ID))

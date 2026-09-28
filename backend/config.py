@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     # --- Authentification du personnel (jeton JWT) ---
     jwt_secret: str = "change-me-in-.env"
     jwt_algorithm: str = "HS256"
-    jwt_expires_minutes: int = 60 * 24 * 7  # 7 jours
+    jwt_expires_minutes: int = 60 * 24 * 30  # 30 jours (session gardée par le navigateur)
+    # Cookie de session : HttpOnly (illisible par le JavaScript du site), jamais le
+    # mot de passe. "auto" : Secure + SameSite=None si le site est en https
+    # (site et API sur deux domaines Render différents), sinon SameSite=Lax (dev).
+    session_cookie_nom: str = "adlyn_session"
+    session_cookie_securise: str = "auto"  # auto | true | false
 
     # --- CORS : adresse(s) du site public, séparées par des virgules.
     # La PREMIÈRE sert d'URL publique (liens de suivi envoyés par e-mail,
@@ -46,7 +51,7 @@ class Settings(BaseSettings):
     pawapay_callback_secret: Optional[str] = None
     pawapay_default_country: str = "BFA"
     # Libellé du SMS / de l'historique Mobile Money (4 à 22 caractères)
-    pawapay_customer_message: str = "TelecomBoutique"
+    pawapay_customer_message: str = "adLyn"
 
     # --- Stockage des fichiers (photos produits, logos des boutiques) ---
     # "local" : disque du serveur, dev/test uniquement (perdu à chaque
@@ -91,7 +96,7 @@ class Settings(BaseSettings):
     gdrive_client_id: Optional[str] = None
     gdrive_client_secret: Optional[str] = None
     gdrive_refresh_token: Optional[str] = None
-    gdrive_nom_dossier: str = "TelecomBoutique - Sauvegardes"
+    gdrive_nom_dossier: str = "adLyn - Sauvegardes"
 
     # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
     rapport_email: Optional[str] = None
@@ -102,6 +107,27 @@ class Settings(BaseSettings):
     plateforme_smtp_mot_de_passe: Optional[str] = None
     plateforme_smtp_ssl: bool = False
     plateforme_expediteur: Optional[str] = None
+
+    # --- SMS (identifiants envoyés au DG d'une boutique créée par le webhook) ---
+    # Orange SMS API (Burkina Faso et Afrique de l'Ouest), OVH en repli : mêmes
+    # comptes et mêmes variables que beauthentik.net
+    orange_sms_client_id: Optional[str] = None
+    orange_sms_client_secret: Optional[str] = None
+    orange_sms_sender_msisdn: Optional[str] = None  # numéro émetteur enregistré chez Orange, ex. +22600000000
+    orange_sms_sender_name: Optional[str] = None  # nom d'émetteur (si activé par Orange)
+    ovh_sms_endpoint: str = "ovh-eu"  # ovh-eu | ovh-ca
+    ovh_sms_application_key: Optional[str] = None
+    ovh_sms_application_secret: Optional[str] = None
+    ovh_sms_consumer_key: Optional[str] = None
+    ovh_sms_service_name: Optional[str] = None  # ex. sms-ab12345-1
+    ovh_sms_sender: Optional[str] = None  # expéditeur déclaré chez OVH, ex. adLyn
+
+    # --- Webhook de création automatique des boutiques (signé HMAC-SHA256) ---
+    # Secret partagé avec le système appelant ; sans lui le webhook est fermé (503).
+    webhook_boutiques_secret: Optional[str] = None
+    webhook_fenetre_secondes: int = 300  # horodatage accepté à ± 5 minutes
+    webhook_quota_jour: int = 20  # boutiques créées au maximum par jour via le webhook
+    webhook_max_echecs_ip: int = 10  # appels refusés tolérés par adresse IP et par heure
 
     # Développement : crée la boutique de démonstration au démarrage
     # (pratique avec MONGO_URL=mongomock://, dont les données sont perdues à l'arrêt)

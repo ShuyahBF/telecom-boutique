@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import smtplib
 from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
 import httpx
 from pymongo.errors import DuplicateKeyError
 
+import envois_plateforme
 import gdrive
 import sauvegarde
 from config import get_settings
@@ -76,7 +75,7 @@ async def construire_rapport(sauvegardes: list[dict]) -> tuple[str, str]:
     reussies = [x for x in sauvegardes if x["statut"] == "SUCCES"]
     echecs = [x for x in sauvegardes if x["statut"] != "SUCCES"]
     etat = "✅ tout est OK" if not echecs else f"⚠️ {len(echecs)} échec(s)"
-    sujet = f"[TelecomBoutique] Rapport de la nuit — sauvegardes {len(reussies)}/{len(sauvegardes)} {etat}"
+    sujet = f"[adLyn] Rapport de la nuit — sauvegardes {len(reussies)}/{len(sauvegardes)} {etat}"
     lignes = [f"Rapport du {datetime.now(ZoneInfo(get_settings().fuseau_horaire)):%d/%m/%Y à %H:%M}", "",
               "=== SAUVEGARDES DES BOUTIQUES ===",
               f"Réussies : {len(reussies)} — Échecs : {len(echecs)}", ""]
@@ -98,21 +97,8 @@ async def construire_rapport(sauvegardes: list[dict]) -> tuple[str, str]:
     return sujet, "\n".join(lignes)
 
 
-def _envoyer_smtp(sujet: str, corps: str, destinataire: str) -> None:
-    s = get_settings()
-    msg = EmailMessage()
-    msg["Subject"], msg["To"] = sujet, destinataire
-    msg["From"] = s.plateforme_expediteur or s.plateforme_smtp_utilisateur
-    msg.set_content(corps)
-    if s.plateforme_smtp_ssl:
-        serveur = smtplib.SMTP_SSL(s.plateforme_smtp_hote, s.plateforme_smtp_port, timeout=20)
-    else:
-        serveur = smtplib.SMTP(s.plateforme_smtp_hote, s.plateforme_smtp_port, timeout=20)
-        serveur.starttls()
-    with serveur:
-        if s.plateforme_smtp_utilisateur:
-            serveur.login(s.plateforme_smtp_utilisateur, s.plateforme_smtp_mot_de_passe or "")
-        serveur.send_message(msg)
+# Envoi par le serveur SMTP de la plateforme (module commun envois_plateforme)
+_envoyer_smtp = envois_plateforme.envoyer_smtp
 
 
 async def envoyer_rapport(sauvegardes: list[dict]) -> dict:

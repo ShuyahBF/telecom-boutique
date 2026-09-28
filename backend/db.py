@@ -124,6 +124,11 @@ async def ensure_indexes() -> None:
     await db.boutiques.create_index("slug", unique=True)
     await db.boutiques.create_index("code_marchand", unique=True)
     await db.users.create_index("email", unique=True)
+    # Connexion (anti force brute) et webhook (anti-rejeu : nonces effacés après 7 jours)
+    await db.echecs_connexion.create_index([("cle", 1), ("date", 1)])
+    await db.echecs_connexion.create_index("expire_le", expireAfterSeconds=0)
+    await db.webhook_journal.create_index([("ip", 1), ("date", -1)])
+    await db.webhook_nonces.create_index("expire_le", expireAfterSeconds=0)
     await db.compteurs.create_index([("boutique_id", 1), ("prefixe", 1), ("annee", 1)], unique=True)
     # Données des boutiques : toujours indexées en commençant par boutique_id
     await db.produits.create_index([("boutique_id", 1), ("reference", 1)], unique=True)

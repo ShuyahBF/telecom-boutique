@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 
@@ -67,40 +67,87 @@ def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(user_id: str, version: int = 0) -> str:
+    """Jeton de session signé. `v` = version de session de l'utilisateur :
+    l'augmenter (changement de mot de passe, déconnexion partout) invalide
+    tous les jetons déjà distribués."""
     s = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=s.jwt_expires_minutes)
-    return jwt.encode({"sub": user_id, "exp": expires_at}, s.jwt_secret, algorithm=s.jwt_algorithm)
+    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at}, s.jwt_secret, algorithm=s.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> Optional[str]:
+def decode_access_token(token: str) -> Optional[dict]:
     s = get_settings()
     try:
-        payload = jwt.decode(token, s.jwt_secret, algorithms=[s.jwt_algorithm])
+        return jwt.decode(token, s.jwt_secret, algorithms=[s.jwt_algorithm])
     except jwt.PyJWTError:
         return None
-    return payload.get("sub")
+
+
+# ---------------------------------------------------------------------------
+# Cookie de session (HttpOnly) : le navigateur le renvoie tout seul, le site
+# se reconnecte donc dès son ouverture. Le MOT DE PASSE N'EST JAMAIS STOCKÉ :
+# le cookie ne contient que le jeton signé, illisible par le JavaScript.
+# ---------------------------------------------------------------------------
+# En-tête exigé sur les requêtes d'écriture authentifiées par cookie : un site
+# tiers ne peut pas l'ajouter sans l'accord CORS du serveur (protection CSRF).
+ENTETE_CSRF = "x-adlyn"
+
+
+def _cookie_securise() -> bool:
+    s = get_settings()
+    choix = (s.session_cookie_securise or "auto").lower()
+    if choix in ("true", "false"):
+        return choix == "true"
+    return s.public_site_url.startswith("https://")
+
+
+def poser_cookie_session(response: Response, jeton: str) -> None:
+    s = get_settings()
+    securise = _cookie_securise()
+    response.set_cookie(
+        s.session_cookie_nom, jeton, max_age=s.jwt_expires_minutes * 60, httponly=True, secure=securise,
+        # Site et API sur deux domaines différents en production : SameSite=None (+ Secure obligatoire)
+        samesite="none" if securise else "lax", path="/")
+
+
+def effacer_cookie_session(response: Response) -> None:
+    s = get_settings()
+    securise = _cookie_securise()
+    response.delete_cookie(s.session_cookie_nom, path="/", secure=securise, httponly=True,
+                           samesite="none" if securise else "lax")
 
 
 def user_public(user: dict) -> dict:
     """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe),
     avec la liste de ses permissions."""
-    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id")}
+    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session")}
     public["permissions"] = permissions_de(user.get("role", ""))
     return public
 
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ) -> dict:
-    if credentials is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Non authentifié")
-    user_id = decode_access_token(credentials.credentials)
-    if not user_id:
+    """Utilisateur connecté : jeton « Bearer » (outils, tests) ou cookie de session (site)."""
+    if credentials is not None:
+        jeton = credentials.credentials
+    else:
+        jeton = request.cookies.get(get_settings().session_cookie_nom)
+        if not jeton:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Non authentifié")
+        # Protection CSRF : toute écriture via cookie doit porter l'en-tête du site
+        if request.method not in ("GET", "HEAD", "OPTIONS") and not request.headers.get(ENTETE_CSRF):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Requête refusée (en-tête de sécurité manquant)")
+    contenu = decode_access_token(jeton)
+    if not contenu or not contenu.get("sub"):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session invalide ou expirée")
-    user = await db.users.find_one({"id": user_id}, SANS_ID)
+    user = await db.users.find_one({"id": contenu["sub"]}, SANS_ID)
     if not user or not user.get("actif", True):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Compte introuvable ou désactivé")
+    if int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     return user
 
 
@@ -143,6 +190,9 @@ async def get_contexte(
         boutique_id = x_boutique_id
     else:
         boutique_id = user.get("boutique_id")
+    if user.get("doit_changer_mot_de_passe"):
+        # Mot de passe provisoire (reçu par e-mail/SMS) : à changer avant tout travail
+        raise HTTPException(403, "Changez votre mot de passe provisoire avant de continuer")
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID) if boutique_id else None
     if not boutique:
         raise HTTPException(403, "Aucune boutique associée à ce compte")

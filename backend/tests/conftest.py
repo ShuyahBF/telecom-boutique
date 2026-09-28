@@ -38,6 +38,7 @@ def client():
 def super_admin(client):
     r = client.post("/api/auth/login", json={"email": "super@plateforme-test.bf", "password": "super-motdepasse"})
     assert r.status_code == 200, r.text
+    client.cookies.clear()
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
@@ -52,9 +53,33 @@ def nouvelle_boutique(client, super_admin):
             "dg_nom": f"DG {n}", "dg_email": f"gerant{n}@test.bf",
             "dg_mot_de_passe": "motdepasse-123", **extra})
         assert r.status_code == 201, r.text
-        login = client.post("/api/auth/login", json={"email": f"gerant{n}@test.bf", "password": "motdepasse-123"})
-        return r.json()["boutique"], {"Authorization": f"Bearer {login.json()['access_token']}"}
+        boutique = r.json()["boutique"]
+        login = client.post("/api/auth/login", json={"code_boutique": boutique["code_marchand"],
+                                                     "email": f"gerant{n}@test.bf", "password": "motdepasse-123"})
+        assert login.status_code == 200, login.text
+        client.cookies.clear()  # les tests s'authentifient par jeton « Bearer »
+        return boutique, {"Authorization": f"Bearer {login.json()['access_token']}"}
     return _creer
+
+
+def _connecter_membre(client, code_boutique, email, mot_de_passe="motdepasse-123", nouveau="nouveau-mdp-456"):
+    """Connexion d'un membre créé par le DG (mot de passe provisoire) : il change
+    son mot de passe comme l'exige la plateforme, puis renvoie ses en-têtes."""
+    r = client.post("/api/auth/login", json={"code_boutique": code_boutique, "email": email, "password": mot_de_passe})
+    assert r.status_code == 200, r.text
+    session = r.json()
+    h = {"Authorization": f"Bearer {session['access_token']}"}
+    if session["user"].get("doit_changer_mot_de_passe"):
+        r = client.post("/api/auth/mot-de-passe", headers=h, json={"ancien": mot_de_passe, "nouveau": nouveau})
+        assert r.status_code == 200, r.text
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    client.cookies.clear()
+    return h, session
+
+
+@pytest.fixture
+def connecter_membre(client):
+    return lambda *args, **kw: _connecter_membre(client, *args, **kw)
 
 
 @pytest.fixture

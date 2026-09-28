@@ -46,6 +46,7 @@ class Identification(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     dg_nom: str = Field("", max_length=120)  # nom du Directeur Général
+    dg_telephone: str = Field("", max_length=30)  # reçoit les identifiants par SMS
     ifu: str = Field("", max_length=50)
     cnss: str = Field("", max_length=50)
     rccm: str = Field("", max_length=60)
@@ -70,6 +71,7 @@ class BoutiqueMaj(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     dg_nom: Optional[str] = Field(None, max_length=120)
+    dg_telephone: Optional[str] = Field(None, max_length=30)
     ifu: Optional[str] = Field(None, max_length=50)
     cnss: Optional[str] = Field(None, max_length=50)
     rccm: Optional[str] = Field(None, max_length=60)
@@ -80,10 +82,78 @@ class BoutiqueMaj(BaseModel):
 
 
 def _normaliser_code(code: str) -> str:
+    """Code marchand = « ID boutique » tapé à la connexion : exactement 6 lettres
+    ou chiffres, sans espace (les tirets/espaces saisis sont retirés)."""
     code = re.sub(r"[^A-Za-z0-9]", "", code or "").upper()
-    if len(code) < 3:
-        raise HTTPException(400, "Le code marchand doit contenir au moins 3 lettres ou chiffres")
+    if len(code) != 6:
+        raise HTTPException(400, "L'ID boutique (code marchand) doit contenir exactement 6 lettres ou chiffres")
     return code
+
+
+def mot_de_passe_temporaire() -> str:
+    """Mot de passe provisoire (10 caractères sans ambiguïté), à changer à la 1re connexion."""
+    return "".join(secrets.choice(_ALPHABET_CODE + "abcdefghjkmnpqrstuvwxyz") for _ in range(10))
+
+
+async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe: str, validee: bool,
+                               origine: str, doit_changer_mot_de_passe: bool = False,
+                               code: Optional[str] = None) -> tuple[dict, dict, int]:
+    """Crée la boutique, le compte de son DG et copie le catalogue public.
+    Utilisé par la création manuelle (super-admin) ET par le webhook.
+    `donnees` : nom, telephone, email + champs d'Identification."""
+    nom = donnees["nom"].strip()
+    boutique = {
+        "id": new_id(), "nom": nom, "slug": await _slug_unique(nom),
+        "code_marchand": code or await _code_marchand_unique(),
+        "telephone": normaliser_telephone(donnees.get("telephone")), "email": donnees.get("email") or "",
+        "actif": True, "mise_en_avant": False, "ordre": 0, "created_at": now_iso(),
+        # validee = False : créée automatiquement, invisible du public jusqu'à validation
+        "validee": validee, "origine": origine,
+        **boutique_par_defaut(nom),
+        **Identification(**{k: v for k, v in donnees.items() if k in Identification.model_fields}).model_dump(),
+    }
+    await db.boutiques.insert_one(boutique.copy())
+    dg = {
+        "id": new_id(), "email": dg_email.lower(), "nom": boutique["dg_nom"].strip(),
+        "password_hash": hash_password(dg_mot_de_passe), "role": "dg",
+        "boutique_id": boutique["id"], "actif": True, "created_at": now_iso(),
+        "doit_changer_mot_de_passe": doit_changer_mot_de_passe,
+    }
+    await db.users.insert_one(dg.copy())
+    # Première initialisation : la boutique reçoit tout le catalogue public (sans prix)
+    from catalogue_public import copier_catalogue_dans_boutique
+    nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
+    return boutique, dg, nb_produits
+
+
+async def envoyer_identifiants(boutique: dict, dg: dict, mot_de_passe: str, telephone: str) -> dict:
+    """Envoie au DG son ID boutique et son mot de passe provisoire, par e-mail
+    ET par SMS (serveurs de la plateforme). Renvoie le statut de chaque canal,
+    sans jamais le mot de passe."""
+    from config import get_settings
+    import envois_plateforme as envois
+
+    url = get_settings().public_site_url
+    sujet = f"[adLyn] Votre boutique « {boutique['nom']} » est créée"
+    corps = "\n".join([
+        f"Bonjour {dg.get('nom') or ''},", "",
+        f"Votre boutique « {boutique['nom']} » a été créée sur adLyn.", "",
+        f"Adresse de connexion : {url}/connexion",
+        f"ID boutique : {boutique['code_marchand']}",
+        f"E-mail : {dg['email']}",
+        f"Mot de passe provisoire : {mot_de_passe}", "",
+        "Ce mot de passe devra être changé dès votre première connexion.",
+        "Votre boutique sera visible du public après validation par l'équipe adLyn.", "",
+        "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.",
+    ])
+    sms = (f"adLyn : boutique {boutique['nom'][:40]} creee. ID boutique {boutique['code_marchand']}, "
+           f"mot de passe provisoire {mot_de_passe} (a changer a la 1re connexion). {url}/connexion")
+    email_statut, email_erreur = await envois.envoyer_email(sujet, corps, dg["email"])
+    sms_statut, sms_erreur = await envois.envoyer_sms(telephone, sms)
+    envoi = {"date": now_iso(), "email": email_statut, "email_erreur": email_erreur,
+             "sms": sms_statut, "sms_erreur": sms_erreur}
+    await db.boutiques.update_one({"id": boutique["id"]}, {"$set": {"identifiants_envoi": envoi}})
+    return envoi
 
 
 def boutique_par_defaut(nom: str) -> dict:
@@ -114,27 +184,40 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
         raise HTTPException(400, "Indiquez le nom du DG de la boutique")
     if await db.users.find_one({"email": payload.dg_email.lower()}):
         raise HTTPException(409, "Un compte existe déjà avec l'e-mail du DG")
-    code = _normaliser_code(payload.code_marchand) if payload.code_marchand else await _code_marchand_unique()
-    if await db.boutiques.find_one({"code_marchand": code}):
+    code = _normaliser_code(payload.code_marchand) if payload.code_marchand else None
+    if code and await db.boutiques.find_one({"code_marchand": code}):
         raise HTTPException(409, "Ce code marchand est déjà utilisé")
-    boutique = {
-        "id": new_id(), "nom": payload.nom.strip(), "slug": await _slug_unique(payload.nom),
-        "code_marchand": code, "telephone": normaliser_telephone(payload.telephone), "email": payload.email or "",
-        "actif": True, "mise_en_avant": False, "ordre": 0, "created_at": now_iso(),
-        **boutique_par_defaut(payload.nom.strip()),
-        **Identification(**payload.model_dump(include=set(Identification.model_fields))).model_dump(),
-    }
-    await db.boutiques.insert_one(boutique.copy())
-    dg = {
-        "id": new_id(), "email": payload.dg_email.lower(), "nom": payload.dg_nom.strip(),
-        "password_hash": hash_password(payload.dg_mot_de_passe), "role": "dg",
-        "boutique_id": boutique["id"], "actif": True, "created_at": now_iso(),
-    }
-    await db.users.insert_one(dg.copy())
-    # Première initialisation : la boutique reçoit tout le catalogue public (sans prix)
-    from catalogue_public import copier_catalogue_dans_boutique
-    nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
+    donnees = payload.model_dump(exclude={"dg_email", "dg_mot_de_passe", "code_marchand"})
+    boutique, dg, nb_produits = await enregistrer_boutique(
+        donnees, dg_email=payload.dg_email, dg_mot_de_passe=payload.dg_mot_de_passe,
+        validee=True, origine="super_admin", code=code)
     return {"boutique": _sans_secrets(boutique), "dg": user_public(dg), "produits_copies": nb_produits}
+
+
+@router.post("/boutiques/{boutique_id}/valider")
+async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_admin)):
+    """Boutique créée par le webhook : après vérification, elle devient visible du public."""
+    res = await db.boutiques.update_one({"id": boutique_id}, {"$set": {
+        "validee": True, "validee_le": now_iso(), "validee_par": admin.get("email", "")}})
+    if not res.matched_count:
+        raise HTTPException(404, "Boutique introuvable")
+    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
+
+
+@router.post("/boutiques/{boutique_id}/renvoyer-identifiants")
+async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_admin)):
+    """Nouveau mot de passe provisoire pour le DG, renvoyé par e-mail et SMS
+    (ex. : le premier envoi a échoué). L'ancien mot de passe ne fonctionne plus."""
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    dg = await db.users.find_one({"boutique_id": boutique_id, "role": "dg", "actif": True}, SANS_ID) if boutique else None
+    if not dg:
+        raise HTTPException(404, "Boutique ou DG introuvable")
+    mot_de_passe = mot_de_passe_temporaire()
+    await db.users.update_one({"id": dg["id"]}, {
+        "$set": {"password_hash": hash_password(mot_de_passe), "doit_changer_mot_de_passe": True},
+        "$inc": {"version_session": 1}})  # déconnecte les sessions ouvertes
+    telephone = boutique.get("dg_telephone") or boutique.get("telephone", "")
+    return await envoyer_identifiants(boutique, dg, mot_de_passe, telephone)
 
 
 @router.patch("/boutiques/{boutique_id}")

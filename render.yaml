@@ -1,4 +1,4 @@
-# Déploiement Render — backend FastAPI + frontend statique (Vite/React).
+# Déploiement Render — adLyn : backend FastAPI + frontend statique (Vite/React).
 # Même organisation que beauthentik.net (ShuyahBF/site-meetafrican).
 #
 # Deux services connectés à ce dépôt GitHub : chaque push sur la branche
@@ -10,7 +10,7 @@
 
 services:
   - type: web
-    name: telecom-boutique-backend
+    name: adlyn-backend
     runtime: python
     plan: starter
     autoDeploy: true
@@ -66,7 +66,7 @@ services:
       - key: PAWAPAY_DEFAULT_COUNTRY
         value: BFA
       - key: PAWAPAY_CUSTOMER_MESSAGE
-        value: TelecomBoutique
+        value: adLyn
 
       # --- Stockage Cloudflare R2 (obligatoire en production : le disque de
       # Render est effacé à chaque déploiement) ---
@@ -111,7 +111,7 @@ services:
       - key: GDRIVE_REFRESH_TOKEN
         sync: false
       - key: GDRIVE_NOM_DOSSIER
-        value: TelecomBoutique - Sauvegardes
+        value: adLyn - Sauvegardes
 
       # --- Rapport de la nuit (sauvegardes + catalogue) ---
       - key: RAPPORT_EMAIL
@@ -133,8 +133,37 @@ services:
       - key: R2_BUCKET_PRIVE
         value: telecom-boutique-kyc
 
+      # --- SMS (identifiants envoyés au DG d'une boutique créée par le webhook) ---
+      # Mêmes comptes que beauthentik.net : Orange SMS API, OVH en repli
+      - key: ORANGE_SMS_CLIENT_ID
+        sync: false
+      - key: ORANGE_SMS_CLIENT_SECRET
+        sync: false
+      - key: ORANGE_SMS_SENDER_MSISDN
+        sync: false
+      - key: ORANGE_SMS_SENDER_NAME
+        sync: false
+      - key: OVH_SMS_APPLICATION_KEY
+        sync: false
+      - key: OVH_SMS_APPLICATION_SECRET
+        sync: false
+      - key: OVH_SMS_CONSUMER_KEY
+        sync: false
+      - key: OVH_SMS_SERVICE_NAME
+        sync: false
+      - key: OVH_SMS_SENDER
+        sync: false
+
+      # --- Webhook de création des boutiques (signature HMAC-SHA256) ---
+      # Secret partagé avec le système appelant (ex. : openssl rand -hex 32).
+      # Sans lui, le webhook reste fermé.
+      - key: WEBHOOK_BOUTIQUES_SECRET
+        sync: false
+      - key: WEBHOOK_QUOTA_JOUR
+        value: "20"
+
   - type: web
-    name: telecom-boutique-frontend
+    name: adlyn-frontend
     runtime: static
     autoDeploy: true
     rootDir: frontend

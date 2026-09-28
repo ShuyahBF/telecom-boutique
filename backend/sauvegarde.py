@@ -83,7 +83,7 @@ def chiffrer(donnees: dict) -> bytes:
 
 def dechiffrer(archive: bytes) -> dict:
     if not archive.startswith(MAGIQUE) or len(archive) < 30:
-        raise HTTPException(400, "Ce fichier n'est pas une sauvegarde TelecomBoutique")
+        raise HTTPException(400, "Ce fichier n'est pas une sauvegarde adLyn")
     nonce, chiffre = archive[4:16], archive[16:]
     try:
         brut = AESGCM(_cle()).decrypt(nonce, chiffre, MAGIQUE)
