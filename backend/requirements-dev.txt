@@ -1,0 +1,8 @@
+# Dépendances de développement/test uniquement.
+-r requirements.txt
+
+# Base MongoDB en mémoire (MONGO_URL=mongomock://) : tests sans réseau.
+mongomock-motor==0.0.36
+
+# Tests : cd backend && python -m pytest tests -q
+pytest==8.3.3
