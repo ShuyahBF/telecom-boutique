@@ -205,7 +205,7 @@ async def envoyer_rappels(declencheur: str = "planification") -> list[dict]:
     tarifs = {f["code"]: f for f in await formules(False)}
     jour = aujourd_hui().isoformat()
     resultats = []
-    async for b in db.boutiques.find({}, SANS_ID):
+    async for b in db.boutiques.find({"test": {"$ne": True}}, SANS_ID):  # jamais les boutiques internes
         e = await etat(b, tarifs)
         a_rappeler = (e["jours_retard"] > 0 and e["jours_retard"] <= s.abonnement_rappel_retard_max_jours) \
             or (e["jours_retard"] == 0 and e["jours_restants"] <= s.abonnement_rappel_jours_avant)

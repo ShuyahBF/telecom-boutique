@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 async def sauvegarder_toutes(declencheur: str = "planification") -> list[dict]:
     """Sauvegarde toutes les boutiques ; un échec n'empêche jamais les suivantes."""
     s = get_settings()
-    boutiques = await db.boutiques.find({}, SANS_ID).sort("nom", 1).to_list(None)
+    # Boutiques internes (présentation) : pas de sauvegarde sur le Drive
+    boutiques = await db.boutiques.find({"test": {"$ne": True}}, SANS_ID).sort("nom", 1).to_list(None)
     resultats: list[dict] = []
     drive = None
     async with httpx.AsyncClient(timeout=120) as client:

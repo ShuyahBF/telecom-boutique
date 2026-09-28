@@ -200,6 +200,8 @@ export default function Plateforme() {
                       {b.actif === false ? <span className="badge bg-red-100 text-red-700">Suspendue</span> : <span className="badge bg-green-100 text-green-800">Active</span>}
                       {b.validee === false && <span className="badge bg-amber-100 text-amber-800">⏳ À valider</span>}
                       {b.origine === "webhook" && <span className="badge bg-purple-50 text-purple-800">Webhook</span>}
+                      {/* Boutique interne : visible seulement des super-administrateurs sur le portail */}
+                      {b.test && <span className="badge bg-slate-800 text-white" title="Invisible des visiteurs ; aucun message envoyé">🔒 Interne</span>}
                       <BadgeKyc statut={b.kyc?.statut} />
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
                       <span className="badge bg-blue-50 text-blue-800">{b.nb_utilisateurs} utilisateur(s)</span>
@@ -240,6 +242,11 @@ export default function Plateforme() {
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>✉️ Renvoyer les identifiants au DG</button>
+                  {/* Boutique interne (présentation) ou publique */}
+                  <button type="button" className="btn-outline btn-sm col-span-2"
+                    onClick={() => modifier(b, { test: !b.test }, b.test ? "Boutique visible du public" : "Boutique interne : cachée des visiteurs")}>
+                    {b.test ? "🌍 Rendre visible du public" : "🔒 Passer en boutique interne"}
+                  </button>
 
                   {b.actif === false
                     ? <button type="button" className="btn-outline btn-sm col-span-2 text-green-700" onClick={() => modifier(b, { actif: true }, "Boutique réactivée")}>Réactiver la boutique</button>

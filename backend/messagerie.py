@@ -144,7 +144,10 @@ async def envoyer_email(boutique: dict, destinataire: str, sujet: str, corps: st
     p = boutique.get("messagerie") or {}
     journal = {"id": new_id(), "date": now_iso(), "code": code, "destinataire": destinataire,
                "sujet": sujet, "corps": corps, "erreur": ""}
-    if not (p.get("email_actif") and p.get("smtp_hote")):
+    if boutique.get("test"):
+        # Boutique interne (coordonnées imaginaires) : aucun e-mail ne part
+        journal.update({"statut": "NON_ENVOYE", "erreur": "Boutique interne : envoi désactivé"})
+    elif not (p.get("email_actif") and p.get("smtp_hote")):
         journal["statut"] = "NON_ENVOYE"
     else:
         try:

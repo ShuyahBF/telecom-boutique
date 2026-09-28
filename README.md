@@ -107,6 +107,12 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 - Chaque tentative de connexion (réussie, mauvais mot de passe, refusée) est tracée dans le journal de la boutique et dans le journal du serveur (logs Render) : compte, adresse IP, appareil. Depuis chaque ligne, le DG autorise ou interdit cette adresse ou cet appareil pour l'avenir.
 - Un appareil est reconnu par un identifiant posé dans le navigateur à la première connexion. Il est visible dans le journal.
 
+### Boutiques internes (présentation)
+- Une boutique « interne » est invisible des visiteurs du portail (carrousel, recherche, adresse, QR code). Seul un super-administrateur connecté la voit.
+- Aucun e-mail, SMS ni WhatsApp ne part de chez elle, et elle n'est ni sauvegardée sur le Drive ni relancée pour son abonnement.
+- Le bouton « 🔒 Passer en boutique interne / 🌍 Rendre visible du public » se trouve sur sa carte dans `/plateforme`.
+- `backend/outils/creer_boutiques_internes.py` crée une vingtaine de boutiques de présentation réalistes (Burkina Faso et pays voisins, catalogue aux prix du marché, clients, réparations). Il peut être relancé sans risque de doublon.
+
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
 - **Création automatique par webhook** (voir plus bas) : les boutiques créées ainsi attendent la **validation** de l'administrateur avant d'apparaître sur le portail. Journal des appels (bouton « 🔗 Webhook ») et renvoi des identifiants au DG.
