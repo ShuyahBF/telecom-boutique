@@ -51,13 +51,17 @@ async def _reponse_session(user: dict) -> dict:
     }
 
 
-def _sans_secrets(boutique: dict | None) -> dict | None:
-    """Ne jamais renvoyer le mot de passe SMTP ni les clés des pièces KYC au navigateur."""
+def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | None:
+    """Ne jamais renvoyer le mot de passe SMTP ni les clés des pièces KYC au navigateur.
+    Le drapeau interne « test » (boutique de démonstration) n'est renvoyé qu'aux écrans
+    du super-administrateur (super_admin=True) : le personnel de la boutique ne le voit pas."""
     if not boutique:
         return None
     from kyc import kyc_public
 
     b = dict(boutique)
+    if not super_admin:
+        b.pop("test", None)
     b["kyc"] = kyc_public(b.get("kyc"))
     if b.get("messagerie"):
         m = dict(b["messagerie"])

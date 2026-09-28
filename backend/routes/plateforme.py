@@ -188,7 +188,7 @@ async def lister_boutiques(_: dict = Depends(get_super_admin)):
     # Nombre de comptes par boutique (aide au suivi)
     for b in boutiques:
         b["nb_utilisateurs"] = await db.users.count_documents({"boutique_id": b["id"]})
-    return [_sans_secrets(b) for b in boutiques]
+    return [_sans_secrets(b, super_admin=True) for b in boutiques]
 
 
 @router.post("/boutiques", status_code=201)
@@ -204,7 +204,7 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
     boutique, dg, nb_produits = await enregistrer_boutique(
         donnees, dg_email=payload.dg_email, dg_mot_de_passe=payload.dg_mot_de_passe,
         validee=True, origine="super_admin", code=code, test=payload.test)
-    return {"boutique": _sans_secrets(boutique), "dg": user_public(dg), "produits_copies": nb_produits}
+    return {"boutique": _sans_secrets(boutique, super_admin=True), "dg": user_public(dg), "produits_copies": nb_produits}
 
 
 @router.post("/boutiques/{boutique_id}/valider")
@@ -214,7 +214,7 @@ async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_adm
         "validee": True, "validee_le": now_iso(), "validee_par": admin.get("email", "")}})
     if not res.matched_count:
         raise HTTPException(404, "Boutique introuvable")
-    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
+    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
 
 
 @router.post("/boutiques/{boutique_id}/renvoyer-identifiants")
@@ -260,7 +260,7 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = De
         maj["suspension"] = None
     if maj:
         await db.boutiques.update_one({"id": boutique_id}, {"$set": maj})
-    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
+    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
 
 
 @router.get("/statistiques")
