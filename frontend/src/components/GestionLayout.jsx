@@ -107,7 +107,7 @@ export default function GestionLayout() {
 
   const entrees = MENU.filter((m) => peut(user, m.permission));
   const classeLien = ({ isActive }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${isActive ? "bg-primary text-white" : "text-gray-700 hover:bg-gray-100"}`;
+    `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-primary text-white shadow-sm" : "text-gray-300 hover:bg-white/5 hover:text-white"}`;
 
   const menu = (
     <nav className="flex flex-col gap-1">
@@ -134,14 +134,14 @@ export default function GestionLayout() {
         </div>
       )}
       <div className="flex">
-        <aside className="no-print sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-200 bg-white p-4 lg:flex">
+        <aside className="no-print sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-white/5 bg-nuit-900 p-4 lg:flex">
           <div className="flex items-center gap-2 px-2">
             {boutique.logo_url
               ? <img src={boutique.logo_url} alt="" className="h-9 w-9 rounded-lg object-contain" />
               : <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">📱</span>}
             <div className="min-w-0">
-              <p className="truncate font-extrabold">{boutique.nom}</p>
-              <p className="text-xs text-gray-500">Code {boutique.code_marchand}</p>
+              <p className="truncate font-display font-bold text-white">{boutique.nom}</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary-clair">{boutique.code_marchand}</p>
             </div>
           </div>
           {menu}
@@ -160,7 +160,7 @@ export default function GestionLayout() {
             </div>
           </header>
           {user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
-          {menuMobile && <div className="no-print border-b border-gray-200 bg-white p-3 lg:hidden">{menu}</div>}
+          {menuMobile && <div className="no-print border-b border-white/5 bg-nuit-900 p-3 lg:hidden">{menu}</div>}
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
             <Outlet />
           </main>

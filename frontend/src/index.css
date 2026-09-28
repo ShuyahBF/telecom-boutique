@@ -2,21 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base : textes en Geist, titres en Space Grotesk (charte Sawali) */
+@layer base {
+  body { @apply bg-gray-50 font-sans text-ink antialiased; }
+  h1, h2, h3, h4 { @apply font-display tracking-tight; }
+  /* Space Grotesk n'a pas de graisse 800/900 : on plafonne à 700 pour un rendu net */
+  .font-extrabold, .font-black { font-weight: 700; }
+}
+
 /* Petits composants réutilisables (classes « maison ») */
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn bg-primary text-white hover:bg-primary-dark; }
+  /* Boutons : angles nets, graisse moyenne, flèche possible en fin de texte */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-primary text-white shadow-sm hover:bg-primary-dark; }
   .btn-boutique { @apply btn bg-boutique text-white hover:brightness-110; }
-  .btn-accent { @apply btn bg-accent text-white hover:brightness-110; }
-  .btn-outline { @apply btn border border-gray-300 bg-white text-ink hover:bg-gray-50; }
+  .btn-accent { @apply btn bg-accent text-white shadow-sm hover:bg-indigo-700; }
+  .btn-outline { @apply btn border border-gray-300 bg-white text-ink hover:border-gray-400 hover:bg-gray-50; }
+  /* Bouton contour pour fond sombre (bandeaux bleu nuit) */
+  .btn-clair { @apply btn border border-white/25 bg-transparent text-white hover:border-white/50 hover:bg-white/5; }
   .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
   .btn-sm { @apply px-3 py-1.5 text-sm; }
-  .input { @apply w-full rounded-xl border border-gray-300 px-3 py-2.5 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20; }
-  .label { @apply mb-1 block text-sm font-semibold text-gray-700; }
-  .card { @apply rounded-2xl border border-gray-200 bg-white p-5 shadow-sm; }
+  /* Champs de saisie */
+  .input { @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 outline-none transition placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20; }
+  .label { @apply mb-1 block text-sm font-medium text-gray-700; }
+  /* Cartes : fond blanc, bordure fine, ombre très légère */
+  .card { @apply rounded-xl border border-gray-200 bg-white p-5 shadow-sm; }
+  /* Carte pour fond sombre */
+  .card-nuit { @apply rounded-xl border border-white/10 bg-nuit-700/60 p-5 text-white; }
   .badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+  /* Sur-titre Sawali : petites capitales espacées, en indigo */
+  .surtitre { @apply text-xs font-semibold uppercase tracking-[0.3em] text-accent; }
+  /* Pastille « puce » en police mono (codes, versions, statuts) */
+  .puce { @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs; border-color: color-mix(in srgb, currentColor 30%, transparent); }
+  /* Tableaux */
   .table { @apply w-full text-left text-sm; }
-  .table th { @apply border-b border-gray-200 bg-gray-50 px-3 py-2 font-semibold text-gray-600; }
+  .table th { @apply border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500; }
   .table td { @apply border-b border-gray-100 px-3 py-2 align-top; }
 }
 

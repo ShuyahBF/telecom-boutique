@@ -79,122 +79,194 @@ export default function Accueil() {
   // Fermeture du scanner (fonction stable, pour ne pas relancer la caméra inutilement)
   const fermerScanner = useCallback(() => setScannerOuvert(false), []);
 
+  // Chiffres clés affichés dans le bandeau (comme les cartes « 25+ / 50+ » de Sawali)
+  const villes = new Set((boutiques || []).map((b) => b.ville).filter(Boolean));
+  const chiffres = [
+    [boutiques ? `${boutiques.length}` : "…", "Boutiques partenaires"],
+    [boutiques ? `${villes.size || 1}` : "…", villes.size > 1 ? "Villes couvertes" : "Ville couverte"],
+    ["24/7", "Commande en ligne"],
+    ["100 %", "Suivi en direct"],
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* ---------- Bandeau d'accroche (fond bleu dégradé) ---------- */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary-dark text-white">
-        {/* Cercles décoratifs en arrière-plan */}
-        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-accent/20" />
+      {/* ================= BANDEAU D'ACCUEIL (bleu nuit, style Sawali) ================= */}
+      <header className="relative overflow-hidden bg-nuit-900 text-white">
+        {/* Halo bleu et quadrillage discret en arrière-plan (décor) */}
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-48 -left-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" />
 
-        {/* Barre du haut : nom de la plateforme + lien discret vers l'espace boutique */}
-        <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <span className="flex min-w-0 items-center gap-2 text-lg font-extrabold">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15">📱</span>
-            adLyn
-          </span>
-          <Link to="/connexion" className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white">
-            Espace boutique
-          </Link>
+        {/* Barre de navigation : logo + nom, sous-titre espacé, lien vers l'espace boutique */}
+        <div className="relative border-b border-white/10">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4">
+            <Link to="/" className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-xl">📱</span>
+              <span className="min-w-0 leading-tight">
+                <span className="block font-display text-lg font-bold">adLyn</span>
+                <span className="block truncate pt-0.5 text-[10px] font-semibold uppercase leading-normal tracking-[0.2em] text-primary-clair sm:tracking-[0.3em]">Boutiques de téléphonie</span>
+              </span>
+            </Link>
+            {/* Libellé court sur téléphone pour laisser la place au nom de la plateforme */}
+            <Link to="/connexion" className="btn-clair btn-sm whitespace-nowrap">
+              <span className="sm:hidden">Connexion</span><span className="hidden sm:inline">Espace boutique →</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Titre, sous-titre, recherche et bouton de scan */}
-        <div className="relative mx-auto max-w-3xl px-4 pb-14 pt-6 text-center sm:pt-10">
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">
-            Votre boutique de téléphonie,<br className="hidden sm:block" /> <span className="text-accent">à portée de main</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-white/85 sm:text-lg">
-            Téléphones, accessoires et réparations : commandez en ligne, suivez votre commande et votre réparation, posez vos questions.
-          </p>
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-10 lg:grid-cols-[1.4fr_1fr] lg:items-center lg:pt-16">
+          {/* Colonne gauche : sur-titre, titre, texte, recherche */}
+          <div>
+            <span className="puce text-primary-clair">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Boutiques ouvertes · commande 24/7
+            </span>
+            <h1 className="mt-5 text-4xl font-bold leading-[1.05] sm:text-6xl">
+              Votre boutique de téléphonie, <span className="text-primary-clair">à portée de main</span>.
+            </h1>
+            <p className="mt-5 max-w-xl text-lg text-gray-300">
+              Téléphones, accessoires et réparations : commandez en ligne, suivez votre commande et votre réparation, posez vos questions.
+            </p>
 
-          {/* Formulaire de recherche : nom de la boutique ou code marchand */}
-          <form onSubmit={chercher} className="mx-auto mt-8 flex max-w-xl flex-col gap-2 sm:flex-row">
-            <input
-              className="input flex-1 border-transparent py-3 text-ink shadow-lg"
-              placeholder="Nom de la boutique ou code marchand"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              aria-label="Nom de la boutique ou code marchand"
-            />
-            <button type="submit" className="btn-accent py-3 shadow-lg" disabled={recherchant}>
-              {recherchant ? "Recherche…" : "🔍 Rechercher"}
+            {/* Formulaire de recherche : nom de la boutique ou code marchand */}
+            <form onSubmit={chercher} className="mt-8 flex max-w-xl flex-col gap-3 sm:flex-row">
+              <input
+                className="input flex-1 border-white/10 bg-white py-3 text-ink"
+                placeholder="Nom de la boutique ou code marchand"
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                aria-label="Nom de la boutique ou code marchand"
+              />
+              <button type="submit" className="btn-primary py-3" disabled={recherchant}>
+                {recherchant ? "Recherche…" : "Rechercher →"}
+              </button>
+            </form>
+            <button type="button" onClick={() => setScannerOuvert(true)} className="btn-clair mt-3">
+              📷 Scanner un QR code
             </button>
-          </form>
-          <button
-            type="button"
-            onClick={() => setScannerOuvert(true)}
-            className="btn mt-3 border border-white/40 bg-white/10 text-white hover:bg-white/20"
-          >
-            📷 Scanner un QR code
-          </button>
+          </div>
+
+          {/* Colonne droite : chiffres clés dans des cartes sombres */}
+          <div className="grid grid-cols-2 gap-4">
+            {chiffres.map(([valeur, libelle]) => (
+              <div key={libelle} className="card-nuit">
+                <p className="font-display text-4xl font-bold text-primary-clair">{valeur}</p>
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-400">{libelle}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        {/* ---------- Résultats de la recherche (affichés seulement après une recherche) ---------- */}
-        {resultats && (
-          <section className="mb-10">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold">
-                {resultats.length === 0
-                  ? "Aucune boutique trouvée"
-                  : `${resultats.length} boutique${resultats.length > 1 ? "s" : ""} trouvée${resultats.length > 1 ? "s" : ""}`}
-              </h2>
-              <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setResultats(null); setRecherche(""); }}>
-                Effacer
-              </button>
+      <main className="w-full flex-1">
+        <div className="mx-auto max-w-6xl px-4 py-14">
+          {/* ---------- Résultats de la recherche (affichés seulement après une recherche) ---------- */}
+          {resultats && (
+            <section className="mb-12">
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <p className="surtitre">Recherche</p>
+                  <h2 className="mt-1 text-2xl font-bold">
+                    {resultats.length === 0
+                      ? "Aucune boutique trouvée"
+                      : `${resultats.length} boutique${resultats.length > 1 ? "s" : ""} trouvée${resultats.length > 1 ? "s" : ""}`}
+                  </h2>
+                </div>
+                <button type="button" className="text-sm font-semibold text-primary" onClick={() => { setResultats(null); setRecherche(""); }}>
+                  Effacer ×
+                </button>
+              </div>
+              {resultats.length === 0 ? (
+                <p className="card text-gray-500">Vérifiez l'orthographe ou le code marchand (affiché en boutique et sur vos factures).</p>
+              ) : (
+                <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  {resultats.map((b) => (
+                    <li key={b.id}>
+                      <Link to={`/b/${b.slug}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                        <LogoBoutique boutique={b} taille="h-12 w-12 text-2xl" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">{b.nom}</p>
+                          <p className="truncate text-sm text-gray-500">{[lieuBoutique(b), b.slogan].filter(Boolean).join(" · ") || "Boutique de téléphonie"}</p>
+                        </div>
+                        <span className="puce text-gray-500">{b.code_marchand}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          {/* ---------- Carrousel de toutes les boutiques ---------- */}
+          <section>
+            <p className="surtitre">Notre réseau</p>
+            <div className="mb-6 mt-1 flex flex-wrap items-end justify-between gap-2">
+              <h2 className="text-3xl font-bold sm:text-4xl">Nos boutiques partenaires</h2>
+              <p className="text-sm text-gray-500">Faites glisser, puis touchez une boutique pour entrer.</p>
             </div>
-            {resultats.length === 0 ? (
-              <p className="card text-gray-500">Vérifiez l'orthographe ou le code marchand (affiché en boutique et sur vos factures).</p>
-            ) : (
-              <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                {resultats.map((b) => (
-                  <li key={b.id}>
-                    <Link to={`/b/${b.slug}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                      <LogoBoutique boutique={b} taille="h-12 w-12 text-2xl" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-bold">{b.nom}</p>
-                        <p className="truncate text-sm text-gray-500">{[lieuBoutique(b), b.slogan].filter(Boolean).join(" · ") || "Boutique de téléphonie"}</p>
-                      </div>
-                      <span className="badge bg-gray-100 font-mono text-gray-600">{b.code_marchand}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {boutiques === null && <Chargement texte="Chargement des boutiques…" />}
+            {boutiques?.length === 0 && <p className="card text-gray-500">Aucune boutique n'est encore ouverte.</p>}
+            {boutiques?.length > 0 && <Carrousel boutiques={boutiques} />}
           </section>
-        )}
+        </div>
 
-        {/* ---------- Carrousel de toutes les boutiques ---------- */}
-        <section>
-          <h2 className="mb-1 text-xl font-extrabold sm:text-2xl">Nos boutiques partenaires</h2>
-          <p className="mb-4 text-sm text-gray-500">Faites glisser pour les parcourir, puis touchez une boutique pour entrer.</p>
-          {boutiques === null && <Chargement texte="Chargement des boutiques…" />}
-          {boutiques?.length === 0 && <p className="card text-gray-500">Aucune boutique n'est encore ouverte.</p>}
-          {boutiques?.length > 0 && <Carrousel boutiques={boutiques} />}
-        </section>
-
-        {/* ---------- Comment ça marche (3 étapes) ---------- */}
-        <section className="mt-12 grid gap-4 sm:grid-cols-3">
-          {[
-            ["🏪", "Choisissez votre boutique", "Par son nom, son code marchand ou en scannant son QR code."],
-            ["🛒", "Commandez en ligne", "Retrait en boutique ou livraison, paiement à la réception ou par Mobile Money."],
-            ["🔧", "Suivez tout en direct", "L'avancement de votre commande et de votre réparation, à tout moment."],
-          ].map(([emoji, titre, texte]) => (
-            <div key={titre} className="card">
-              <p className="text-3xl">{emoji}</p>
-              <p className="mt-2 font-bold">{titre}</p>
-              <p className="mt-1 text-sm text-gray-500">{texte}</p>
+        {/* ---------- Comment ça marche (section sombre, cartes façon « Spécialisations ») ---------- */}
+        <section className="bg-nuit-800 text-white">
+          <div className="mx-auto max-w-6xl px-4 py-16">
+            <p className="surtitre text-primary-clair">Comment ça marche</p>
+            <h2 className="mt-1 text-3xl font-bold sm:text-4xl">Trois étapes, zéro déplacement inutile</h2>
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {[
+                ["🏪", "Choisissez votre boutique", "Par son nom, son code marchand ou en scannant son QR code."],
+                ["🛒", "Commandez en ligne", "Retrait en boutique ou livraison, paiement à la réception ou par Mobile Money."],
+                ["🔧", "Suivez tout en direct", "L'avancement de votre commande et de votre réparation, à tout moment."],
+              ].map(([emoji, titre, texte], i) => (
+                <div key={titre} className="card-nuit transition hover:border-primary/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl">{emoji}</span>
+                    <span className="font-mono text-xs text-gray-500">0{i + 1}</span>
+                  </div>
+                  <p className="mt-4 font-display text-lg font-bold">{titre}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-400">{texte}</p>
+                </div>
+              ))}
             </div>
-          ))}
+
+            {/* Encadré d'appel à l'action (comme « Got a project in mind? » sur Sawali) */}
+            <div className="mt-14 flex flex-col items-start justify-between gap-6 rounded-2xl border border-white/15 bg-gradient-to-br from-nuit-700 to-nuit-800 p-8 sm:flex-row sm:items-center">
+              <div>
+                <p className="font-display text-2xl font-bold">Vous tenez une boutique de téléphonie ?</p>
+                <p className="mt-1 text-gray-300">Vitrine en ligne, caisse, stock et SAV : 14 jours d'essai gratuit.</p>
+              </div>
+              <Link to="/connexion" className="btn-primary whitespace-nowrap px-8 py-3">Accéder à mon espace →</Link>
+            </div>
+          </div>
         </section>
       </main>
 
-      {/* ---------- Pied de page ---------- */}
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-center text-sm text-gray-500 sm:flex-row sm:text-left">
-          <p>© {new Date().getFullYear()} adLyn — la plateforme des boutiques de téléphonie</p>
-          <Link to="/connexion" className="font-semibold text-primary">Vous êtes une boutique ? Connexion</Link>
+      {/* ---------- Pied de page (bleu nuit très foncé, colonnes façon Sawali) ---------- */}
+      <footer className="bg-nuit-950 text-gray-400">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm sm:grid-cols-3">
+          <div>
+            <p className="font-display text-lg font-bold text-white">adLyn</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">Boutiques de téléphonie</p>
+            <p className="mt-3 leading-relaxed">La plateforme qui relie les boutiques de téléphonie à leurs clients : catalogue, commandes et réparations.</p>
+          </div>
+          <div>
+            <p className="font-display font-semibold text-white">Clients</p>
+            <ul className="mt-3 space-y-2">
+              <li><a href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="hover:text-white">Trouver une boutique</a></li>
+              <li><button type="button" onClick={() => setScannerOuvert(true)} className="hover:text-white">Scanner un QR code</button></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-display font-semibold text-white">Boutiques</p>
+            <ul className="mt-3 space-y-2">
+              <li><Link to="/connexion" className="hover:text-white">Espace boutique</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-white/5 py-5 text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} adLyn · une solution <span className="text-gray-300">SAWALI SMART SYSTEMS</span>
         </div>
       </footer>
 
@@ -218,7 +290,7 @@ function LogoBoutique({ boutique, taille }) {
   return (
     <span
       className={`${taille} flex shrink-0 items-center justify-center rounded-2xl text-white`}
-      style={{ backgroundColor: boutique.couleur || "#0b5ed7" }}
+      style={{ backgroundColor: boutique.couleur || "#1e90ff" }}
       aria-hidden="true"
     >
       📱
@@ -283,7 +355,7 @@ function Carrousel({ boutiques }) {
             className="group flex w-[78%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg sm:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-3rem)/4)]"
           >
             {/* Bandeau de couleur de la boutique, avec son logo */}
-            <div className="relative flex h-24 items-end px-4" style={{ backgroundColor: b.couleur || "#0b5ed7" }}>
+            <div className="relative flex h-24 items-end px-4" style={{ backgroundColor: b.couleur || "#1e90ff" }}>
               {b.mise_en_avant && (
                 <span className="badge absolute right-3 top-3 bg-white/90 text-amber-700">⭐ À la une</span>
               )}
@@ -293,12 +365,12 @@ function Carrousel({ boutiques }) {
             </div>
             {/* Nom, ville, slogan et code marchand */}
             <div className="flex flex-1 flex-col px-4 pb-4 pt-10">
-              <p className="truncate text-lg font-extrabold group-hover:text-primary">{b.nom}</p>
+              <p className="truncate font-display text-lg font-bold group-hover:text-primary">{b.nom}</p>
               {/* Lieu : « Ville, Pays » (seulement les informations renseignées) */}
               <p className="truncate text-sm text-gray-500">📍 {lieuBoutique(b) || "Ville non précisée"}</p>
               <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-gray-600">{b.slogan || "Téléphones, accessoires et réparations."}</p>
               <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-                <span className="text-xs text-gray-400">Code <b className="font-mono text-gray-600">{b.code_marchand}</b></span>
+                <span className="puce text-gray-500">{b.code_marchand}</span>
                 <span className="text-sm font-semibold text-primary">Entrer →</span>
               </div>
             </div>

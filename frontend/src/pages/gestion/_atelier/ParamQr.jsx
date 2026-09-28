@@ -53,7 +53,7 @@ export default function ParamQr() {
       <style>{"@page { size: A4; margin: 12mm }"}</style>
       <div className="hidden print:block">
         <div className="flex min-h-[260mm] flex-col items-center justify-between rounded-3xl border-8 p-10 text-center"
-          style={{ borderColor: boutique.couleur || "#0b5ed7" }}>
+          style={{ borderColor: boutique.couleur || "#1e90ff" }}>
           <div className="flex flex-col items-center">
             {boutique.logo_url && <img src={boutique.logo_url} alt="" className="mb-4 h-28 w-28 object-contain" />}
             <h1 className="text-5xl font-extrabold">{boutique.nom}</h1>
