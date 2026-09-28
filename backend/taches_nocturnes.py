@@ -98,24 +98,19 @@ async def construire_rapport(sauvegardes: list[dict]) -> tuple[str, str]:
     return sujet, "\n".join(lignes)
 
 
-# Envoi par le serveur SMTP de la plateforme (module commun envois_plateforme)
-_envoyer_smtp = envois_plateforme.envoyer_smtp
-
-
 async def envoyer_rapport(sauvegardes: list[dict]) -> dict:
     """Envoie le rapport à RAPPORT_EMAIL et garde une copie en base."""
     s = get_settings()
     sujet, corps = await construire_rapport(sauvegardes)
     rapport = {"id": new_id(), "date": now_iso(), "destinataire": s.rapport_email or "", "sujet": sujet,
                "corps": corps, "statut": "NON_ENVOYE", "erreur": ""}
-    if not (s.rapport_email and s.plateforme_smtp_hote):
-        rapport["erreur"] = "RAPPORT_EMAIL ou PLATEFORME_SMTP_HOTE non configuré"
+    if not s.rapport_email:
+        rapport["erreur"] = "RAPPORT_EMAIL non configuré"
     else:
-        try:
-            await asyncio.to_thread(_envoyer_smtp, sujet, corps, s.rapport_email)
-            rapport["statut"] = "ENVOYE"
-        except Exception as exc:  # noqa: BLE001
-            rapport.update({"statut": "ECHEC", "erreur": str(exc)[:500]})
+        # Serveur d'envoi de la plateforme (réglé dans l'administration ou par variables)
+        statut, erreur = await envois_plateforme.envoyer_email(sujet, corps, s.rapport_email)
+        rapport.update({"statut": "ENVOYE" if statut == "ENVOYE" else ("ECHEC" if statut == "ECHEC" else "NON_ENVOYE"),
+                        "erreur": erreur})
     await db.rapports.insert_one(rapport.copy())
     return rapport
 
