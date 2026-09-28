@@ -51,4 +51,7 @@ async def tableau_de_bord(ctx: Contexte = Depends(tout_le_personnel)):
         "produits_alerte": alertes[:15],
         "nb_produits_alerte": len(alertes),
         "conversations_attente": await ctx.tdb.conversations.count_documents({"statut": "ATTENTE"}),
+        # Nouveaux modèles reçus du catalogue public, pas encore consultés
+        "nb_nouveautes_catalogue": await ctx.tdb.produits.count_documents({"nouveau": True}),
+        "nb_produits_sans_prix": await ctx.tdb.produits.count_documents({"actif": True, "prix_vente": {"$lte": 0}, "type_produit": {"$ne": "SER"}}),
     }

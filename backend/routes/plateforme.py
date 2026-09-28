@@ -107,7 +107,10 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
         "boutique_id": boutique["id"], "actif": True, "created_at": now_iso(),
     }
     await db.users.insert_one(gerant.copy())
-    return {"boutique": _sans_secrets(boutique), "gerant": user_public(gerant)}
+    # Première initialisation : la boutique reçoit tout le catalogue public (sans prix)
+    from catalogue_public import copier_catalogue_dans_boutique
+    nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
+    return {"boutique": _sans_secrets(boutique), "gerant": user_public(gerant), "produits_copies": nb_produits}
 
 
 @router.patch("/boutiques/{boutique_id}")

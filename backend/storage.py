@@ -19,6 +19,9 @@ from fastapi import HTTPException, UploadFile
 from config import get_settings
 
 TYPES_IMAGES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+# Documents joints aux produits (brochures, fiches techniques, manuels...)
+TYPES_DOCUMENTS = {**TYPES_IMAGES, "application/pdf": ".pdf"}
+TAILLE_MAX_DOCUMENT = 15 * 1024 * 1024  # 15 Mo
 
 
 def _r2_client():
@@ -45,10 +48,29 @@ async def lire_image(fichier: UploadFile) -> tuple[bytes, str]:
     return contenu, fichier.content_type
 
 
+async def lire_document(fichier: UploadFile) -> tuple[bytes, str]:
+    """Contrôle le type (PDF ou image) et la taille d'un document envoyé."""
+    if fichier.content_type not in TYPES_DOCUMENTS:
+        raise HTTPException(400, "Format non accepté (PDF, JPEG, PNG ou WebP)")
+    contenu = await fichier.read()
+    if len(contenu) > TAILLE_MAX_DOCUMENT:
+        raise HTTPException(400, "Fichier trop lourd (maximum 15 Mo)")
+    return contenu, fichier.content_type
+
+
 async def enregistrer_image(boutique_id: str, dossier: str, contenu: bytes, content_type: str) -> str:
-    """Enregistre l'image et renvoie son URL publique."""
+    """Enregistre le fichier dans le dossier de la boutique et renvoie son URL publique."""
+    return await _enregistrer(f"boutiques/{boutique_id}/{dossier}", contenu, content_type)
+
+
+async def enregistrer_fichier_catalogue(contenu: bytes, content_type: str) -> str:
+    """Fichier du catalogue PUBLIC commun (photos des modèles), hors dossiers des boutiques."""
+    return await _enregistrer("catalogue", contenu, content_type)
+
+
+async def _enregistrer(prefixe: str, contenu: bytes, content_type: str) -> str:
     s = get_settings()
-    cle = f"boutiques/{boutique_id}/{dossier}/{uuid.uuid4().hex}{TYPES_IMAGES[content_type]}"
+    cle = f"{prefixe}/{uuid.uuid4().hex}{TYPES_DOCUMENTS[content_type]}"
     if s.storage_backend == "r2":
         def _put():
             _r2_client().put_object(Bucket=s.r2_bucket_public, Key=cle, Body=contenu, ContentType=content_type)

@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     # "true" le temps d'UN redéploiement pour réinitialiser le mot de passe oublié
     super_admin_reset_password: bool = False
 
+    # --- Catalogue public commun ---
+    # Heure de publication quotidienne des modifications (fuseau ci-dessous)
+    catalogue_heure_publication: int = 23
+    fuseau_horaire: str = "Africa/Ouagadougou"
+    # Assistant de recherche des fiches techniques (API Claude + recherche web)
+    anthropic_api_key: Optional[str] = None
+    catalogue_ia_modele: str = "claude-opus-5"
+
     # Développement : crée la boutique de démonstration au démarrage
     # (pratique avec MONGO_URL=mongomock://, dont les données sont perdues à l'arrêt)
     demo_au_demarrage: bool = False

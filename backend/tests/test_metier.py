@@ -17,11 +17,11 @@ def stock(client, h, produit_id):
 def test_cloisonnement_entre_boutiques(client, boutique_equipee, nouvelle_boutique):
     a = boutique_equipee
     b, hb = nouvelle_boutique()
-    assert client.get("/api/produits", headers=hb).json() == []
+    assert client.get("/api/produits?source=boutique", headers=hb).json() == []
     assert client.get(f"/api/produits/{a['tel']['id']}", headers=hb).status_code == 404
     assert client.get("/api/clients", headers=hb).json() == []
     # L'en-tête X-Boutique-Id est IGNORÉ pour un gérant (seul le super-admin peut choisir)
-    r = client.get("/api/produits", headers={**hb, "X-Boutique-Id": a["boutique"]["id"]})
+    r = client.get("/api/produits?source=boutique", headers={**hb, "X-Boutique-Id": a["boutique"]["id"]})
     assert r.json() == []
     # Même référence autorisée dans deux boutiques différentes
     cat = client.post("/api/categories", headers=hb, json={"nom": "Tel"}).json()
@@ -33,7 +33,7 @@ def test_cloisonnement_entre_boutiques(client, boutique_equipee, nouvelle_boutiq
 def test_super_admin_choisit_la_boutique(client, super_admin, boutique_equipee):
     a = boutique_equipee
     assert client.get("/api/produits", headers=super_admin).status_code == 400
-    r = client.get("/api/produits", headers={**super_admin, "X-Boutique-Id": a["boutique"]["id"]})
+    r = client.get("/api/produits?source=boutique", headers={**super_admin, "X-Boutique-Id": a["boutique"]["id"]})
     assert len(r.json()) == 2
 
 

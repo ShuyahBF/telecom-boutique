@@ -33,6 +33,11 @@ CHAMPS_PRODUIT_PUBLICS = ("id", "reference", "nom", "slug", "type_produit", "cat
                           "description", "caracteristiques", "image_url", "prix_vente", "garantie_mois", "created_at")
 
 
+# Un produit n'est proposé aux clients que s'il est actif, marqué visible ET a un prix
+# (les modèles reçus du catalogue public arrivent sans prix tant que la boutique ne l'a pas fixé)
+EN_VENTE = {"actif": True, "visible_portail": True, "prix_vente": {"$gt": 0}}
+
+
 def _boutique_publique(b: dict) -> dict:
     publique = {k: b.get(k) for k in CHAMPS_BOUTIQUE_PUBLICS}
     publique["paiement_mobile_money"] = bool(b.get("paiement_mobile_money", True) and paiement_disponible())
@@ -41,6 +46,11 @@ def _boutique_publique(b: dict) -> dict:
 
 def _produit_public(p: dict) -> dict:
     publique = {k: p.get(k) for k in CHAMPS_PRODUIT_PUBLICS}
+    # Documents que la boutique a choisi de montrer (brochure, manuel...) et ses conseils
+    publique["documents"] = [{k: d.get(k) for k in ("titre", "type", "url")}
+                             for d in p.get("documents", []) if d.get("visible_clients")]
+    publique["conseils_utilisation"] = p.get("conseils_utilisation", "")
+    publique["modeles_compatibles"] = [m.get("nom") for m in p.get("modeles_compatibles", [])]
     # On indique seulement « disponible ou non », jamais la quantité exacte en stock
     publique["disponible"] = (not est_stockable(p)) or p.get("stock", 0) > 0
     publique["stock_max"] = None if not est_stockable(p) else max(p.get("stock", 0), 0)
@@ -78,7 +88,7 @@ async def boutique(slug: str):
     b = await _boutique(slug)
     tdb = TenantDB(b["id"])
     categories = await tdb.categories.find({}, {"_id": 0, "id": 1, "nom": 1, "slug": 1}).sort([("ordre", 1), ("nom", 1)]).to_list(200)
-    marques = sorted({p.get("marque") async for p in tdb.produits.find({"actif": True, "visible_portail": True}, {"_id": 0, "marque": 1}) if p.get("marque")})
+    marques = sorted({p.get("marque") async for p in tdb.produits.find(EN_VENTE, {"_id": 0, "marque": 1}) if p.get("marque")})
     return {**_boutique_publique(b), "categories": categories, "marques": marques}
 
 
@@ -86,7 +96,7 @@ async def boutique(slug: str):
 async def produits(slug: str, q: str = "", categorie: str = "", marque: str = "", tri: str = "recent",
                    page: int = 1, par_page: int = 12):
     b = await _boutique(slug)
-    filtre: dict = {"actif": True, "visible_portail": True}
+    filtre: dict = dict(EN_VENTE)
     if q.strip():
         motif = re.escape(q.strip())
         filtre["$or"] = [{"nom": {"$regex": motif, "$options": "i"}}, {"marque": {"$regex": motif, "$options": "i"}},
@@ -109,10 +119,10 @@ async def produits(slug: str, q: str = "", categorie: str = "", marque: str = ""
 async def produit(slug: str, produit_slug: str):
     b = await _boutique(slug)
     tdb = TenantDB(b["id"])
-    p = await tdb.produits.find_one({"slug": produit_slug, "actif": True, "visible_portail": True})
+    p = await tdb.produits.find_one({"slug": produit_slug, **EN_VENTE})
     if not p:
         raise HTTPException(404, "Produit introuvable")
-    similaires = await tdb.produits.find({"categorie_id": p["categorie_id"], "actif": True, "visible_portail": True,
+    similaires = await tdb.produits.find({"categorie_id": p["categorie_id"], **EN_VENTE,
                                           "id": {"$ne": p["id"]}}).limit(4).to_list(4)
     return {**_produit_public(p), "similaires": [_produit_public(s) for s in similaires]}
 
@@ -151,7 +161,7 @@ async def commander(slug: str, payload: CommandeSaisie):
 
     # Prix et disponibilité TOUJOURS relus en base (jamais repris du navigateur)
     ids = [l.produit_id for l in payload.lignes]
-    catalogue = {p["id"]: p async for p in tdb.produits.find({"id": {"$in": ids}, "actif": True, "visible_portail": True})}
+    catalogue = {p["id"]: p async for p in tdb.produits.find({"id": {"$in": ids}, **EN_VENTE})}
     lignes = []
     for l in payload.lignes:
         p = catalogue.get(l.produit_id)
