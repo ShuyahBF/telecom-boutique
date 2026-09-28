@@ -62,33 +62,21 @@ def _lisible(champ: Any) -> Optional[str]:
     return str(champ)[:300]
 
 
-async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") -> str:
-    """Crée la page de paiement PawaPay d'une commande et renvoie l'adresse
-    vers laquelle rediriger le client."""
+async def _ouvrir_page(paiement: Dict[str, Any], reason: str, retour: str, msisdn: str = "") -> str:
+    """Partie commune à tous les paiements en ligne (commandes, abonnements) :
+    enregistre le paiement EN BASE, demande la page hébergée à PawaPay et
+    renvoie son adresse. `paiement` contient déjà deposit_id, montant, etc."""
     s = get_settings()
     token = _token()
-    if not token:
-        raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
-    pays = s.pawapay_default_country.upper()
-    deposit_id = new_id()
-    retour = (f"{s.public_site_url}/b/{boutique['slug']}/paiement?"
-              f"depot={deposit_id}&commande={commande['numero']}")
     corps: Dict[str, Any] = {
-        "depositId": deposit_id, "returnUrl": retour, "country": pays,
-        "reason": f"Commande {commande['numero']} {boutique['nom']}"[:50],
-        "customerMessage": s.pawapay_customer_message[:22], "language": "FR",
-        "amountDetails": {"amount": str(commande["total"]), "currency": _DEVISE_PAR_PAYS.get(pays, "XOF")},
+        "depositId": paiement["deposit_id"], "returnUrl": retour, "country": paiement["pays"],
+        "reason": reason[:50], "customerMessage": s.pawapay_customer_message[:22], "language": "FR",
+        "amountDetails": {"amount": str(paiement["montant"]), "currency": paiement["devise"]},
     }
     chiffres = "".join(ch for ch in msisdn if ch.isdigit())
     if chiffres:
         corps["phoneNumber"] = chiffres
-    paiement = {
-        "id": new_id(), "deposit_id": deposit_id, "boutique_id": boutique["id"], "commande_id": commande["id"],
-        "commande_numero": commande["numero"], "montant": commande["total"], "devise": corps["amountDetails"]["currency"],
-        "client_nom": commande["client"]["nom"],
-        "pays": pays, "environnement": s.pawapay_environment, "statut": "initie", "api_statut": None,
-        "api_message": None, "redirect_url": None, "created_at": now_iso(), "updated_at": now_iso(),
-    }
+    deposit_id = paiement["deposit_id"]
     # Enregistré AVANT l'appel : on ne perd jamais un depositId
     await db.paiements.insert_one(paiement.copy())
     try:
@@ -112,14 +100,54 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
         raise HTTPException(502, message or "PawaPay n'a pas renvoyé de page de paiement")
     await db.paiements.update_one({"deposit_id": deposit_id},
                                   {"$set": {"statut": "en_attente", "redirect_url": url, "updated_at": now_iso()}})
+    return url
+
+
+def _nouveau_paiement(boutique_id: str, montant: int, **extra) -> Dict[str, Any]:
+    """Document « paiement » initial (avant l'appel à PawaPay)."""
+    s = get_settings()
+    pays = s.pawapay_default_country.upper()
+    return {"id": new_id(), "deposit_id": new_id(), "boutique_id": boutique_id, "montant": montant,
+            "devise": _DEVISE_PAR_PAYS.get(pays, "XOF"), "pays": pays, "environnement": s.pawapay_environment,
+            "statut": "initie", "api_statut": None, "api_message": None, "redirect_url": None,
+            "created_at": now_iso(), "updated_at": now_iso(), **extra}
+
+
+async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") -> str:
+    """Crée la page de paiement PawaPay d'une commande et renvoie l'adresse
+    vers laquelle rediriger le client."""
+    if not _token():
+        raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
+    paiement = _nouveau_paiement(boutique["id"], commande["total"], type="commande", commande_id=commande["id"],
+                                 commande_numero=commande["numero"], client_nom=commande["client"]["nom"])
+    retour = (f"{get_settings().public_site_url}/b/{boutique['slug']}/paiement?"
+              f"depot={paiement['deposit_id']}&commande={commande['numero']}")
+    url = await _ouvrir_page(paiement, f"Commande {commande['numero']} {boutique['nom']}", retour, msisdn)
     await TenantDB(boutique["id"]).commandes.update_one(
-        {"id": commande["id"]}, {"$set": {"paiement.statut": "EN_ATTENTE", "paiement.deposit_id": deposit_id}})
+        {"id": commande["id"]}, {"$set": {"paiement.statut": "EN_ATTENTE", "paiement.deposit_id": paiement["deposit_id"]}})
     await _tracer(paiement, "EN_ATTENTE", "")
     return url
 
 
+async def creer_page_abonnement(boutique: dict, formule: dict, msisdn: str = "") -> str:
+    """Page PawaPay pour payer l'abonnement adLyn d'une boutique (formule choisie par le DG).
+    L'argent arrive sur le compte PawaPay de la plateforme."""
+    if not _token():
+        raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
+    paiement = _nouveau_paiement(boutique["id"], int(formule["montant"]), type="abonnement",
+                                 formule=formule["code"], formule_libelle=formule["libelle"],
+                                 boutique_nom=boutique["nom"])
+    retour = f"{get_settings().public_site_url}/gestion/abonnement?depot={paiement['deposit_id']}"
+    return await _ouvrir_page(paiement, f"Abonnement adLyn {formule['libelle']} {boutique.get('code_marchand', '')}",
+                              retour, msisdn)
+
+
 async def _tracer(paiement: Dict[str, Any], statut: str, motif: str) -> None:
-    """Ligne de l'historique des paiements de la boutique pour ce dépôt PawaPay."""
+    """Ligne de l'historique des paiements de la boutique pour ce dépôt PawaPay.
+    Les abonnements (argent versé PAR la boutique à la plateforme) n'y figurent pas :
+    ils ont leur propre historique (abonnement_paiements)."""
+    if paiement.get("type") == "abonnement":
+        return
     await journaliser(paiement["boutique_id"], f"pawapay-{paiement['deposit_id']}", canal="PAWAPAY", mode="MM",
                       montant=paiement["montant"], statut=statut, motif=motif or "",
                       objet=f"Commande {paiement['commande_numero']}", reference=paiement["deposit_id"],
@@ -200,6 +228,14 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
         return {"ok": True, "applique": False}  # déjà traité (idempotence)
 
     await _tracer(paiement, "SUCCES" if final == "paye" else "ECHEC", "" if final == "paye" else (message or brut))
+    if paiement.get("type") == "abonnement":
+        # Abonnement payé en ligne : l'échéance est repoussée (une seule fois grâce à la clé)
+        if final == "paye":
+            import abonnements
+            await abonnements.enregistrer_paiement(
+                paiement["boutique_id"], paiement["formule"], int(paiement["montant"]), "PAWAPAY",
+                reference=deposit_id, saisi_par="PawaPay", cle=f"pawapay-{deposit_id}")
+        return {"ok": True, "applique": True}
     tdb = TenantDB(paiement["boutique_id"])
     if final == "paye":
         commande = await tdb.commandes.find_one_and_update(
@@ -233,7 +269,8 @@ async def etat_paiement(deposit_id: str, refresh: bool = False):
         if depot:
             await appliquer_statut(paiement, depot)
         paiement = await db.paiements.find_one({"deposit_id": deposit_id}, SANS_ID)
-    return {k: paiement.get(k) for k in ("deposit_id", "statut", "montant", "devise", "commande_numero", "api_message")}
+    return {k: paiement.get(k) for k in ("deposit_id", "statut", "montant", "devise", "commande_numero", "api_message",
+                                         "type", "formule_libelle")}
 
 
 @router.post("/webhooks/depots/{secret}", include_in_schema=False)

@@ -58,6 +58,8 @@ async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(paramet
             maj[champ] = None
     if "telephone" in maj:
         maj["telephone"] = normaliser_telephone(maj["telephone"])
+    if "dg_telephone" in maj:
+        maj["dg_telephone"] = normaliser_telephone(maj["dg_telephone"])
     # Les informations légales modifiées doivent être revérifiées par l'administrateur
     legales = ("ifu", "rccm", "cnss", "dg_nom")
     if any(k in maj and maj[k] != ctx.boutique.get(k) for k in legales) and (ctx.boutique.get("kyc") or {}).get("documents"):

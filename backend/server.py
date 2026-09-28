@@ -12,11 +12,12 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import abonnements as service_abonnements
 import catalogue_public as service_catalogue
 import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
-from routes import (auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
+from routes import (abonnements, auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
                     maintenance, paiements, plateforme, public, referentiel, sauvegardes, stock, tableau_de_bord, tiers,
                     webhooks)
 from seed import creer_demo, ensure_super_admin
@@ -39,6 +40,9 @@ api = APIRouter(prefix="/api")
 for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
+# Abonnements : page du DG et administration (super-admin)
+api.include_router(abonnements.boutique)
+api.include_router(abonnements.admin)
 # Webhook de création des boutiques (signé HMAC) et son journal
 api.include_router(webhooks.router)
 api.include_router(webhooks.admin)
@@ -70,6 +74,8 @@ async def au_demarrage():
     await ensure_super_admin()
     if settings.demo_au_demarrage:
         await creer_demo()
+    # Formules d'abonnement par défaut + essai de 14 jours des boutiques plus anciennes
+    await service_abonnements.initialiser()
     # Rapprochement automatique des paiements PawaPay en attente (compte partagé :
     # le callback PawaPay ne pointe pas vers ce site)
     asyncio.create_task(paiements.boucle_rapprochement())
@@ -77,3 +83,5 @@ async def au_demarrage():
     asyncio.create_task(service_catalogue.boucle_publication())
     # Sauvegardes chiffrées vers Google Drive + rapport par e-mail, chaque nuit à 00h
     asyncio.create_task(taches_nocturnes.boucle_nocturne())
+    # Rappels d'abonnement (WhatsApp / SMS / e-mail) chaque jour à 9h
+    asyncio.create_task(service_abonnements.boucle_rappels())

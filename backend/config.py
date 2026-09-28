@@ -122,6 +122,20 @@ class Settings(BaseSettings):
     ovh_sms_service_name: Optional[str] = None  # ex. sms-ab12345-1
     ovh_sms_sender: Optional[str] = None  # expéditeur déclaré chez OVH, ex. adLyn
 
+    # --- WhatsApp Cloud API (Meta) : même compte que beauthentik.net ---
+    whatsapp_access_token: Optional[str] = None
+    whatsapp_phone_number_id: Optional[str] = None
+    # Modèle (template) « Utility » approuvé par Meta pour les rappels d'abonnement,
+    # 3 variables : {{1}} nom de la boutique, {{2}} échéance, {{3}} montant
+    whatsapp_rappel_template: Optional[str] = None
+    whatsapp_template_langue: str = "fr"
+
+    # --- Abonnements des boutiques ---
+    abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique
+    abonnement_rappel_jours_avant: int = 3  # premier rappel N jours avant l'échéance, puis chaque jour
+    abonnement_rappel_retard_max_jours: int = 60  # plus de rappel au-delà de ce retard
+    abonnement_rappel_heure: int = 9  # heure locale d'envoi des rappels
+
     # --- Webhook de création automatique des boutiques (signé HMAC-SHA256) ---
     # Secret partagé avec le système appelant ; sans lui le webhook est fermé (503).
     webhook_boutiques_secret: Optional[str] = None

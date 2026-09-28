@@ -179,10 +179,7 @@ class Contexte:
         return {"user_id": self.user["id"], "user_nom": self.user.get("nom", "")}
 
 
-async def get_contexte(
-    user: dict = Depends(get_current_user),
-    x_boutique_id: Optional[str] = Header(default=None),
-) -> Contexte:
+async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_suspendue: bool) -> Contexte:
     if user.get("role") == "super_admin":
         # Le super-administrateur choisit explicitement la boutique à consulter
         if not x_boutique_id:
@@ -196,9 +193,30 @@ async def get_contexte(
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID) if boutique_id else None
     if not boutique:
         raise HTTPException(403, "Aucune boutique associée à ce compte")
-    if not boutique.get("actif", True) and user.get("role") != "super_admin":
+    if not boutique.get("actif", True) and user.get("role") != "super_admin" and not meme_suspendue:
+        if (boutique.get("suspension") or {}).get("motif") == "IMPAYE":
+            raise HTTPException(403, "Accès suspendu : abonnement adLyn non renouvelé. Le DG peut le régler depuis la page Abonnement.")
         raise HTTPException(403, "Cette boutique est suspendue. Contactez l'administrateur de la plateforme.")
     return Contexte(user, boutique)
+
+
+async def get_contexte(
+    user: dict = Depends(get_current_user),
+    x_boutique_id: Optional[str] = Header(default=None),
+) -> Contexte:
+    return await _resoudre_contexte(user, x_boutique_id, meme_suspendue=False)
+
+
+async def contexte_abonnement(
+    user: dict = Depends(get_current_user),
+    x_boutique_id: Optional[str] = Header(default=None),
+) -> Contexte:
+    """Page « Abonnement » : réservée au DG, et accessible MÊME si la boutique est
+    suspendue (c'est là qu'il règle son abonnement pour retrouver l'accès)."""
+    ctx = await _resoudre_contexte(user, x_boutique_id, meme_suspendue=True)
+    if ctx.role not in ("dg", "super_admin"):
+        raise HTTPException(403, "Réservé au DG de la boutique")
+    return ctx
 
 
 def permission(nom: str):

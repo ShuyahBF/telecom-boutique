@@ -26,6 +26,7 @@ from config import get_settings
 
 logger = logging.getLogger(__name__)
 
+WA_GRAPH_URL = "https://graph.facebook.com/v21.0/{phone_number_id}/messages"
 ORANGE_OAUTH_URL = "https://api.orange.com/oauth/v3/token"
 ORANGE_SMS_URL = "https://api.orange.com/smsmessaging/v1/outbound/{sender}/requests"
 _jeton_orange: dict = {}  # jeton OAuth Orange gardé en mémoire jusqu'à son expiration
@@ -188,3 +189,44 @@ async def envoyer_sms(telephone: str, texte: str) -> tuple[str, str]:
         if await fn(numero, texte):
             return "ENVOYE", ""
     return "ECHEC", "Tous les fournisseurs SMS ont échoué"
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp Cloud API (Meta), même compte que beauthentik.net
+# ---------------------------------------------------------------------------
+def whatsapp_configure() -> bool:
+    s = get_settings()
+    return bool(s.whatsapp_access_token and s.whatsapp_phone_number_id)
+
+
+async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str) -> tuple[str, str]:
+    """Message WhatsApp -> (statut, erreur).
+    1) MODÈLE approuvé (WHATSAPP_RAPPEL_TEMPLATE) avec ses variables : seul moyen
+       d'écrire à quelqu'un qui n'a pas écrit au numéro dans les dernières 24 h ;
+    2) en repli, message texte libre (ne passe que dans cette fenêtre de 24 h)."""
+    s = get_settings()
+    numero = msisdn(telephone)
+    if not numero:
+        return "NON_CONFIGURE", "Numéro de téléphone absent ou invalide"
+    if not whatsapp_configure():
+        return "NON_CONFIGURE", "WhatsApp non configuré (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)"
+    url = WA_GRAPH_URL.format(phone_number_id=s.whatsapp_phone_number_id)
+    entetes = {"Authorization": f"Bearer {s.whatsapp_access_token}"}
+    essais = []
+    if (s.whatsapp_rappel_template or "").strip():
+        essais.append({"messaging_product": "whatsapp", "to": numero, "type": "template", "template": {
+            "name": s.whatsapp_rappel_template.strip(), "language": {"code": s.whatsapp_template_langue},
+            "components": [{"type": "body", "parameters": [{"type": "text", "text": v[:200]} for v in variables]}]}})
+    essais.append({"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texte[:4000]}})
+    erreurs = []
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            for corps in essais:
+                r = await client.post(url, json=corps, headers=entetes)
+                if r.status_code == 200:
+                    return "ENVOYE", ""
+                erreurs.append(f"{corps['type']} : HTTP {r.status_code} {r.text[:150]}")
+    except httpx.HTTPError as exc:
+        erreurs.append(repr(exc))
+    logger.warning("WhatsApp vers %s… en échec : %s", numero[:5], " | ".join(erreurs))
+    return "ECHEC", " | ".join(erreurs)[:300]

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
+from abonnements import abonnement_initial
 from auth import get_super_admin, hash_password, user_public
 from db import SANS_ID, db
 from routes.auth import _sans_secrets
@@ -109,9 +110,12 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "actif": True, "mise_en_avant": False, "ordre": 0, "created_at": now_iso(),
         # validee = False : créée automatiquement, invisible du public jusqu'à validation
         "validee": validee, "origine": origine,
+        # 14 jours de démo complète, puis abonnement (voir abonnements.py)
+        "abonnement": abonnement_initial(now_iso()),
         **boutique_par_defaut(nom),
         **Identification(**{k: v for k, v in donnees.items() if k in Identification.model_fields}).model_dump(),
     }
+    boutique["dg_telephone"] = normaliser_telephone(boutique.get("dg_telephone"))
     await db.boutiques.insert_one(boutique.copy())
     dg = {
         "id": new_id(), "email": dg_email.lower(), "nom": boutique["dg_nom"].strip(),
@@ -237,6 +241,14 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = De
             raise HTTPException(409, "Ce code marchand est déjà utilisé")
     if "nom" in maj:
         maj["slug"] = await _slug_unique(maj["nom"], sauf_id=boutique_id)
+    if "dg_telephone" in maj:
+        maj["dg_telephone"] = normaliser_telephone(maj["dg_telephone"])
+    # Suspension / réactivation manuelle : le motif est gardé (« MANUEL » : un paiement
+    # d'abonnement ne la lèvera pas automatiquement, contrairement à « IMPAYE »)
+    if maj.get("actif") is False and boutique.get("actif", True):
+        maj["suspension"] = {"motif": "MANUEL", "date": now_iso(), "par": "super_admin"}
+    elif maj.get("actif") is True:
+        maj["suspension"] = None
     if maj:
         await db.boutiques.update_one({"id": boutique_id}, {"$set": maj})
     return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
