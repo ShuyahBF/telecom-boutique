@@ -46,11 +46,16 @@ export default function Connexion() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary-dark p-4">
-      <form onSubmit={valider} className="w-full max-w-sm space-y-4 rounded-3xl bg-white p-8 shadow-xl">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4">
+      {/* Décor : halos de couleur et quadrillage discret (style Sawali) */}
+      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" />
+      <form onSubmit={valider} className="relative w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
         <div className="text-center">
-          <p className="text-3xl font-black tracking-tight text-primary">adLyn</p>
-          <h1 className="mt-1 text-xl font-extrabold">{administrateur ? "Administration de la plateforme" : "Espace boutique"}</h1>
+          <p className="font-display text-3xl font-bold tracking-tight text-ink">adLyn</p>
+          <p className="surtitre mt-1">{administrateur ? "Administration" : "Espace boutique"}</p>
+          <h1 className="mt-3 text-xl font-bold">{administrateur ? "Administration de la plateforme" : "Connexion à votre boutique"}</h1>
           <p className="text-sm text-gray-500">Connectez-vous pour gérer votre boutique</p>
         </div>
 
@@ -69,7 +74,7 @@ export default function Connexion() {
         <div><label className="label" htmlFor="mdp">Mot de passe</label>
           <input id="mdp" className="input" type="password" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
-        <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter"}</button>
+        <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter →"}</button>
         <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>
         <div className="flex justify-between text-sm">
           <Link to="/" className="text-primary">← Retour aux boutiques</Link>

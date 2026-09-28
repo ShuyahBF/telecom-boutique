@@ -188,7 +188,7 @@ export default function Plateforme() {
                 <div className="flex items-start gap-3">
                   {b.logo_url
                     ? <img src={b.logo_url} alt="" className="h-14 w-14 shrink-0 rounded-xl border bg-white object-contain" />
-                    : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl text-white" style={{ background: b.couleur || "#0b5ed7" }}>{b.nom.slice(0, 1)}</span>}
+                    : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl text-white" style={{ background: b.couleur || "#1e90ff" }}>{b.nom.slice(0, 1)}</span>}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-lg font-bold">{b.nom}</p>
                     <p className="text-sm text-gray-500">

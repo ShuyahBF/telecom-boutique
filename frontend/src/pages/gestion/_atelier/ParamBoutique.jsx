@@ -124,7 +124,7 @@ export default function ParamBoutique() {
           <Champ label="E-mail de contact"><input className="input" type="email" value={fiche.email} onChange={(e) => maj("email", e.target.value)} /></Champ>
           <Champ label="Couleur de la boutique" aide="Utilisée sur votre vitrine en ligne.">
             <div className="flex items-center gap-3">
-              <input type="color" className="h-11 w-16 cursor-pointer rounded-lg border border-gray-300 bg-white p-1" value={fiche.couleur || "#0b5ed7"} onChange={(e) => maj("couleur", e.target.value)} />
+              <input type="color" className="h-11 w-16 cursor-pointer rounded-lg border border-gray-300 bg-white p-1" value={fiche.couleur || "#1e90ff"} onChange={(e) => maj("couleur", e.target.value)} />
               <span className="font-mono text-sm text-gray-600">{fiche.couleur}</span>
             </div>
           </Champ>

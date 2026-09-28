@@ -56,14 +56,14 @@ export default function BoutiqueLayout() {
     : "";
   const lien = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? "bg-white/20 text-white" : "text-white/85 hover:text-white"}`;
   return (
-    <div style={{ "--couleur-boutique": boutique.couleur || "#0b5ed7" }} className="flex min-h-screen flex-col bg-gray-50">
+    <div style={{ "--couleur-boutique": boutique.couleur || "#1e90ff" }} className="flex min-h-screen flex-col bg-gray-50">
       <header className="no-print sticky top-0 z-40 bg-boutique shadow">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <Link to={base} className="flex min-w-0 items-center gap-2 text-white">
             {boutique.logo_url
               ? <img src={boutique.logo_url} alt="" className="h-10 w-10 rounded-xl bg-white object-contain p-0.5" />
               : <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-xl">📱</span>}
-            <span className="truncate text-lg font-extrabold">{boutique.nom}</span>
+            <span className="truncate font-display text-lg font-bold">{boutique.nom}</span>
           </Link>
           <nav className="ml-4 hidden flex-1 gap-1 md:flex">
             <NavLink end to={base} className={lien}>Catalogue</NavLink>
@@ -93,32 +93,36 @@ export default function BoutiqueLayout() {
         <Outlet context={{ boutique }} />
       </main>
 
-      <footer className="no-print border-t border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm text-gray-600 sm:grid-cols-3">
+      <footer className="no-print bg-nuit-950 text-gray-400">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm sm:grid-cols-3">
           <div>
-            <p className="font-bold text-ink">{boutique.nom}</p>
+            <p className="font-display text-lg font-bold text-white">{boutique.nom}</p>
             {boutique.slogan && <p>{boutique.slogan}</p>}
-            <p className="mt-1 text-xs">Code marchand : <b>{boutique.code_marchand}</b></p>
+            <p className="puce mt-3 text-gray-400">Code marchand · {boutique.code_marchand}</p>
           </div>
           {/* Adresse, ville et pays + lien vers Google Maps (itinéraire) si la
               boutique a renseigné sa position GPS (latitude / longitude) */}
           <div>
-            <p className="font-bold text-ink">Nous trouver</p>
+            <p className="mb-2 font-display font-semibold text-white">Nous trouver</p>
             {boutique.adresse && <p className="whitespace-pre-line">{boutique.adresse}</p>}
             {lieu && <p>{lieu}</p>}
             {lienCarte && (
               <a href={lienCarte} target="_blank" rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 font-semibold text-boutique hover:underline">
+                className="mt-2 inline-flex items-center gap-1 font-semibold text-primary-clair hover:underline">
                 📍 Voir sur la carte / Itinéraire
               </a>
             )}
           </div>
           <div>
-            <p className="font-bold text-ink">Nous contacter</p>
+            <p className="mb-2 font-display font-semibold text-white">Nous contacter</p>
             {boutique.telephone && <p>{boutique.telephone}</p>}
             {boutique.email && <p>{boutique.email}</p>}
-            <Link to="/" className="mt-2 inline-block font-semibold text-primary">← Toutes les boutiques</Link>
+            <Link to="/" className="mt-2 inline-block font-semibold text-primary-clair hover:underline">← Toutes les boutiques</Link>
           </div>
+        </div>
+        {/* Mention de la plateforme, comme la ligne de copyright de Sawali */}
+        <div className="border-t border-white/5 py-4 text-center text-xs text-gray-500">
+          Boutique propulsée par <Link to="/" className="text-gray-300 hover:text-white">adLyn</Link>
         </div>
       </footer>
     </div>

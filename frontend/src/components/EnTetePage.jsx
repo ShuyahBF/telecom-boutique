@@ -3,7 +3,7 @@ export default function EnTetePage({ titre, sousTitre, children }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-extrabold">{titre}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{titre}</h1>
         {sousTitre && <p className="text-sm text-gray-500">{sousTitre}</p>}
       </div>
       {children && <div className="no-print flex flex-wrap gap-2">{children}</div>}
