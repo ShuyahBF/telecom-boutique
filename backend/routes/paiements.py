@@ -76,6 +76,9 @@ async def _ouvrir_page(paiement: Dict[str, Any], reason: str, retour: str, msisd
     chiffres = "".join(ch for ch in msisdn if ch.isdigit())
     if chiffres:
         corps["phoneNumber"] = chiffres
+    # Métadonnées transmises à PawaPay (visibles dans leur tableau de bord et leurs rapports) :
+    # PawaPay peut ainsi rattacher chaque dépôt à la boutique concernée, sans données personnelles.
+    corps["metadata"] = metadonnees_pawapay(paiement)
     deposit_id = paiement["deposit_id"]
     # Enregistré AVANT l'appel : on ne perd jamais un depositId
     await db.paiements.insert_one(paiement.copy())
@@ -103,6 +106,21 @@ async def _ouvrir_page(paiement: Dict[str, Any], reason: str, retour: str, msisd
     return url
 
 
+def metadonnees_pawapay(paiement: Dict[str, Any]) -> list:
+    """Liste « clé : valeur » envoyée à PawaPay avec chaque dépôt : type de paiement,
+    boutique (identifiant interne + code marchand) et pièce concernée (commande, formule, facture)."""
+    champs = {
+        "typePaiement": paiement.get("type") or "commande",  # commande | abonnement | facture_sms
+        "boutiqueId": paiement.get("boutique_id"),
+        "codeMarchand": paiement.get("code_marchand"),
+        "commandeNumero": paiement.get("commande_numero"),
+        "formule": paiement.get("formule"),
+        "factureNumero": paiement.get("facture_numero"),
+    }
+    # Format PawaPay : un objet par métadonnée ; les champs vides ne sont pas envoyés
+    return [{cle: str(valeur)} for cle, valeur in champs.items() if valeur]
+
+
 def _nouveau_paiement(boutique_id: str, montant: int, **extra) -> Dict[str, Any]:
     """Document « paiement » initial (avant l'appel à PawaPay)."""
     s = get_settings()
@@ -118,8 +136,13 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
     vers laquelle rediriger le client."""
     if not _token():
         raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
+    # Double contrôle KYC (la vitrine masque déjà l'option) : pas d'encaissement pour le
+    # compte d'une boutique dont le dossier d'identification n'est pas validé
+    if (boutique.get("kyc") or {}).get("statut") != "VERIFIE":
+        raise HTTPException(400, "Le paiement Mobile Money n'est pas disponible pour cette boutique")
     paiement = _nouveau_paiement(boutique["id"], commande["total"], type="commande", commande_id=commande["id"],
-                                 commande_numero=commande["numero"], client_nom=commande["client"]["nom"])
+                                 commande_numero=commande["numero"], client_nom=commande["client"]["nom"],
+                                 code_marchand=boutique.get("code_marchand", ""))
     retour = (f"{get_settings().public_site_url}/b/{boutique['slug']}/paiement?"
               f"depot={paiement['deposit_id']}&commande={commande['numero']}")
     url = await _ouvrir_page(paiement, f"Commande {commande['numero']} {boutique['nom']}", retour, msisdn)
@@ -136,7 +159,7 @@ async def creer_page_abonnement(boutique: dict, formule: dict, msisdn: str = "")
         raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
     paiement = _nouveau_paiement(boutique["id"], int(formule["montant"]), type="abonnement",
                                  formule=formule["code"], formule_libelle=formule["libelle"],
-                                 boutique_nom=boutique["nom"])
+                                 boutique_nom=boutique["nom"], code_marchand=boutique.get("code_marchand", ""))
     retour = f"{get_settings().public_site_url}/gestion/abonnement?depot={paiement['deposit_id']}"
     return await _ouvrir_page(paiement, f"Abonnement adLyn {formule['libelle']} {boutique.get('code_marchand', '')}",
                               retour, msisdn)
@@ -147,7 +170,8 @@ async def creer_page_facture_sms(boutique: dict, facture: dict, msisdn: str = ""
     if not _token():
         raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
     paiement = _nouveau_paiement(boutique["id"], int(facture["montant"]), type="facture_sms",
-                                 facture_id=facture["id"], facture_numero=facture["numero"], boutique_nom=boutique["nom"])
+                                 facture_id=facture["id"], facture_numero=facture["numero"], boutique_nom=boutique["nom"],
+                                 code_marchand=boutique.get("code_marchand", ""))
     retour = f"{get_settings().public_site_url}/gestion/abonnement?depot={paiement['deposit_id']}"
     return await _ouvrir_page(paiement, f"Facture SMS adLyn {facture['numero']}", retour, msisdn)
 

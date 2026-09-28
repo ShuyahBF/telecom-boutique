@@ -38,13 +38,21 @@ CHAMPS_PRODUIT_PUBLICS = ("id", "reference", "nom", "slug", "type_produit", "cat
 EN_VENTE = {"actif": True, "visible_portail": True, "prix_vente": {"$gt": 0}}
 
 
+def kyc_valide(b: dict) -> bool:
+    """Vrai si le dossier d'identification de la boutique a été validé par l'administrateur."""
+    return (b.get("kyc") or {}).get("statut") == "VERIFIE"
+
+
 def _boutique_publique(b: dict) -> dict:
     publique = {k: b.get(k) for k in CHAMPS_BOUTIQUE_PUBLICS}
     # Boutique de démonstration (drapeau interne « test ») : jamais de paiement en ligne,
     # pour qu'un vrai visiteur ne paie pas une boutique fictive. Le drapeau lui-même
     # n'est jamais renvoyé au public.
+    # Conformité PawaPay : l'argent des clients transite par le compte de la plateforme,
+    # donc le paiement en ligne n'est ouvert qu'aux boutiques dont le dossier
+    # d'identification (KYC : RCCM, IFU, pièce d'identité du gérant...) est VALIDÉ.
     publique["paiement_mobile_money"] = bool(b.get("paiement_mobile_money", True) and paiement_disponible()
-                                             and not b.get("test"))
+                                             and not b.get("test") and kyc_valide(b))
     return publique
 
 
