@@ -232,5 +232,10 @@ async def generer_facture(dossier_id: str, ctx: Contexte = Depends(atelier)):
         acompte = {"id": new_id(), "montant": d["acompte"], "mode": "ESP", "date": today_iso(),
                    "reference": f"Acompte dossier {d['numero']}", "saisi_par": ctx.user.get("nom", ""), "created_at": now_iso()}
         facture = await ctx.tdb.documents.find_one_and_update({"id": facture["id"]}, {"$push": {"reglements": acompte}})
+        from journal_paiements import journaliser
+        await journaliser(ctx.boutique["id"], f"reglement-{acompte['id']}", canal="CAISSE", mode="ESP",
+                          montant=d["acompte"], statut="SUCCES", objet=f"Acompte réparation {d['numero']}",
+                          client_nom=d["client"]["nom"], saisi_par=ctx.user.get("nom", ""),
+                          devise=ctx.boutique.get("devise", "FCFA"), liens={"document_id": facture["id"]})
     await ctx.tdb.dossiers.update_one({"id": dossier_id}, {"$set": {"facture_id": facture["id"]}})
     return enrichir(facture, ctx.boutique)

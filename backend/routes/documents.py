@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from auth import Contexte, ventes
+from journal_paiements import journaliser
 from routes.tiers import instantane_client
 from services import calculer_lignes, entree_stock, est_stockable, prochain_numero, sorties_groupees, statut_paiement
 from utils import montant_en_lettres, new_id, now_iso, today_iso
@@ -268,13 +269,23 @@ async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Con
         {"id": document_id, "type_document": "FAC", "statut": {"$ne": "ANNULE"}}, {"$push": {"reglements": reglement}})
     if not doc:
         raise HTTPException(409, "Règlement impossible sur ce document")
+    await journaliser(ctx.boutique["id"], f"reglement-{reglement['id']}", canal="CAISSE", mode=payload.mode,
+                      montant=payload.montant, statut="SUCCES", objet=f"Facture {doc.get('numero') or '(brouillon)'}",
+                      reference=payload.reference, client_nom=doc["client"]["nom"], saisi_par=ctx.user.get("nom", ""),
+                      devise=ctx.boutique.get("devise", "FCFA"), liens={"document_id": doc["id"]})
     return enrichir(doc, ctx.boutique)
 
 
 @router.delete("/{document_id}/reglements/{reglement_id}")
 async def supprimer_reglement(document_id: str, reglement_id: str, ctx: Contexte = Depends(ventes)):
-    doc = await ctx.tdb.documents.find_one_and_update(
-        {"id": document_id}, {"$pull": {"reglements": {"id": reglement_id, "mode": {"$ne": "MM"}}}})
-    if not doc:
+    avant = await ctx.tdb.documents.find_one_and_update(
+        {"id": document_id}, {"$pull": {"reglements": {"id": reglement_id, "mode": {"$ne": "MM"}}}}, apres=False)
+    if not avant:
         raise HTTPException(404, "Document introuvable")
-    return enrichir(doc, ctx.boutique)
+    retire = next((r for r in avant.get("reglements", []) if r["id"] == reglement_id and r.get("mode") != "MM"), None)
+    if retire:
+        # L'historique garde la trace du règlement, marqué « Annulé »
+        await journaliser(ctx.boutique["id"], f"reglement-{reglement_id}", canal="CAISSE", mode=retire["mode"],
+                          montant=retire["montant"], statut="ANNULE", motif=f"Supprimé par {ctx.user.get('nom', '')}",
+                          objet=f"Facture {avant.get('numero') or '(brouillon)'}", client_nom=avant["client"]["nom"])
+    return enrichir(await _lire(ctx, document_id), ctx.boutique)

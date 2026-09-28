@@ -15,6 +15,8 @@ os.environ.update({
     "SUPER_ADMIN_EMAIL": "super@plateforme-test.bf",
     "SUPER_ADMIN_PASSWORD": "super-motdepasse",
     "PAWAPAY_API_TOKEN_SANDBOX": "",
+    # Clé de chiffrement des sauvegardes (32 octets en base64), propre aux tests
+    "SAUVEGARDE_CLE": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 })
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

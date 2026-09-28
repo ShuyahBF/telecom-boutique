@@ -13,10 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import catalogue_public as service_catalogue
+import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
-from routes import (auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, maintenance, paiements,
-                    plateforme, public, stock, tableau_de_bord, tiers)
+from routes import (auth, boutique, catalogue, catalogue_public, commandes, conversations, documents, journal,
+                    maintenance, paiements, plateforme, public, sauvegardes, stock, tableau_de_bord, tiers)
 from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
@@ -33,7 +34,7 @@ app.add_middleware(
 
 api = APIRouter(prefix="/api")
 for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
-               conversations, tableau_de_bord, public, paiements):
+               conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
 # Catalogue public commun : administration (super-admin) et consultation (boutiques)
 api.include_router(catalogue_public.admin)
@@ -65,3 +66,5 @@ async def au_demarrage():
     asyncio.create_task(paiements.boucle_rapprochement())
     # Publication du catalogue public chaque soir (23h par défaut)
     asyncio.create_task(service_catalogue.boucle_publication())
+    # Sauvegardes chiffrées vers Google Drive + rapport par e-mail, chaque nuit à 00h
+    asyncio.create_task(taches_nocturnes.boucle_nocturne())

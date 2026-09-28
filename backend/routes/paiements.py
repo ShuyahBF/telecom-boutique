@@ -25,6 +25,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from config import get_settings
 from db import SANS_ID, TenantDB, db
+from journal_paiements import journaliser
 from utils import new_id, now_iso
 
 router = APIRouter(prefix="/paiements", tags=["Paiements — PawaPay"])
@@ -99,18 +100,30 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
                 reponse = {"raw": r.text[:500]}
     except httpx.HTTPError as exc:
         await db.paiements.update_one({"deposit_id": deposit_id}, {"$set": {"statut": "echec", "api_message": str(exc)[:200]}})
+        await _tracer(paiement, "ECHEC", "PawaPay injoignable")
         raise HTTPException(502, "PawaPay est momentanément injoignable, réessayez") from exc
     url = (reponse or {}).get("redirectUrl")
     if not url:
         message = _lisible(reponse.get("failureReason") or reponse.get("message"))
         await db.paiements.update_one({"deposit_id": deposit_id}, {"$set": {
             "statut": "echec", "api_statut": "PAYMENT_PAGE_REJECTED", "api_message": message, "updated_at": now_iso()}})
+        await _tracer(paiement, "ECHEC", message or "Page de paiement refusée")
         raise HTTPException(502, message or "PawaPay n'a pas renvoyé de page de paiement")
     await db.paiements.update_one({"deposit_id": deposit_id},
                                   {"$set": {"statut": "en_attente", "redirect_url": url, "updated_at": now_iso()}})
     await TenantDB(boutique["id"]).commandes.update_one(
         {"id": commande["id"]}, {"$set": {"paiement.statut": "EN_ATTENTE", "paiement.deposit_id": deposit_id}})
+    await _tracer({**paiement, "client_nom": commande["client"]["nom"]}, "EN_ATTENTE", "")
     return url
+
+
+async def _tracer(paiement: Dict[str, Any], statut: str, motif: str) -> None:
+    """Ligne de l'historique des paiements de la boutique pour ce dépôt PawaPay."""
+    await journaliser(paiement["boutique_id"], f"pawapay-{paiement['deposit_id']}", canal="PAWAPAY", mode="MM",
+                      montant=paiement["montant"], statut=statut, motif=motif or "",
+                      objet=f"Commande {paiement['commande_numero']}", reference=paiement["deposit_id"],
+                      client_nom=paiement.get("client_nom", ""), devise=paiement.get("devise", "XOF"),
+                      liens={"commande_id": paiement["commande_id"]})
 
 
 def _extraire_depot(corps: Any) -> Optional[Dict[str, Any]]:
@@ -173,6 +186,7 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
         if recu is not None and abs(recu - float(paiement["montant"])) > 0.01:
             maj.update({"statut": "montant_incoherent", "api_message": f"Montant reçu {recu} ≠ attendu {paiement['montant']}"})
             await db.paiements.update_one({"deposit_id": deposit_id}, {"$set": maj})
+            await _tracer(paiement, "ECHEC", maj["api_message"])
             return {"ok": False, "raison": "montant incohérent"}
     if not final:
         await db.paiements.update_one({"deposit_id": deposit_id}, {"$set": maj})
@@ -182,6 +196,7 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
     if not res.modified_count:
         return {"ok": True, "applique": False}  # déjà traité (idempotence)
 
+    await _tracer(paiement, "SUCCES" if final == "paye" else "ECHEC", "" if final == "paye" else (message or brut))
     tdb = TenantDB(paiement["boutique_id"])
     if final == "paye":
         commande = await tdb.commandes.find_one_and_update(

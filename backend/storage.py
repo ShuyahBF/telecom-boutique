@@ -21,6 +21,8 @@ from config import get_settings
 TYPES_IMAGES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 # Documents joints aux produits (brochures, fiches techniques, manuels...)
 TYPES_DOCUMENTS = {**TYPES_IMAGES, "application/pdf": ".pdf"}
+# Extensions des fichiers privés (ajoute les archives de sauvegarde, jamais acceptées en envoi)
+TYPES_PRIVES = {**TYPES_DOCUMENTS, "application/octet-stream": ".tlb.gz.enc"}
 TAILLE_MAX_DOCUMENT = 15 * 1024 * 1024  # 15 Mo
 
 
@@ -116,7 +118,7 @@ def _dossier_prive() -> Path:
 async def enregistrer_prive(boutique_id: str, contenu: bytes, content_type: str) -> str:
     """Range un fichier privé et renvoie sa CLÉ (pas une URL)."""
     s = get_settings()
-    cle = f"boutiques/{boutique_id}/kyc/{uuid.uuid4().hex}{TYPES_DOCUMENTS[content_type]}"
+    cle = f"boutiques/{boutique_id}/kyc/{uuid.uuid4().hex}{TYPES_PRIVES[content_type]}"
     if s.storage_backend == "r2":
         def _put():
             _r2_client().put_object(Bucket=s.r2_bucket_prive, Key=cle, Body=contenu, ContentType=content_type)

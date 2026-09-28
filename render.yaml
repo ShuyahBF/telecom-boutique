@@ -93,6 +93,46 @@ services:
       - key: CATALOGUE_IA_MODELE
         value: claude-opus-5
 
+      # --- Sauvegardes chiffrées des boutiques, chaque nuit à 00h ---
+      # Clé AES-256 (32 octets en base64). À générer UNE fois :
+      #   python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"
+      # et à conserver AUSSI hors de Render : sans elle, aucune restauration possible.
+      - key: SAUVEGARDE_CLE
+        sync: false
+      - key: SAUVEGARDE_HEURE
+        value: "0"
+      - key: SAUVEGARDE_RETENTION_JOURS
+        value: "30"
+      # Google Drive (voir backend/outils/obtenir_jeton_gdrive.py)
+      - key: GDRIVE_CLIENT_ID
+        sync: false
+      - key: GDRIVE_CLIENT_SECRET
+        sync: false
+      - key: GDRIVE_REFRESH_TOKEN
+        sync: false
+      - key: GDRIVE_NOM_DOSSIER
+        value: TelecomBoutique - Sauvegardes
+
+      # --- Rapport de la nuit (sauvegardes + catalogue) ---
+      - key: RAPPORT_EMAIL
+        value: jfrancois.ouoba@gmail.com
+      # Serveur d'envoi de la plateforme (ex. Gmail : smtp.gmail.com, 587,
+      # adresse Gmail + « mot de passe d'application »)
+      - key: PLATEFORME_SMTP_HOTE
+        sync: false
+      - key: PLATEFORME_SMTP_PORT
+        value: "587"
+      - key: PLATEFORME_SMTP_UTILISATEUR
+        sync: false
+      - key: PLATEFORME_SMTP_MOT_DE_PASSE
+        sync: false
+      - key: PLATEFORME_EXPEDITEUR
+        sync: false
+
+      # --- Bucket R2 PRIVÉ (pièces KYC, sauvegardes avant restauration) ---
+      - key: R2_BUCKET_PRIVE
+        value: telecom-boutique-kyc
+
   - type: web
     name: telecom-boutique-frontend
     runtime: static

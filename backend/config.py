@@ -80,6 +80,29 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
     catalogue_ia_modele: str = "claude-opus-5"
 
+    # --- Sauvegardes chiffrées des boutiques (chaque nuit, vers Google Drive) ---
+    # Clé AES-256 en base64 (32 octets) : SANS ELLE AUCUNE RESTAURATION N'EST
+    # POSSIBLE. La conserver aussi en lieu sûr hors de Render (coffre-fort).
+    sauvegarde_cle: Optional[str] = None
+    sauvegarde_heure: int = 0  # 00h, heure locale (fuseau_horaire)
+    sauvegarde_retention_jours: int = 30  # sauvegardes plus anciennes supprimées du Drive
+    # Google Drive du propriétaire de la plateforme : identifiants OAuth
+    # (voir outils/obtenir_jeton_gdrive.py pour obtenir le jeton de rafraîchissement)
+    gdrive_client_id: Optional[str] = None
+    gdrive_client_secret: Optional[str] = None
+    gdrive_refresh_token: Optional[str] = None
+    gdrive_nom_dossier: str = "TelecomBoutique - Sauvegardes"
+
+    # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
+    rapport_email: Optional[str] = None
+    # Serveur d'envoi de la PLATEFORME (distinct de celui de chaque boutique)
+    plateforme_smtp_hote: Optional[str] = None
+    plateforme_smtp_port: int = 587
+    plateforme_smtp_utilisateur: Optional[str] = None
+    plateforme_smtp_mot_de_passe: Optional[str] = None
+    plateforme_smtp_ssl: bool = False
+    plateforme_expediteur: Optional[str] = None
+
     # Développement : crée la boutique de démonstration au démarrage
     # (pratique avec MONGO_URL=mongomock://, dont les données sont perdues à l'arrêt)
     demo_au_demarrage: bool = False

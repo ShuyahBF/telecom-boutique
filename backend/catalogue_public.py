@@ -169,8 +169,9 @@ async def boucle_publication() -> None:
         try:
             rapport = await publier("planification")
             logger.info("Catalogue publié : %s", rapport)
-        except Exception:  # noqa: BLE001 — la boucle ne doit jamais s'arrêter
+        except Exception as exc:  # noqa: BLE001 — la boucle ne doit jamais s'arrêter
             logger.exception("Échec de la publication du catalogue")
+            await db.catalogue_echecs.insert_one({"id": new_id(), "date": now_iso(), "erreur": str(exc)[:500]})
 
 
 # ---------------------------------------------------------------------------
