@@ -5,6 +5,7 @@ import { nombreArticles } from "@/lib/panier";
 import BoutonAppelWa from "@/components/BoutonAppelWa";
 import Chargement from "@/components/Chargement";
 import PoweredBySawali from "@/components/PoweredBySawali";
+import { LiensLegaux } from "@/components/PageLegale";
 import { IconeAdlyn } from "@/components/Marque";
 
 // Mise en page de l'espace PUBLIC d'une boutique (/b/:slug/...) : en-tête aux
@@ -136,6 +137,7 @@ export default function BoutiqueLayout() {
               <IconeAdlyn clair className="h-4 w-4" /> adLyn
             </Link>
           </p>
+          <LiensLegaux className="justify-center" />
           <PoweredBySawali />
         </div>
       </footer>

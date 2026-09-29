@@ -4,6 +4,7 @@ import { apiClient, messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
 import { LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
+import { LiensLegaux } from "@/components/PageLegale";
 import ScannerQr from "@/components/ScannerQr";
 import { useToast } from "@/components/Toast";
 
@@ -143,6 +144,8 @@ export default function Accueil() {
             <button type="button" onClick={() => setScannerOuvert(true)} className="btn-clair mt-3">
               📷 Scanner un QR code
             </button>
+            {/* Liens légaux visibles dès l'accueil, sans ouvrir de menu (exigé par les revues TikTok) */}
+            <LiensLegaux className="mt-6" />
           </div>
 
           {/* Colonne droite : chiffres clés dans des cartes sombres */}
@@ -267,6 +270,7 @@ export default function Accueil() {
         </div>
         {/* Bas de page : copyright + mention obligatoire « Powered by Sawali Smart Systems » */}
         <div className="space-y-1 border-t border-white/5 py-5 text-center text-xs text-gray-500">
+          <LiensLegaux className="mb-2 justify-center" />
           <p>© {new Date().getFullYear()} adLyn</p>
           <PoweredBySawali />
         </div>

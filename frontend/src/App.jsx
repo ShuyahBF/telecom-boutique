@@ -24,6 +24,9 @@ import SuiviCommande from "@/pages/public/SuiviCommande";
 import SuiviReparation from "@/pages/public/SuiviReparation";
 import Conseil from "@/pages/public/Conseil";
 import Conversation from "@/pages/public/Conversation";
+// --- Pages légales publiques ---
+import Confidentialite from "@/pages/public/Confidentialite";
+import Conditions from "@/pages/public/Conditions";
 // --- Back-office : ventes et relation client ---
 import TableauDeBord from "@/pages/gestion/TableauDeBord";
 import Documents from "@/pages/gestion/Documents";
@@ -63,6 +66,13 @@ export default function App() {
           <Routes>
             {/* Portail public : annuaire des boutiques, puis espace de chaque boutique */}
             <Route path="/" element={<Accueil />} />
+            {/* Pages légales : adresses françaises + alias anglais (revues TikTok, Meta…) */}
+            <Route path="/confidentialite" element={<Confidentialite />} />
+            <Route path="/privacy" element={<Confidentialite />} />
+            <Route path="/privacy-policy" element={<Confidentialite />} />
+            <Route path="/conditions" element={<Conditions />} />
+            <Route path="/terms" element={<Conditions />} />
+            <Route path="/terms-of-service" element={<Conditions />} />
             <Route path="/b/:slug" element={<BoutiqueLayout />}>
               <Route index element={<Vitrine />} />
               <Route path="produit/:produitSlug" element={<Produit />} />
