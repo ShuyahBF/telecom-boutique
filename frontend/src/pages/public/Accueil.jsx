@@ -25,7 +25,8 @@ export default function Accueil() {
 
   // Au chargement de la page : titre de l'onglet + liste des boutiques
   useEffect(() => {
-    document.title = "adLyn — Trouvez votre boutique de téléphonie";
+    // Titre EXACT de l'app (vérifié par les revues TikTok) : « adLyn »
+    document.title = "adLyn";
     apiClient.get("/public/boutiques")
       .then(({ data }) => setBoutiques(data))
       .catch(() => setBoutiques([]));

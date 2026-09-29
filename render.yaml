@@ -90,6 +90,18 @@ services:
         value: Africa/Ouagadougou
       - key: ANTHROPIC_API_KEY
         sync: false
+      # --- TikTok (connexion du compte de chaque boutique + publication des produits) ---
+      # Client key / secret de l'app créée sur developers.tiktok.com
+      - key: TIKTOK_CLIENT_KEY
+        sync: false
+      - key: TIKTOK_CLIENT_SECRET
+        sync: false
+      # Adresse de retour déclarée dans le portail TikTok, ex. https://api.adlynservice.com/api/tiktok/callback
+      - key: TIKTOK_REDIRECT_URI
+        sync: false
+      # Clé de chiffrement des jetons TikTok (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+      - key: TIKTOK_JETONS_CLE
+        sync: false
       - key: CATALOGUE_IA_MODELE
         value: claude-opus-5
 

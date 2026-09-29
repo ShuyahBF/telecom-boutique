@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import PageLegale, { Section } from "@/components/PageLegale";
 
-// Adresse de contact (même adresse que la politique de confidentialité)
+// Contact officiel de SAWALI SMART SYSTEMS (e-mail et téléphone)
 const CONTACT = "contact@sawalismartsystems.com";
+const TELEPHONE = "+226 25 65 81 65";
 
 // Conditions d'utilisation d'adLyn (adresses /conditions, /terms, /terms-of-service).
 export default function Conditions() {
@@ -100,7 +101,8 @@ export default function Conditions() {
         <p>
           Ces conditions sont régies par le droit du Burkina Faso ; à défaut d'accord amiable, les tribunaux de
           Ouagadougou sont compétents. Nous pouvons les modifier ; la date en haut de la page indique la dernière
-          version. Contact : <a className="text-primary hover:underline" href={`mailto:${CONTACT}`}>{CONTACT}</a>.
+          version. Contact : <a className="text-primary hover:underline" href={`mailto:${CONTACT}`}>{CONTACT}</a> ·{" "}
+          <a className="text-primary hover:underline" href="tel:+22625658165">{TELEPHONE}</a>.
         </p>
       </Section>
 
@@ -111,7 +113,7 @@ export default function Conditions() {
           shops a management tool and an online storefront. Each shop is the seller of its own products. A shop may
           connect its own TikTok account to publish its product photos and videos; nothing is posted without the
           shop's explicit action, and the shop must comply with TikTok's Terms of Service and Community Guidelines,
-          including commercial content disclosure. Contact: {CONTACT}.
+          including commercial content disclosure. Contact: {CONTACT}, {TELEPHONE}.
         </p>
       </Section>
     </PageLegale>

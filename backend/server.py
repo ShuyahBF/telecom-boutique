@@ -19,7 +19,7 @@ from config import get_settings
 from db import ensure_indexes
 from routes import (abonnements, acces_boutique, auth, boutique, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
                     maintenance, paiements, parametres_plateforme, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
-                    tableau_de_bord, tiers, webhooks)
+                    tableau_de_bord, tiers, tiktok, webhooks)
 from seed import creer_demo, ensure_super_admin
 
 settings = get_settings()
@@ -63,6 +63,8 @@ api.include_router(referentiel.consultation)
 # Catalogue public commun : administration (super-admin) et consultation (boutiques)
 api.include_router(catalogue_public.admin)
 api.include_router(catalogue_public.consultation)
+# TikTok : connexion du compte de la boutique et publication des produits
+api.include_router(tiktok.router)
 
 
 @api.get("/health")

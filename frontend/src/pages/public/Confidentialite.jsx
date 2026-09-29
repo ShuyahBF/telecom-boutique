@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import PageLegale, { Section } from "@/components/PageLegale";
 
-// Adresse de contact pour les questions sur les données personnelles
-// (même adresse que les pages légales de Sawali Smart Systems).
+// Contact officiel de SAWALI SMART SYSTEMS (e-mail et téléphone)
 const CONTACT = "contact@sawalismartsystems.com";
+const TELEPHONE = "+226 25 65 81 65";
 
 // Politique de confidentialité d'adLyn (adresses /confidentialite, /privacy, /privacy-policy).
 // Elle décrit ce que la plateforme fait réellement des données : à mettre à jour
@@ -122,8 +122,9 @@ export default function Confidentialite() {
       <Section titre="10. Modifications et contact">
         <p>
           Nous pouvons modifier cette politique ; la date en haut de la page indique la dernière version. Pour toute
-          question : <a className="text-primary hover:underline" href={`mailto:${CONTACT}`}>{CONTACT}</a> — SAWALI SMART
-          SYSTEMS, Ouagadougou, Burkina Faso. Voir aussi nos{" "}
+          question : <a className="text-primary hover:underline" href={`mailto:${CONTACT}`}>{CONTACT}</a> ·{" "}
+          <a className="text-primary hover:underline" href="tel:+22625658165">{TELEPHONE}</a> — SAWALI SMART SYSTEMS,
+          Ouagadougou, Burkina Faso. Voir aussi nos{" "}
           <Link className="text-primary hover:underline" to="/conditions">Conditions d'utilisation</Link>.
         </p>
       </Section>
@@ -135,7 +136,7 @@ export default function Confidentialite() {
           process orders, payments, repairs and shop accounts. If a shop connects its TikTok account, we receive its
           basic profile information (open ID, display name, avatar) and an access token, used solely to publish the
           content the shop chooses; the token is encrypted and deleted when the shop disconnects. We do not sell
-          personal data or use it for targeted advertising. Contact: {CONTACT}.
+          personal data or use it for targeted advertising. Contact: {CONTACT}, {TELEPHONE}.
         </p>
       </Section>
     </PageLegale>

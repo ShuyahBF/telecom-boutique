@@ -123,7 +123,7 @@ export default function BoutiqueLayout() {
             {boutique.telephone && <p>{boutique.telephone}</p>}
             {boutique.email && <p>{boutique.email}</p>}
             {/* Appel WhatsApp : bouton grisé en attendant l'ouverture du service */}
-            <BoutonAppelWa sombre className="btn-sm mt-3" />
+            <BoutonAppelWa telephone={boutique.telephone} sombre className="btn-sm mt-3" />
             <br />
             <Link to="/" className="mt-3 inline-block font-semibold text-primary-clair hover:underline">← Toutes les boutiques</Link>
           </div>

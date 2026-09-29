@@ -1,22 +1,29 @@
-// Bouton « Appel WA » (appel WhatsApp vers la boutique), affiché GRISÉ :
-// la fonction d'appel par l'API WhatsApp (Calling API de Meta) n'est pas encore
-// branchée. Le bouton est visible pour annoncer le service, mais inactif.
+// Bouton « WhatsApp » : ouvre la conversation WhatsApp avec la boutique
+// (lien wa.me vers son numéro). Sans numéro valable, le bouton n'est pas affiché :
+// aucune mention « bientôt » sur les pages publiques (les revues d'applications
+// TikTok/Meta refusent les sites qui paraissent inachevés).
+// - telephone : numéro de la boutique (ex. « +226 70 00 00 00 » ou « 70 00 00 00 »)
 // - sombre = true : version pour fond bleu nuit (pied de page de la vitrine)
-// - sombre = false : version pour fond clair (fiche produit)
-export default function BoutonAppelWa({ sombre = false, className = "" }) {
+export default function BoutonAppelWa({ telephone, sombre = false, className = "" }) {
+  const numero = numeroWhatsApp(telephone);
+  if (!numero) return null;
   return (
-    <button
-      type="button"
-      disabled // inactif tant que les appels WhatsApp ne sont pas disponibles
-      title="Bientôt disponible"
-      aria-label="Appel WA (bientôt disponible)"
-      className={`btn cursor-not-allowed opacity-100 ${sombre
-        ? "border border-white/10 bg-white/5 text-gray-500"
-        : "border border-gray-200 bg-gray-100 text-gray-400"} ${className}`}
+    <a
+      href={`https://wa.me/${numero}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`btn ${sombre ? "border border-white/15 bg-white/5 text-gray-200 hover:bg-white/10" : "btn-outline"} ${className}`}
     >
-      {/* Pictogramme téléphone + intitulé demandé */}
-      <span aria-hidden="true">📞</span> Appel WA
-      <span className="text-[10px] font-medium uppercase tracking-wider opacity-80">· bientôt</span>
-    </button>
+      <span aria-hidden="true">📞</span> WhatsApp
+    </a>
   );
+}
+
+// Numéro au format wa.me (chiffres seuls, avec indicatif) ; 8 chiffres = Burkina Faso (+226)
+function numeroWhatsApp(telephone) {
+  const brut = (telephone || "").trim();
+  let chiffres = brut.replace(/\D/g, "");
+  if (brut.startsWith("00")) chiffres = chiffres.slice(2);
+  else if (!brut.startsWith("+") && chiffres.length === 8) chiffres = `226${chiffres}`;
+  return chiffres.length >= 10 && chiffres.length <= 15 ? chiffres : "";
 }
