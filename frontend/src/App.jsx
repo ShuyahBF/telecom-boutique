@@ -24,6 +24,7 @@ import SuiviCommande from "@/pages/public/SuiviCommande";
 import SuiviReparation from "@/pages/public/SuiviReparation";
 import Conseil from "@/pages/public/Conseil";
 import Conversation from "@/pages/public/Conversation";
+import OuvrirBoutique from "@/pages/public/OuvrirBoutique";
 // --- Back-office : ventes et relation client ---
 import TableauDeBord from "@/pages/gestion/TableauDeBord";
 import Documents from "@/pages/gestion/Documents";
@@ -47,6 +48,7 @@ import BonDepot from "@/pages/gestion/BonDepot";
 import Parametres from "@/pages/gestion/Parametres";
 import CataloguePublic from "@/pages/gestion/CataloguePublic";
 import Paiements from "@/pages/gestion/Paiements";
+import Parrainage from "@/pages/gestion/Parrainage";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
@@ -78,6 +80,8 @@ export default function App() {
 
             <Route path="/connexion" element={<Connexion />} />
             <Route path="/mot-de-passe" element={<ChangerMotDePasse />} />
+            {/* Lien de parrainage partagé par une boutique : demande d'ouverture d'une boutique */}
+            <Route path="/ouvrir-ma-boutique" element={<OuvrirBoutique />} />
 
             {/* Documents imprimables : pleine page, sans menu */}
             <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation"><DocumentImprimable /></RouteProtegee>} />
@@ -113,6 +117,7 @@ export default function App() {
               {/* Envoi de produits en carrousel photo par WhatsApp */}
               <Route path="carrousel" element={<RouteProtegee permission="messagerie"><Carrousel /></RouteProtegee>} />
               <Route path="abonnement" element={<RouteProtegee permission="parametres"><Abonnement /></RouteProtegee>} />
+              <Route path="parrainage" element={<RouteProtegee permission="parametres"><Parrainage /></RouteProtegee>} />
             </Route>
 
             {/* Administration de la plateforme */}

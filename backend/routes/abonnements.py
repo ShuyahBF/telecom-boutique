@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 import abonnements as service
+import parrainage
 from auth import Contexte, contexte_abonnement, get_super_admin
 from db import SANS_ID, db
 from routes.paiements import creer_page_abonnement, paiement_disponible
@@ -28,12 +29,15 @@ async def mon_abonnement(ctx: Contexte = Depends(contexte_abonnement)):
     paiements = await db.abonnement_paiements.find(
         {"boutique_id": ctx.boutique["id"], "statut": "VALIDE"}, SANS_ID).sort("created_at", -1).to_list(100)
     return {"etat": await service.etat(ctx.boutique), "formules": await service.formules(),
-            "paiements": paiements, "paiement_en_ligne": paiement_disponible()}
+            "paiements": paiements, "paiement_en_ligne": paiement_disponible(),
+            # Bonus de parrainage déductibles de l'abonnement
+            "bonus": await parrainage.solde(ctx.boutique["id"])}
 
 
 class DemandePaiement(BaseModel):
     formule: str = Field(..., max_length=40)
     telephone: str = Field("", max_length=30)  # numéro Mobile Money (prérempli sur la page PawaPay)
+    utiliser_bonus: bool = False  # déduire les bonus de parrainage disponibles
 
 
 @boutique.post("/payer")
@@ -43,7 +47,19 @@ async def payer(payload: DemandePaiement, ctx: Contexte = Depends(contexte_abonn
     f = await service.formule(payload.formule)
     if not f or not f.get("actif") or int(f.get("montant", 0)) <= 0:
         raise HTTPException(400, "Formule indisponible")
-    return {"url": await creer_page_abonnement(ctx.boutique, f, payload.telephone)}
+    # Bonus de parrainage : jamais plus que le prix de la formule (calculé côté serveur)
+    bonus = await parrainage.deduction_possible(ctx.boutique["id"], int(f["montant"])) if payload.utiliser_bonus else 0
+    if bonus >= int(f["montant"]):
+        # Renouvellement entièrement payé par les bonus : pas de paiement en ligne
+        reference = f"bonus-{new_id()}"
+        if not await parrainage.utiliser(ctx.boutique["id"], bonus, reference=reference,
+                                         libelle=f"Abonnement {f['libelle']}"):
+            raise HTTPException(409, "Vos bonus de parrainage ont changé : rechargez la page")
+        paiement = await service.enregistrer_paiement(
+            ctx.boutique["id"], f["code"], 0, "BONUS_PARRAINAGE", reference=reference,
+            saisi_par="Bonus de parrainage", cle=reference, bonus_deduit=bonus)
+        return {"paye_par_bonus": True, "paiement": paiement}
+    return {"url": await creer_page_abonnement(ctx.boutique, f, payload.telephone, bonus_deduit=bonus)}
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +123,7 @@ class PaiementSaisi(BaseModel):
     mode: Literal["MOBILE_MONEY", "ESPECES", "VIREMENT", "CHEQUE", "OFFERT"] = "MOBILE_MONEY"
     reference: str = Field("", max_length=120)
     date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    utiliser_bonus: bool = False  # déduire les bonus de parrainage de la boutique
 
 
 @admin.post("/boutiques/{boutique_id}/paiements", status_code=201)
@@ -115,11 +132,16 @@ async def saisir_paiement(boutique_id: str, payload: PaiementSaisi, adm: dict = 
     f = await service.formule(payload.formule)
     if not f:
         raise HTTPException(400, "Formule inconnue")
-    montant = int(f["montant"]) if payload.montant is None else payload.montant
+    bonus = await parrainage.deduction_possible(boutique_id, int(f["montant"])) if payload.utiliser_bonus else 0
+    montant = int(f["montant"]) - bonus if payload.montant is None else payload.montant
+    cle = new_id()
+    if bonus and not await parrainage.utiliser(boutique_id, bonus, reference=f"admin-{cle}",
+                                               libelle=f"Abonnement {f['libelle']} (saisi par l'administrateur)"):
+        raise HTTPException(409, "Bonus de parrainage insuffisants")
     try:
         return await service.enregistrer_paiement(boutique_id, f["code"], montant, payload.mode,
                                                   reference=payload.reference, saisi_par=adm.get("email", ""),
-                                                  date_paiement=payload.date)
+                                                  date_paiement=payload.date, cle=cle, bonus_deduit=bonus)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

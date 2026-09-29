@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     # Libellé du SMS / de l'historique Mobile Money (4 à 22 caractères)
     pawapay_customer_message: str = "adLyn"
 
+    # --- Parrainage entre boutiques ---
+    # Bonus (FCFA) gagné par le parrain pour chaque boutique filleule ouverte
+    # (validée par l'administrateur) ; déductible de son abonnement.
+    parrainage_bonus_fcfa: int = 500
+    # Garde-fous de la page publique d'ouverture : demandes par adresse IP (par heure)
+    # et par parrain (par jour)
+    parrainage_max_demandes_ip_heure: int = 5
+    parrainage_max_demandes_parrain_jour: int = 10
+
     # --- Stockage des fichiers (photos produits, logos des boutiques) ---
     # "local" : disque du serveur, dev/test uniquement (perdu à chaque
     # redéploiement Render). "r2" : Cloudflare R2, obligatoire en production.
