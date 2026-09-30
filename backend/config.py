@@ -156,6 +156,12 @@ class Settings(BaseSettings):
     #   chaque carte : en-tête IMAGE, corps {{1}} nom du produit, {{2}} prix,
     #   bouton URL « Voir le produit » = https://adlynservice.com/b/{{1}}
     whatsapp_carrousel_template: Optional[str] = None
+    # Fiche de « Maintenance des équipements » (modèles « Utility » approuvés par Meta),
+    # corps à 6 variables : {{1}} émetteur (boutique ou adLyn), {{2}} numéro de fiche,
+    # {{3}} matériel, {{4}} statut, {{5}} prix du diagnostic, {{6}} lien de paiement.
+    # Deux modèles possibles : sans en-tête, et avec en-tête IMAGE (1re photo de la fiche).
+    whatsapp_maintenance_template: Optional[str] = None
+    whatsapp_maintenance_template_image: Optional[str] = None
 
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique
@@ -166,6 +172,9 @@ class Settings(BaseSettings):
     # --- Service SMS des boutiques (OVH, facturé à part) ---
     sms_prix_defaut: int = 25  # FCFA par SMS, modifiable boutique par boutique
     sms_facture_delai_jours: int = 10  # délai de paiement d'une facture SMS
+
+    # --- Maintenance des équipements ---
+    maintenance_prix_diagnostic: int = 10000  # FCFA, prix du diagnostic proposé (modifiable sur chaque fiche)
 
     # --- Webhook de création automatique des boutiques (signé HMAC-SHA256) ---
     # Secret partagé avec le système appelant ; sans lui le webhook est fermé (503).

@@ -110,12 +110,14 @@ def metadonnees_pawapay(paiement: Dict[str, Any]) -> list:
     """Liste « clé : valeur » envoyée à PawaPay avec chaque dépôt : type de paiement,
     boutique (identifiant interne + code marchand) et pièce concernée (commande, formule, facture)."""
     champs = {
-        "typePaiement": paiement.get("type") or "commande",  # commande | abonnement | facture_sms
+        # commande | abonnement | facture_sms | maintenance | maintenance_plateforme
+        "typePaiement": paiement.get("type") or "commande",
         "boutiqueId": paiement.get("boutique_id"),
         "codeMarchand": paiement.get("code_marchand"),
         "commandeNumero": paiement.get("commande_numero"),
         "formule": paiement.get("formule"),
         "factureNumero": paiement.get("facture_numero"),
+        "ficheNumero": paiement.get("fiche_numero"),  # fiche de maintenance des équipements
     }
     # Format PawaPay : un objet par métadonnée ; les champs vides ne sont pas envoyés
     return [{cle: str(valeur)} for cle, valeur in champs.items() if valeur]
@@ -191,19 +193,78 @@ async def creer_page_facture_sms(boutique: dict, facture: dict, msisdn: str = ""
     return await _ouvrir_page(paiement, f"Facture SMS adLyn {facture['numero']}", retour, msisdn)
 
 
+async def creer_page_maintenance(fiche: dict, boutique: Optional[dict], msisdn: str = "") -> str:
+    """Page PawaPay d'une fiche de « Maintenance des équipements » (lien de paiement).
+    - fiche d'une BOUTIQUE (`boutique` renseignée) : argent de la boutique, reversé comme
+      celui des commandes ; même contrôle KYC que les commandes en ligne ;
+    - fiche de la PLATEFORME (`boutique` = None) : argent dû à adLyn par la boutique
+      cliente (type « maintenance_plateforme », jamais reversé).
+    Le montant vient du lien enregistré sur la fiche, jamais du navigateur."""
+    if not _token():
+        raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
+    lien = fiche["lien_paiement"]
+    if boutique is not None:
+        from routes.maintenance_equipements import encaissement_possible
+        if not encaissement_possible(boutique):
+            raise HTTPException(400, "Le paiement Mobile Money n'est pas disponible pour cette boutique")
+        paiement = _nouveau_paiement(boutique["id"], int(lien["montant"]), type="maintenance",
+                                     code_marchand=boutique.get("code_marchand", ""))
+        motif = f"Maintenance {fiche['numero']} {boutique['nom']}"
+    else:
+        paiement = _nouveau_paiement(fiche.get("boutique_client_id"), int(lien["montant"]), type="maintenance_plateforme",
+                                     code_marchand=fiche.get("client_code", ""))
+        motif = f"Maintenance adLyn {fiche['numero']}"
+    paiement.update({"fiche_id": fiche["id"], "fiche_espace": fiche["boutique_id"], "fiche_numero": fiche["numero"],
+                     "fiche_jeton": lien["jeton"], "client_nom": fiche.get("client_nom", "")})
+    retour = f"{get_settings().public_site_url}/paiement/maintenance/{lien['jeton']}?depot={paiement['deposit_id']}"
+    url = await _ouvrir_page(paiement, motif, retour, msisdn)
+    await TenantDB(fiche["boutique_id"]).maintenance_fiches.update_one(
+        {"id": fiche["id"], "lien_paiement.jeton": lien["jeton"]},
+        {"$set": {"lien_paiement.statut": "EN_ATTENTE", "lien_paiement.deposit_id": paiement["deposit_id"]}})
+    await _tracer(paiement, "EN_ATTENTE", "")
+    return url
+
+
+async def _appliquer_maintenance(paiement: Dict[str, Any], final: str) -> None:
+    """Paiement d'une fiche de maintenance arrivé à son état final : la fiche est marquée
+    payée (ou le lien repasse « non payé ») ; côté boutique, le règlement est ajouté à la
+    facture de la fiche si elle en a une."""
+    tdb = TenantDB(paiement["fiche_espace"])
+    filtre = {"id": paiement["fiche_id"], "lien_paiement.jeton": paiement.get("fiche_jeton")}
+    if final != "paye":
+        await tdb.maintenance_fiches.update_one({**filtre, "lien_paiement.paye": {"$ne": True}},
+                                                {"$set": {"lien_paiement.statut": "ECHEC"}})
+        return
+    # Argent reçu : la fiche est marquée payée même si son lien a été remplacé entre-temps
+    fiche = await tdb.maintenance_fiches.find_one_and_update({"id": paiement["fiche_id"]}, {"$set": {
+        "lien_paiement.paye": True, "lien_paiement.statut": "PAYE", "lien_paiement.paye_le": now_iso(),
+        "lien_paiement.montant_paye": paiement["montant"], "lien_paiement.deposit_id": paiement["deposit_id"]}})
+    facture = (fiche or {}).get("facture") or {}
+    if paiement.get("type") == "maintenance" and facture.get("type_document") == "FAC":
+        reglement = {"id": f"mm-{paiement['deposit_id']}", "montant": paiement["montant"], "mode": "MM",
+                     "date": now_iso()[:10], "reference": paiement["deposit_id"], "saisi_par": "PawaPay", "created_at": now_iso()}
+        await tdb.documents.update_one({"id": facture["id"], "reglements.id": {"$ne": reglement["id"]}},
+                                       {"$push": {"reglements": reglement}})
+
+
 async def _tracer(paiement: Dict[str, Any], statut: str, motif: str) -> None:
     """Ligne de l'historique des paiements de la boutique pour ce dépôt PawaPay.
     Les abonnements (argent versé PAR la boutique à la plateforme) n'y figurent pas :
     ils ont leur propre historique (abonnement_paiements)."""
-    if paiement.get("type", "commande") != "commande":
+    type_paiement = paiement.get("type") or "commande"
+    if type_paiement not in ("commande", "maintenance"):
         return
+    if type_paiement == "commande":
+        objet, liens = f"Commande {paiement['commande_numero']}", {"commande_id": paiement["commande_id"]}
+    else:  # fiche de maintenance des équipements de la boutique
+        objet, liens = f"Maintenance {paiement['fiche_numero']}", {"fiche_maintenance_id": paiement["fiche_id"]}
     await journaliser(paiement["boutique_id"], f"pawapay-{paiement['deposit_id']}", canal="PAWAPAY", mode="MM",
                       montant=paiement["montant"], statut=statut, motif=motif or "",
-                      objet=f"Commande {paiement['commande_numero']}", reference=paiement["deposit_id"],
+                      objet=objet, reference=paiement["deposit_id"],
                       client_nom=paiement.get("client_nom", ""),
                       # XOF (code ISO utilisé par PawaPay) = FCFA : même libellé que les règlements en caisse
                       devise="FCFA" if paiement.get("devise", "XOF") == "XOF" else paiement["devise"],
-                      liens={"commande_id": paiement["commande_id"]})
+                      liens=liens)
 
 
 def _extraire_depot(corps: Any) -> Optional[Dict[str, Any]]:
@@ -284,6 +345,10 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
             await sms_boutiques.payer_facture(paiement["facture_id"], "PAWAPAY", reference=deposit_id,
                                               saisi_par="PawaPay", cle=f"pawapay-{deposit_id}")
         return {"ok": True, "applique": True}
+    if paiement.get("type") in ("maintenance", "maintenance_plateforme"):
+        # Lien de paiement d'une fiche de maintenance des équipements
+        await _appliquer_maintenance(paiement, final)
+        return {"ok": True, "applique": True}
     if paiement.get("type") == "abonnement":
         import parrainage
         # Abonnement payé en ligne : l'échéance est repoussée (une seule fois grâce à la clé)
@@ -331,7 +396,7 @@ async def etat_paiement(deposit_id: str, refresh: bool = False):
             await appliquer_statut(paiement, depot)
         paiement = await db.paiements.find_one({"deposit_id": deposit_id}, SANS_ID)
     return {k: paiement.get(k) for k in ("deposit_id", "statut", "montant", "devise", "commande_numero", "api_message",
-                                         "type", "formule_libelle")}
+                                         "type", "formule_libelle", "fiche_numero")}
 
 
 @router.post("/webhooks/depots/{secret}", include_in_schema=False)

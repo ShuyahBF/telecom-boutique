@@ -7,7 +7,8 @@ import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
 
 // Menu du back-office : chaque entrée indique la permission nécessaire pour la
-// voir (table PERMISSIONS de backend/auth.py, reçue à la connexion).
+// voir (table PERMISSIONS de backend/auth.py, reçue à la connexion) et, le cas
+// échéant, la fonction que l'administrateur doit avoir activée pour la boutique.
 const MENU = [
   { to: "/gestion", label: "Tableau de bord", icone: "📊", permission: "tableau_de_bord", end: true },
   { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", permission: "facturation" },
@@ -15,6 +16,8 @@ const MENU = [
   { to: "/gestion/reversements", label: "Reversements PawaPay", icone: "💸", permission: "paiements.historique" },
   { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes" },
   { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance" },
+  // Fonction activée boutique par boutique par l'administrateur adLyn
+  { to: "/gestion/maintenance-equipements", label: "Maintenance équipements", icone: "🛠️", permission: "maintenance", fonction: "maintenance_equipements" },
   { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", compteur: "nouveautes" },
   { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", permission: "catalogue.lecture" },
   { to: "/gestion/stock", label: "Stock", icone: "🏷️", permission: "stock" },
@@ -108,7 +111,7 @@ export default function GestionLayout() {
     );
   }
 
-  const entrees = MENU.filter((m) => peut(user, m.permission));
+  const entrees = MENU.filter((m) => peut(user, m.permission) && (!m.fonction || boutique[m.fonction]));
   const classeLien = ({ isActive }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-primary text-white shadow-sm" : "text-gray-300 hover:bg-white/5 hover:text-white"}`;
 

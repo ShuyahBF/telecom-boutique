@@ -173,3 +173,7 @@ async def ensure_indexes() -> None:
     await db.parrainages.create_index([("parrain_id", 1), ("created_at", -1)])
     await db.bonus_mouvements.create_index([("boutique_id", 1), ("created_at", -1)])
     await db.bonus_mouvements.create_index("reference")
+    # Maintenance des équipements : fiches par espace (boutique ou « plateforme ») et lien de paiement public
+    await db.maintenance_fiches.create_index([("boutique_id", 1), ("date_reception", -1)])
+    await db.maintenance_fiches.create_index("lien_paiement.jeton")
+    await db.maintenance_types.create_index([("boutique_id", 1), ("libelle", 1)])

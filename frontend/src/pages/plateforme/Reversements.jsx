@@ -138,13 +138,13 @@ export default function Reversements() {
           <form onSubmit={enregistrer} className="space-y-4">
             <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200">
               <table className="table">
-                <thead><tr><th /><th>Date</th><th>Commande</th><th>Client</th><th className="text-right">Montant</th></tr></thead>
+                <thead><tr><th /><th>Date</th><th>Commande / fiche</th><th>Client</th><th className="text-right">Montant</th></tr></thead>
                 <tbody>
                   {saisie.paiements.map((p) => (
                     <tr key={p.id}>
-                      <td><input type="checkbox" className="h-4 w-4 accent-primary" checked={saisie.choisis.includes(p.id)} onChange={() => basculer(p.id)} aria-label={`Inclure ${p.commande_numero}`} /></td>
+                      <td><input type="checkbox" className="h-4 w-4 accent-primary" checked={saisie.choisis.includes(p.id)} onChange={() => basculer(p.id)} aria-label={`Inclure ${p.commande_numero || p.fiche_numero}`} /></td>
                       <td className="whitespace-nowrap">{dateHeure(p.updated_at || p.created_at)}</td>
-                      <td className="font-mono text-xs">{p.commande_numero}</td>
+                      <td className="font-mono text-xs">{p.commande_numero || p.fiche_numero}</td>
                       <td>{p.client_nom}</td>
                       <td className="text-right">{fcfa(p.montant)}</td>
                     </tr>

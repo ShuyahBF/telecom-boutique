@@ -83,6 +83,8 @@ class BoutiqueMaj(BaseModel):
     # Boutique interne (présentation) : invisible des visiteurs, aucun message envoyé
     test: Optional[bool] = None
     mise_en_avant: Optional[bool] = None  # affichée en tête du carrousel
+    # Fonction « Maintenance des équipements » activée pour la boutique
+    maintenance_equipements: Optional[bool] = None
     ordre: Optional[int] = None
 
 
