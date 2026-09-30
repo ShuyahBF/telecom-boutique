@@ -18,3 +18,5 @@ boto3==1.34.144
 anthropic==1.8.0
 # Chiffrement AES-256 des sauvegardes des boutiques
 cryptography==43.0.3
+# Photos publiées sur TikTok : conversion en JPEG 1080 px (format exigé par TikTok)
+Pillow==10.4.0

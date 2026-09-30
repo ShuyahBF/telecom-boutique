@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
+import { LiensLegaux } from "@/components/PageLegale";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 
@@ -85,8 +86,11 @@ export default function Connexion() {
           </button>
         </div>
       </form>
-      {/* Mention obligatoire, en bas de l'écran */}
-      <PoweredBySawali className="absolute bottom-4 left-0 right-0 text-center" />
+      {/* Liens légaux + mention obligatoire, en bas de l'écran */}
+      <div className="absolute bottom-4 left-0 right-0 space-y-1 text-center">
+        <LiensLegaux className="justify-center" />
+        <PoweredBySawali />
+      </div>
     </div>
   );
 }

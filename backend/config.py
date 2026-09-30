@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     # Libellé du SMS / de l'historique Mobile Money (4 à 22 caractères)
     pawapay_customer_message: str = "adLyn"
 
+    # --- TikTok (Login Kit + Content Posting API) : app créée sur developers.tiktok.com ---
+    # Client key / secret : variables d'environnement Render uniquement (jamais dans Git).
+    tiktok_client_key: Optional[str] = None
+    tiktok_client_secret: Optional[str] = None
+    # Adresse de retour déclarée dans le portail TikTok (défaut : <PUBLIC_BASE_URL>/api/tiktok/callback)
+    tiktok_redirect_uri: Optional[str] = None
+    # Clé Fernet de chiffrement des jetons TikTok en base (Fernet.generate_key())
+    tiktok_jetons_cle: Optional[str] = None
+
     # --- Stockage des fichiers (photos produits, logos des boutiques) ---
     # "local" : disque du serveur, dev/test uniquement (perdu à chaque
     # redéploiement Render). "r2" : Cloudflare R2, obligatoire en production.

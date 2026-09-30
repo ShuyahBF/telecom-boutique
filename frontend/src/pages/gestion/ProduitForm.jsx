@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PublicationTikTok from "@/components/PublicationTikTok";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
@@ -54,6 +55,8 @@ export default function ProduitForm() {
   // Devient vrai quand l'utilisateur coche « visible sur le portail » ou tente
   // d'enregistrer : on peut alors afficher l'avertissement « prix manquant »
   const [alerteVisibilite, setAlerteVisibilite] = useState(false);
+  // Fenêtre « Publier sur TikTok »
+  const [tiktokOuvert, setTiktokOuvert] = useState(false);
 
   // Chargement des catégories (liste déroulante)
   useEffect(() => {
@@ -330,6 +333,19 @@ export default function ProduitForm() {
             )}
             <Case label="Produit actif" aide="Un produit inactif ne peut plus être vendu ni commandé." checked={produit.actif} onChange={(v) => maj("actif", v)} />
           </fieldset>
+
+          {/* TikTok : publication de la photo du produit sur le compte de la boutique */}
+          {!creation && peutModifier && (
+            <div className="card">
+              <h2 className="mb-1 font-bold">TikTok</h2>
+              <p className="mb-3 text-xs text-gray-500">Publiez la photo de ce produit sur le compte TikTok de la boutique.</p>
+              <button type="button" className="btn-outline btn-sm w-full" disabled={!original?.image_url}
+                onClick={() => setTiktokOuvert(true)}>♪ Publier sur TikTok</button>
+              {!original?.image_url && <p className="mt-2 text-xs text-gray-500">Ajoutez d'abord une photo.</p>}
+              <PublicationTikTok ouvert={tiktokOuvert} onFermer={() => setTiktokOuvert(false)}
+                produit={{ id: original.id, nom: original.nom, image_url: original.image_url }} />
+            </div>
+          )}
 
           {/* Stock actuel : lecture seule, il ne bouge que par des mouvements */}
           {!creation && !service && (
