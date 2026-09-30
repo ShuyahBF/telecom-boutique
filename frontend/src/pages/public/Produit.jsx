@@ -149,10 +149,10 @@ export default function Produit() {
             </button>
           )}
 
-          {/* Contact : question écrite (actif) et appel WhatsApp (grisé, bientôt disponible) */}
+          {/* Contact : question écrite et conversation WhatsApp avec la boutique */}
           <div className="flex flex-wrap gap-2">
             <Link to={lienQuestion} className="btn-outline flex-1">💬 Poser une question sur ce produit</Link>
-            <BoutonAppelWa />
+            <BoutonAppelWa telephone={boutique.telephone} />
           </div>
 
           {/* Description */}
