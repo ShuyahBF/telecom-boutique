@@ -174,6 +174,17 @@ services:
       # Modèle « Utility » approuvé par Meta, 3 variables : boutique, échéance, montant
       - key: WHATSAPP_RAPPEL_TEMPLATE
         sync: false
+      # Fiche de maintenance des équipements : modèles « Utility » à 6 variables (émetteur,
+      # n° de fiche, matériel, statut, prix du diagnostic, lien de paiement), sans en-tête
+      # et avec en-tête IMAGE (1re photo de la fiche). Facultatifs.
+      - key: WHATSAPP_MAINTENANCE_TEMPLATE
+        sync: false
+      - key: WHATSAPP_MAINTENANCE_TEMPLATE_IMAGE
+        sync: false
+
+      # --- Maintenance des équipements : prix du diagnostic proposé (FCFA) ---
+      - key: MAINTENANCE_PRIX_DIAGNOSTIC
+        value: "10000"
 
       # --- Abonnements ---
       - key: ABONNEMENT_ESSAI_JOURS

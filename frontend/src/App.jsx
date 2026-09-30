@@ -52,12 +52,16 @@ import Parametres from "@/pages/gestion/Parametres";
 import CataloguePublic from "@/pages/gestion/CataloguePublic";
 import Paiements from "@/pages/gestion/Paiements";
 import Parrainage from "@/pages/gestion/Parrainage";
+import MaintenanceEquipements from "@/pages/gestion/MaintenanceEquipements";
+import FicheMaintenanceImprimable from "@/pages/gestion/FicheMaintenanceImprimable";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 import Sauvegardes from "@/pages/plateforme/Sauvegardes";
 import ParametresPlateforme from "@/pages/plateforme/Parametres";
 import Referentiel from "@/pages/plateforme/Referentiel";
+import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
+import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
 
 
 export default function App() {
@@ -92,10 +96,14 @@ export default function App() {
             <Route path="/mot-de-passe" element={<ChangerMotDePasse />} />
             {/* Lien de parrainage partagé par une boutique : demande d'ouverture d'une boutique */}
             <Route path="/ouvrir-ma-boutique" element={<OuvrirBoutique />} />
+            {/* Lien de paiement Mobile Money d'une fiche de maintenance des équipements */}
+            <Route path="/paiement/maintenance/:jeton" element={<PaiementMaintenance />} />
 
             {/* Documents imprimables : pleine page, sans menu */}
             <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation"><DocumentImprimable /></RouteProtegee>} />
             <Route path="/gestion/maintenance/:id/bon-de-depot" element={<RouteProtegee permission="maintenance"><BonDepot /></RouteProtegee>} />
+            <Route path="/gestion/maintenance-equipements/:id/imprimer" element={<RouteProtegee permission="maintenance"><FicheMaintenanceImprimable espace="boutique" /></RouteProtegee>} />
+            <Route path="/plateforme/maintenance-equipements/:id/imprimer" element={<RouteProtegee roles={["super_admin"]}><FicheMaintenanceImprimable espace="plateforme" /></RouteProtegee>} />
 
             {/* Back-office des boutiques */}
             <Route path="/gestion" element={<RouteProtegee><GestionLayout /></RouteProtegee>}>
@@ -121,6 +129,8 @@ export default function App() {
               <Route path="maintenance" element={<RouteProtegee permission="maintenance"><Maintenance /></RouteProtegee>} />
               <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
               <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
+              {/* Maintenance des équipements confiés (fonction activée par l'administrateur) */}
+              <Route path="maintenance-equipements" element={<RouteProtegee permission="maintenance"><MaintenanceEquipements espace="boutique" /></RouteProtegee>} />
               <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
               <Route path="reversements" element={<RouteProtegee permission="paiements.historique"><Reversements /></RouteProtegee>} />
               <Route path="sms" element={<RouteProtegee permission="messagerie"><Sms /></RouteProtegee>} />
@@ -137,6 +147,8 @@ export default function App() {
             <Route path="/plateforme/abonnements" element={<RouteProtegee roles={["super_admin"]}><Abonnements /></RouteProtegee>} />
             <Route path="/plateforme/reversements" element={<RouteProtegee roles={["super_admin"]}><ReversementsPlateforme /></RouteProtegee>} />
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
+            {/* Maintenance des équipements confiés par les boutiques */}
+            <Route path="/plateforme/maintenance-equipements" element={<RouteProtegee roles={["super_admin"]}><MaintenanceEquipementsPlateforme /></RouteProtegee>} />
             {/* Paramètres généraux : serveur d'envoi des e-mails (SMTP) */}
             <Route path="/plateforme/parametres" element={<RouteProtegee roles={["super_admin"]}><ParametresPlateforme /></RouteProtegee>} />
 

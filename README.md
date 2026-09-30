@@ -115,6 +115,15 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
   - ni sauvegarde Drive ni relance d'abonnement.
 - `backend/outils/creer_boutiques_internes.py` crée une vingtaine de boutiques réalistes (Burkina Faso et pays voisins, catalogue aux prix du marché, clients, réparations). Il peut être relancé sans doublon.
 
+### Maintenance des équipements confiés
+- Matériel confié pour diagnostic et réparation (ordinateur, imprimante, onduleur…), distinct du SAV des téléphones. Chaque dépôt est une **fiche** numérotée `MNT-<CODE>-<AAAA>-0001` : client, type de matériel (liste extensible), état à la réception (mauvais, moyen, bon), motif, diagnostic, pièces à remplacer, dates d'entrée et de sortie, statut (reçu → rendu), équipe, prix du diagnostic (`MAINTENANCE_PRIX_DIAGNOSTIC`, 10 000 FCFA par défaut, modifiable sur chaque fiche).
+- **Photos** annotées dans le navigateur (flèches, cercles, texte, flou), bon de dépôt / de restitution imprimable.
+- **Envoi par WhatsApp** : modèle Meta approuvé (`WHATSAPP_MAINTENANCE_TEMPLATE`, et `WHATSAPP_MAINTENANCE_TEMPLATE_IMAGE` avec la 1re photo en en-tête), ou message libre + photos si le client a écrit au numéro adLyn dans les 24 h.
+- **Lien de paiement Mobile Money** (PawaPay) et **Facturer**.
+- Deux espaces :
+  - **plateforme** (`/plateforme/maintenance-equipements`) : le client est une boutique ; son téléphone est celui qui reçoit les messages d'adLyn (DG). Paiement encaissé pour adLyn ; facture adLyn imprimable (`FMT-AAAA-00001`) ;
+  - **boutique** (`/gestion/maintenance-equipements`) : fonction **activée boutique par boutique** par l'administrateur (bouton sur la carte de la boutique). Clients : fichier Clients ou saisie libre. Paiement réservé aux boutiques au dossier KYC validé, reversé comme les commandes ; facture ou proforma dans « Factures & proformas ».
+
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
 - **Création automatique par webhook** (voir plus bas) : les boutiques créées ainsi attendent la **validation** de l'administrateur avant d'apparaître sur le portail. Journal des appels (bouton « 🔗 Webhook ») et renvoi des identifiants au DG.

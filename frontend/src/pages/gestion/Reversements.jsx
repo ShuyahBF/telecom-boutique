@@ -66,12 +66,12 @@ export default function Reversements() {
           </select>
         </div>
         <table className="table min-w-[640px]">
-          <thead><tr><th>Date</th><th>Commande</th><th>Client</th><th className="text-right">Montant</th><th>Reversement</th></tr></thead>
+          <thead><tr><th>Date</th><th>Commande / fiche</th><th>Client</th><th className="text-right">Montant</th><th>Reversement</th></tr></thead>
           <tbody>
             {paiements.map((p) => (
               <tr key={p.id}>
                 <td className="whitespace-nowrap">{dateHeure(p.updated_at || p.created_at)}</td>
-                <td className="font-mono text-xs">{p.commande_numero}</td><td>{p.client_nom}</td>
+                <td className="font-mono text-xs">{p.commande_numero || p.fiche_numero}</td><td>{p.client_nom}</td>
                 <td className="text-right">{fcfa(p.montant)}</td>
                 <td>{p.reversement_numero ? <span className="badge bg-green-100 text-green-800">✓ {p.reversement_numero}</span>
                   : <span className="badge bg-orange-100 text-orange-800">En attente</span>}</td>

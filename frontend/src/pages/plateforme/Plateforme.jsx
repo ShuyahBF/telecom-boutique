@@ -204,6 +204,7 @@ export default function Plateforme() {
                       {b.test && <span className="badge bg-slate-800 text-white" title="Boutique de démonstration : pas de paiement en ligne, aucun message envoyé">🧪 Démo</span>}
                       <BadgeKyc statut={b.kyc?.statut} />
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
+                      {b.maintenance_equipements && <span className="badge bg-teal-50 text-teal-800">🛠️ Maintenance</span>}
                       <span className="badge bg-blue-50 text-blue-800">{b.nb_utilisateurs} utilisateur(s)</span>
                     </div>
                   </div>
@@ -242,6 +243,11 @@ export default function Plateforme() {
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>✉️ Renvoyer les identifiants au DG</button>
+                  {/* Fonction « Maintenance des équipements » (menu et écran de la boutique) */}
+                  <button type="button" className="btn-outline btn-sm col-span-2"
+                    onClick={() => modifier(b, { maintenance_equipements: !b.maintenance_equipements }, b.maintenance_equipements ? "Maintenance des équipements désactivée" : "Maintenance des équipements activée")}>
+                    {b.maintenance_equipements ? "🛠️ Désactiver la maintenance des équipements" : "🛠️ Activer la maintenance des équipements"}
+                  </button>
                   {/* Boutique de démonstration ou réelle (repère connu du seul super-admin) */}
                   <button type="button" className="btn-outline btn-sm col-span-2"
                     onClick={() => modifier(b, { test: !b.test }, b.test ? "Boutique réelle : paiements et messages activés" : "Boutique de démonstration : paiements en ligne et messages coupés")}>

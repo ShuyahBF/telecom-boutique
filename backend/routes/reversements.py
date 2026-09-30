@@ -7,8 +7,9 @@ clients d'une boutique y arrivent, puis la plateforme les lui reverse.
     couverts, frais éventuels retenus, mode, référence) et peut l'annuler.
   - Chaque boutique suit UNIQUEMENT ses propres paiements et reversements
     (le filtre boutique_id vient de son compte, jamais du navigateur).
-Seuls les paiements de COMMANDES réussis sont concernés (pas les abonnements
-ni les factures SMS, qui sont de l'argent dû à la plateforme).
+Seuls les paiements réussis des COMMANDES et des fiches de MAINTENANCE DES
+ÉQUIPEMENTS de la boutique sont concernés (pas les abonnements, les factures SMS
+ni les fiches de maintenance de la plateforme, qui sont de l'argent dû à adLyn).
 """
 from __future__ import annotations
 
@@ -27,9 +28,10 @@ admin = APIRouter(prefix="/plateforme/reversements", tags=["Reversements (super-
 historique_dep = permission("paiements.historique")
 
 # Paiements PawaPay réussis d'une commande (les anciens paiements n'ont pas de champ « type »)
-ENCAISSES = {"statut": "paye", "type": {"$in": [None, "commande"]}}
+# ou d'une fiche de maintenance des équipements de la boutique
+ENCAISSES = {"statut": "paye", "type": {"$in": [None, "commande", "maintenance"]}}
 MODES = {"MOBILE_MONEY": "Mobile Money", "VIREMENT": "Virement", "ESPECES": "Espèces", "CHEQUE": "Chèque"}
-CHAMPS_PAIEMENT = {"_id": 0, "id": 1, "deposit_id": 1, "commande_numero": 1, "client_nom": 1, "montant": 1,
+CHAMPS_PAIEMENT = {"_id": 0, "id": 1, "deposit_id": 1, "commande_numero": 1, "fiche_numero": 1, "client_nom": 1, "montant": 1,
                    "created_at": 1, "updated_at": 1, "reversement_id": 1, "boutique_id": 1}
 
 

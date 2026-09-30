@@ -35,6 +35,7 @@ VERSION_FORMAT = 1
 COLLECTIONS_BOUTIQUE = (
     "categories", "produits", "clients", "fournisseurs", "mouvements", "bons_entree", "documents",
     "commandes", "dossiers", "conversations", "modeles_messages", "journal_envois", "journal_paiements",
+    "maintenance_fiches", "maintenance_types",  # maintenance des équipements
 )
 
 

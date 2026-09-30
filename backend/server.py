@@ -18,7 +18,7 @@ import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
 from routes import (abonnements, acces_boutique, auth, boutique, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
-                    maintenance, paiements, parametres_plateforme, parrainage, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
+                    maintenance, maintenance_equipements, paiements, parametres_plateforme, parrainage, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
                     tableau_de_bord, tiers, tiktok, webhooks)
 from seed import creer_demo, ensure_super_admin
 
@@ -69,6 +69,11 @@ api.include_router(catalogue_public.admin)
 api.include_router(catalogue_public.consultation)
 # TikTok : connexion du compte de la boutique et publication des produits
 api.include_router(tiktok.router)
+# Maintenance des équipements confiés : espace de la boutique (fonction activable),
+# espace de la plateforme (clients = boutiques) et page publique du lien de paiement
+api.include_router(maintenance_equipements.boutique)
+api.include_router(maintenance_equipements.admin)
+api.include_router(maintenance_equipements.public)
 
 
 @api.get("/health")
