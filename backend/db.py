@@ -168,3 +168,8 @@ async def ensure_indexes() -> None:
     await db.referentiel_appareils.create_index("cle", unique=not _settings.mongo_url.startswith("mongomock://"))
     await db.referentiel_appareils.create_index([("marque", 1), ("nom", 1)])
     await db.paiements.create_index([("statut", 1), ("created_at", 1)])
+    # Parrainage entre boutiques : une boutique n'a qu'un parrain ; journal des bonus
+    await db.parrainages.create_index("filleul_id", unique=True)
+    await db.parrainages.create_index([("parrain_id", 1), ("created_at", -1)])
+    await db.bonus_mouvements.create_index([("boutique_id", 1), ("created_at", -1)])
+    await db.bonus_mouvements.create_index("reference")

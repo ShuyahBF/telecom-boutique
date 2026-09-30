@@ -87,5 +87,5 @@ export const STATUTS_ABONNEMENT = {
 };
 export const MODES_ABONNEMENT = {
   PAWAPAY: "Mobile Money en ligne", MOBILE_MONEY: "Mobile Money (transfert)", ESPECES: "Espèces",
-  VIREMENT: "Virement", CHEQUE: "Chèque", OFFERT: "Geste commercial",
+  VIREMENT: "Virement", CHEQUE: "Chèque", OFFERT: "Geste commercial", BONUS_PARRAINAGE: "Bonus de parrainage",
 };

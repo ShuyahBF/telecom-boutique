@@ -152,17 +152,32 @@ async def creer_page_paiement(boutique: dict, commande: dict, msisdn: str = "") 
     return url
 
 
-async def creer_page_abonnement(boutique: dict, formule: dict, msisdn: str = "") -> str:
+async def creer_page_abonnement(boutique: dict, formule: dict, msisdn: str = "", bonus_deduit: int = 0) -> str:
     """Page PawaPay pour payer l'abonnement adLyn d'une boutique (formule choisie par le DG).
-    L'argent arrive sur le compte PawaPay de la plateforme."""
+    L'argent arrive sur le compte PawaPay de la plateforme.
+    `bonus_deduit` : bonus de parrainage déduit du prix. Il est RÉSERVÉ pendant le
+    paiement, confirmé si PawaPay confirme, libéré en cas d'échec."""
     if not _token():
         raise HTTPException(503, "Le paiement Mobile Money n'est pas encore configuré")
-    paiement = _nouveau_paiement(boutique["id"], int(formule["montant"]), type="abonnement",
-                                 formule=formule["code"], formule_libelle=formule["libelle"],
+    montant = int(formule["montant"]) - int(bonus_deduit)
+    paiement = _nouveau_paiement(boutique["id"], montant, type="abonnement",
+                                 formule=formule["code"], formule_libelle=formule["libelle"], bonus_deduit=int(bonus_deduit),
                                  boutique_nom=boutique["nom"], code_marchand=boutique.get("code_marchand", ""))
+    reference = f"pawapay-{paiement['deposit_id']}"
+    if bonus_deduit > 0:
+        import parrainage
+        if not await parrainage.reserver(boutique["id"], int(bonus_deduit), reference=reference,
+                                         libelle=f"Abonnement {formule['libelle']} (paiement en ligne)"):
+            raise HTTPException(409, "Vos bonus de parrainage ont changé : rechargez la page")
     retour = f"{get_settings().public_site_url}/gestion/abonnement?depot={paiement['deposit_id']}"
-    return await _ouvrir_page(paiement, f"Abonnement adLyn {formule['libelle']} {boutique.get('code_marchand', '')}",
-                              retour, msisdn)
+    try:
+        return await _ouvrir_page(paiement, f"Abonnement adLyn {formule['libelle']} {boutique.get('code_marchand', '')}",
+                                  retour, msisdn)
+    except HTTPException:
+        if bonus_deduit > 0:
+            import parrainage
+            await parrainage.liberer(reference)
+        raise
 
 
 async def creer_page_facture_sms(boutique: dict, facture: dict, msisdn: str = "") -> str:
@@ -270,12 +285,17 @@ async def appliquer_statut(paiement: Dict[str, Any], depot: Dict[str, Any]) -> D
                                               saisi_par="PawaPay", cle=f"pawapay-{deposit_id}")
         return {"ok": True, "applique": True}
     if paiement.get("type") == "abonnement":
+        import parrainage
         # Abonnement payé en ligne : l'échéance est repoussée (une seule fois grâce à la clé)
         if final == "paye":
             import abonnements
             await abonnements.enregistrer_paiement(
                 paiement["boutique_id"], paiement["formule"], int(paiement["montant"]), "PAWAPAY",
-                reference=deposit_id, saisi_par="PawaPay", cle=f"pawapay-{deposit_id}")
+                reference=deposit_id, saisi_par="PawaPay", cle=f"pawapay-{deposit_id}",
+                bonus_deduit=int(paiement.get("bonus_deduit") or 0))
+            await parrainage.confirmer(f"pawapay-{deposit_id}")  # bonus réservés -> utilisés
+        else:
+            await parrainage.liberer(f"pawapay-{deposit_id}")  # échec : bonus de nouveau disponibles
         return {"ok": True, "applique": True}
     tdb = TenantDB(paiement["boutique_id"])
     if final == "paye":
@@ -341,6 +361,9 @@ AGE_MAX_HEURES = 48  # au-delà, un paiement en attente est abandonné
 
 async def rapprocher_paiements() -> int:
     """Une passe : interroge PawaPay pour chaque paiement encore en attente."""
+    import parrainage
+    # Bonus de parrainage réservés par un paiement jamais abouti : libérés
+    await parrainage.liberer_reservations_abandonnees(AGE_MAX_HEURES)
     limite = (datetime.now(timezone.utc) - timedelta(hours=AGE_MAX_HEURES)).isoformat()
     en_attente = await db.paiements.find({"statut": "en_attente", "created_at": {"$gte": limite}}, SANS_ID).to_list(200)
     finalises = 0

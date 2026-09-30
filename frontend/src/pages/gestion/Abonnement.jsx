@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, montant } from "@/lib/format";
@@ -23,6 +23,7 @@ export default function Abonnement() {
   const [paiementEnCours, setPaiementEnCours] = useState(""); // formule dont la page PawaPay se prépare
   const [verification, setVerification] = useState(null); // retour de PawaPay : « en cours », « payé », « échec »
   const [facturesSms, setFacturesSms] = useState([]); // factures du service SMS
+  const [utiliserBonus, setUtiliserBonus] = useState(true); // déduire les bonus de parrainage
 
   const charger = useCallback(() => {
     apiClient.get("/boutique/abonnement").then(({ data }) => setDonnees(data))
@@ -81,7 +82,16 @@ export default function Abonnement() {
   async function payer(formule) {
     setPaiementEnCours(formule.code);
     try {
-      const { data } = await apiClient.post("/boutique/abonnement/payer", { formule: formule.code, telephone });
+      const { data } = await apiClient.post("/boutique/abonnement/payer", {
+        formule: formule.code, telephone, utiliser_bonus: utiliserBonus && (donnees?.bonus?.disponible || 0) > 0 });
+      if (data.paye_par_bonus) {
+        // Renouvellement entièrement payé par les bonus de parrainage
+        toast.succes(`Abonnement renouvelé avec vos bonus : valable jusqu'au ${date(data.paiement.nouvelle_echeance)}`);
+        setPaiementEnCours("");
+        charger();
+        rafraichir();
+        return;
+      }
       window.location.href = data.url;
     } catch (err) {
       toast.erreur(messageErreur(err, "Paiement impossible pour le moment"));
@@ -91,6 +101,9 @@ export default function Abonnement() {
 
   if (!donnees) return <Chargement />;
   const e = donnees.etat;
+  // Bonus de parrainage disponibles et montant restant à payer pour une formule
+  const bonusDispo = donnees.bonus?.disponible || 0;
+  const deduction = (f) => (utiliserBonus ? Math.min(bonusDispo, f.montant) : 0);
   const statut = STATUTS_ABONNEMENT[e.statut] || { libelle: e.statut, classe: "" };
 
   return (
@@ -127,31 +140,54 @@ export default function Abonnement() {
       {/* Formules et paiement en ligne */}
       <div className="card space-y-4">
         <h2 className="font-bold">Payer mon abonnement</h2>
-        {!donnees.paiement_en_ligne ? (
+        {/* Sans paiement en ligne, seul un renouvellement entièrement couvert par les bonus reste possible */}
+        {!donnees.paiement_en_ligne && bonusDispo <= 0 ? (
           <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">Le paiement en ligne n'est pas encore disponible : contactez l'équipe adLyn pour régler votre abonnement.</p>
         ) : (
           <>
-            <label className="block max-w-xs">
+            {!donnees.paiement_en_ligne && (
+              <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">Le paiement en ligne n'est pas encore disponible : seules les formules entièrement couvertes par vos bonus peuvent être renouvelées ici.</p>
+            )}
+            {donnees.paiement_en_ligne && <label className="block max-w-xs">
               <span className="label">Numéro Mobile Money (facultatif)</span>
               <input className="input" type="tel" value={telephone} onChange={(ev) => setTelephone(ev.target.value)} placeholder="+226 70 00 00 00" />
               <span className="mt-1 block text-xs text-gray-500">Vous choisirez l'opérateur (Orange, Moov…) sur la page sécurisée.</span>
-            </label>
+            </label>}
+            {/* Bonus de parrainage : déduits du prix de la formule choisie */}
+            {bonusDispo > 0 && (
+              <label className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+                <input type="checkbox" className="mt-0.5 h-4 w-4" checked={utiliserBonus} onChange={(ev) => setUtiliserBonus(ev.target.checked)} />
+                <span>Utiliser mes bonus de parrainage : <b>{fcfa(bonusDispo)}</b> disponibles.
+                  <span className="block text-xs">Ils sont déduits du prix de la formule choisie ; s'ils couvrent tout le prix, l'abonnement est renouvelé sans paiement.</span></span>
+              </label>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {donnees.formules.map((f) => (
-                <div key={f.code} className={`rounded-2xl border p-4 ${f.code === e.formule ? "border-primary ring-2 ring-primary/20" : "border-gray-200"}`}>
-                  <p className="font-bold">{f.libelle}</p>
-                  <p className="text-2xl font-extrabold text-primary">{fcfa(f.montant)}</p>
-                  <p className="text-xs text-gray-500">{f.mois} mois{f.mois > 1 ? ` · soit ${fcfa(Math.round(f.montant / f.mois))} / mois` : ""}</p>
-                  <button type="button" className="btn-primary btn-sm mt-3 w-full" disabled={!!paiementEnCours || f.montant <= 0} onClick={() => payer(f)}>
-                    {paiementEnCours === f.code ? "Ouverture…" : `Payer ${fcfa(f.montant)}`}
-                  </button>
-                </div>
-              ))}
+              {donnees.formules.map((f) => {
+                const bonus = deduction(f);
+                const reste = f.montant - bonus;
+                return (
+                  <div key={f.code} className={`rounded-2xl border p-4 ${f.code === e.formule ? "border-primary ring-2 ring-primary/20" : "border-gray-200"}`}>
+                    <p className="font-bold">{f.libelle}</p>
+                    <p className="text-2xl font-extrabold text-primary">{fcfa(reste)}</p>
+                    {bonus > 0 && <p className="text-xs text-green-700"><s className="text-gray-400">{fcfa(f.montant)}</s> − {fcfa(bonus)} de bonus</p>}
+                    <p className="text-xs text-gray-500">{f.mois} mois{f.mois > 1 ? ` · soit ${fcfa(Math.round(f.montant / f.mois))} / mois` : ""}</p>
+                    <button type="button" className="btn-primary btn-sm mt-3 w-full" disabled={!!paiementEnCours || f.montant <= 0 || (!donnees.paiement_en_ligne && reste > 0)} onClick={() => payer(f)}>
+                      {paiementEnCours === f.code ? "Ouverture…" : reste <= 0 ? "Renouveler avec mes bonus" : `Payer ${fcfa(reste)}`}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
             <p className="text-xs text-gray-500">L'échéance est repoussée de la durée de la formule{e.statut === "SUSPENDU" ? ", à partir du jour du paiement" : ", à partir de l'échéance actuelle (aucun jour perdu)"}.</p>
           </>
         )}
       </div>
+
+      {/* Parrainage : gagner des bonus en invitant d'autres boutiques */}
+      <p className="rounded-xl bg-gray-50 p-3 text-sm text-gray-600">
+        🤝 Invitez d'autres boutiques sur adLyn : chaque boutique ouverte grâce à vous vous rapporte un bonus déductible de votre abonnement.{" "}
+        <Link to="/gestion/parrainage" className="font-semibold text-primary">Mon lien de parrainage →</Link>
+      </p>
 
       {/* Factures du service SMS (volet communication, facturé au SMS envoyé) */}
       {facturesSms.length > 0 && (
@@ -191,7 +227,7 @@ export default function Abonnement() {
               {donnees.paiements.map((p) => (
                 <tr key={p.id}>
                   <td>{date(p.date)}</td><td>{p.formule_libelle}</td><td>{MODES_ABONNEMENT[p.mode] || p.mode}</td>
-                  <td className="text-right font-semibold">{fcfa(p.montant)}</td><td>{date(p.nouvelle_echeance)}</td>
+                  <td className="text-right font-semibold">{fcfa(p.montant)}{p.bonus_deduit > 0 && <span className="block text-xs font-normal text-green-700">+ {fcfa(p.bonus_deduit)} de bonus</span>}</td><td>{date(p.nouvelle_echeance)}</td>
                 </tr>
               ))}
             </tbody>

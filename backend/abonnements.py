@@ -51,7 +51,8 @@ STATUTS = {
     "SUSPENDU": "Accès suspendu",
 }
 MODES_PAIEMENT = {"PAWAPAY": "Mobile Money en ligne (PawaPay)", "MOBILE_MONEY": "Mobile Money (transfert)",
-                  "ESPECES": "Espèces", "VIREMENT": "Virement", "CHEQUE": "Chèque", "OFFERT": "Geste commercial"}
+                  "ESPECES": "Espèces", "VIREMENT": "Virement", "CHEQUE": "Chèque", "OFFERT": "Geste commercial",
+                  "BONUS_PARRAINAGE": "Bonus de parrainage"}
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +137,7 @@ async def etat(boutique: dict, tarifs: Optional[dict] = None) -> dict:
 # ---------------------------------------------------------------------------
 async def enregistrer_paiement(boutique_id: str, code_formule: str, montant: int, mode: str, *,
                                reference: str = "", saisi_par: str = "", cle: Optional[str] = None,
-                               date_paiement: Optional[str] = None) -> dict:
+                               date_paiement: Optional[str] = None, bonus_deduit: int = 0) -> dict:
     """Repousse l'échéance du nombre de mois de la formule, trace le paiement et,
     si la boutique était suspendue POUR IMPAYÉ, lui rend l'accès.
     `cle` : identifiant unique (ex. « pawapay-<depot> ») pour ne jamais compter deux fois un paiement."""
@@ -153,6 +154,8 @@ async def enregistrer_paiement(boutique_id: str, code_formule: str, montant: int
             "_id": paiement_id, "id": paiement_id, "boutique_id": boutique_id, "boutique_nom": boutique["nom"],
             "code_marchand": boutique.get("code_marchand", ""), "formule": f["code"], "formule_libelle": f["libelle"],
             "mois": f["mois"], "montant": int(montant), "mode": mode, "reference": reference[:120],
+            # Bonus de parrainage déduit du prix de la formule (montant = somme réellement payée)
+            "bonus_deduit": int(bonus_deduit),
             "saisi_par": saisi_par, "date": date_paiement or aujourd_hui().isoformat(), "created_at": now_iso(),
             "statut": "EN_COURS"})
     except DuplicateKeyError:

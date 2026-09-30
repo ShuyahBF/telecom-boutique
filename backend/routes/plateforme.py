@@ -214,6 +214,9 @@ async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_adm
         "validee": True, "validee_le": now_iso(), "validee_par": admin.get("email", "")}})
     if not res.matched_count:
         raise HTTPException(404, "Boutique introuvable")
+    # Boutique parrainée : son ouverture valide le parrainage (bonus au parrain)
+    import parrainage
+    await parrainage.valider_filleul(boutique_id, par=admin.get("email", ""))
     return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
 
 

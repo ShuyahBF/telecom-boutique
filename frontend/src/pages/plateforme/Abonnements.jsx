@@ -13,6 +13,7 @@ import ServiceSms from "./_plateforme/ServiceSms";
 const ONGLETS = [
   ["retards", "⏰ Retards"], ["boutiques", "🏪 Toutes les boutiques"], ["paiements", "💵 Paiements reçus"],
   ["formules", "📋 Formules"], ["rappels", "🔔 Rappels"], ["sms", "📱 Service SMS"],
+  ["parrainages", "🤝 Parrainages"],
 ];
 
 // Montant en FCFA
@@ -70,6 +71,7 @@ export default function Abonnements() {
         {onglet === "formules" && <Formules formules={formules} onMaj={chargerFormules} />}
         {onglet === "rappels" && <Rappels />}
         {onglet === "sms" && <ServiceSms />}
+        {onglet === "parrainages" && <Parrainages />}
       </main>
 
       <SaisiePaiement boutique={paiementPour} formules={formules} onFermer={() => setPaiementPour(null)}
@@ -296,7 +298,8 @@ function SaisiePaiement({ boutique, formules, onFermer, onEnregistre }) {
   useEffect(() => {
     if (!boutique) return;
     const actuelle = formules.find((x) => x.code === boutique.abonnement.formule) || formules[0];
-    setF({ formule: actuelle?.code || "", montant: actuelle?.montant ?? "", mode: "MOBILE_MONEY", reference: "", date: aujourdhui() });
+    setF({ formule: actuelle?.code || "", montant: actuelle?.montant ?? "", mode: "MOBILE_MONEY", reference: "", date: aujourdhui(),
+      bonus: false });
   }, [boutique, formules]);
 
   if (!boutique || !f) return null;
@@ -307,7 +310,9 @@ function SaisiePaiement({ boutique, formules, onFermer, onEnregistre }) {
     setEnvoi(true);
     try {
       const { data } = await apiClient.post(`/plateforme/abonnements/boutiques/${boutique.id}/paiements`, {
-        formule: f.formule, montant: Number(f.montant) || 0, mode: f.mode, reference: f.reference.trim(), date: f.date,
+        formule: f.formule, mode: f.mode, reference: f.reference.trim(), date: f.date,
+        // Bonus déduits : le serveur calcule le montant restant dû (prix - bonus)
+        ...(f.bonus ? { utiliser_bonus: true } : { montant: Number(f.montant) || 0 }),
       });
       toast.succes(`Paiement enregistré : nouvelle échéance le ${date(data.nouvelle_echeance)}${data.reactivee ? " — accès rendu" : ""}`);
       onEnregistre();
@@ -347,6 +352,10 @@ function SaisiePaiement({ boutique, formules, onFermer, onEnregistre }) {
           </Champ>
           <Champ label="Référence"><input className="input" maxLength={120} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} placeholder="n° de transaction, reçu…" /></Champ>
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={f.bonus} onChange={(e) => setF({ ...f, bonus: e.target.checked })} />
+          <span>Déduire les bonus de parrainage de la boutique <span className="block text-xs text-gray-500">Le montant dû est alors calculé automatiquement (prix de la formule moins les bonus disponibles).</span></span>
+        </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-outline" onClick={onFermer}>Annuler</button>
           <button className="btn-primary" disabled={envoi}>{envoi ? "Enregistrement…" : "Enregistrer le paiement"}</button>
@@ -386,7 +395,7 @@ function Paiements() {
                   <td>{p.formule_libelle}</td>
                   <td>{MODES_ABONNEMENT[p.mode] || p.mode}</td>
                   <td className="text-xs text-gray-600">{p.reference || "—"}{p.saisi_par && <span className="block">par {p.saisi_par}</span>}</td>
-                  <td className="text-right font-semibold">{fcfa(p.montant)}</td>
+                  <td className="text-right font-semibold">{fcfa(p.montant)}{p.bonus_deduit > 0 && <span className="block text-xs font-normal text-green-700">+ {fcfa(p.bonus_deduit)} de bonus</span>}</td>
                   <td className="whitespace-nowrap">{date(p.nouvelle_echeance)}{p.reactivee && <span className="block text-xs text-green-700">accès rendu</span>}</td>
                 </tr>
               ))}
@@ -515,6 +524,52 @@ function Rappels() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Parrainages entre boutiques (bonus validé à l'ouverture de la boutique filleule)
+// ---------------------------------------------------------------------------
+const STATUTS_PARRAINAGE = {
+  EN_ATTENTE: ["En attente d'ouverture", "bg-amber-100 text-amber-800"],
+  VALIDE: ["Bonus validé", "bg-green-100 text-green-800"],
+  ANNULE: ["Annulé", "bg-gray-100 text-gray-600"],
+};
+
+function Parrainages() {
+  const [liste, setListe] = useState(null);
+  useEffect(() => {
+    apiClient.get("/plateforme/parrainages").then(({ data }) => setListe(data)).catch(() => setListe([]));
+  }, []);
+  if (!liste) return <Chargement />;
+  const valides = liste.filter((p) => p.statut === "VALIDE");
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">
+        Une boutique filleule est créée <b>en attente</b> quand l'invité accepte l'invitation. Le bonus du parrain est
+        validé quand vous <b>validez</b> la boutique filleule (onglet Plateforme). Bonus validés : <b>{fcfa(valides.reduce((t, p) => t + p.bonus, 0))}</b>.
+      </p>
+      <div className="card overflow-x-auto p-0">
+        <table className="table min-w-[720px]">
+          <thead><tr><th>Invitation acceptée</th><th>Parrain</th><th>Boutique filleule</th><th>Statut</th><th className="text-right">Bonus</th></tr></thead>
+          <tbody>
+            {liste.length === 0 && <tr><td colSpan={5} className="text-center text-gray-500">Aucun parrainage pour le moment.</td></tr>}
+            {liste.map((p) => {
+              const [libelle, classe] = STATUTS_PARRAINAGE[p.statut] || [p.statut, ""];
+              return (
+                <tr key={p.id}>
+                  <td className="whitespace-nowrap">{dateHeure(p.invitation_acceptee_le)}</td>
+                  <td>{p.parrain_nom} <span className="font-mono text-xs text-gray-500">{p.parrain_code}</span></td>
+                  <td>{p.filleul_nom} <span className="text-xs text-gray-500">{p.filleul_ville}</span></td>
+                  <td><span className={`badge ${classe}`}>{libelle}</span>{p.valide_le && <span className="block text-xs text-gray-500">{dateHeure(p.valide_le)}</span>}</td>
+                  <td className="text-right font-semibold">{fcfa(p.bonus)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

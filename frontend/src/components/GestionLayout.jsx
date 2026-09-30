@@ -25,6 +25,7 @@ const MENU = [
   { to: "/gestion/carrousel", label: "Carrousel WhatsApp", icone: "🎠", permission: "messagerie" },
   { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres" },
   { to: "/gestion/abonnement", label: "Abonnement adLyn", icone: "💰", permission: "parametres" },
+  { to: "/gestion/parrainage", label: "Parrainage", icone: "🤝", permission: "parametres" },
 ];
 
 /** Jours entre aujourd'hui et l'échéance de l'abonnement (négatif = dépassée). */
