@@ -123,7 +123,23 @@ async def ensure_indexes() -> None:
     await db.boutiques.create_index("id", unique=True)
     await db.boutiques.create_index("slug", unique=True)
     await db.boutiques.create_index("code_marchand", unique=True)
-    await db.users.create_index("email", unique=True)
+    # Identifiants de connexion : e-mail ET téléphone uniques sur toute la plateforme,
+    # mais chacun FACULTATIF (index « partiel » : un compte sans e-mail n'entre pas
+    # dans l'index de l'e-mail). L'ancien index (e-mail obligatoire) est remplacé.
+    index_users = await db.users.index_information()
+    if "email_1" in index_users and not index_users["email_1"].get("partialFilterExpression"):
+        await db.users.drop_index("email_1")
+    await db.users.create_index("email", unique=True, name="email_connexion",
+                                partialFilterExpression={"email": {"$type": "string"}})
+    await db.users.create_index("telephone", unique=True, name="telephone_connexion",
+                                partialFilterExpression={"telephone": {"$type": "string"}})
+    # Codes de vérification, limites d'envoi, blocages : effacés automatiquement à expiration
+    await db.codes_verification.create_index([("user_id", 1), ("objet", 1)])
+    await db.codes_verification.create_index("expire_le", expireAfterSeconds=0)
+    for collection in (db.limites_codes, db.echecs_codes, db.blocages_codes):
+        await collection.create_index([("cle", 1), ("date", 1)])
+        await collection.create_index("expire_le", expireAfterSeconds=0)
+    await db.journal_identifiants.create_index([("boutique_id", 1), ("date", -1)])
     # Connexion (anti force brute) et webhook (anti-rejeu : nonces effacés après 7 jours)
     await db.echecs_connexion.create_index([("cle", 1), ("date", 1)])
     await db.echecs_connexion.create_index("expire_le", expireAfterSeconds=0)
