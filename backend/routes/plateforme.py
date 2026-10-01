@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
+import options_sidebar
 from abonnements import abonnement_initial
 from auth import get_super_admin, hash_password, user_public
 from db import SANS_ID, db
@@ -118,6 +119,9 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "validee": validee, "origine": origine, "test": test,
         # 14 jours de démo complète, puis abonnement (voir abonnements.py)
         "abonnement": abonnement_initial(now_iso()),
+        # Barre latérale : seuls « Tableau de bord » et « Caisse Aizenta » sont actifs
+        # au départ ; le super-admin active les autres options boutique par boutique
+        "options_sidebar": options_sidebar.options_par_defaut(),
         **boutique_par_defaut(nom),
         **Identification(**{k: v for k, v in donnees.items() if k in Identification.model_fields}).model_dump(),
     }
@@ -239,7 +243,7 @@ async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_ad
 
 
 @router.patch("/boutiques/{boutique_id}")
-async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = Depends(get_super_admin)):
+async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, admin: dict = Depends(get_super_admin)):
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
     if not boutique:
         raise HTTPException(404, "Boutique introuvable")
@@ -265,7 +269,80 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = De
         maj["suspension"] = None
     if maj:
         await db.boutiques.update_one({"id": boutique_id}, {"$set": maj})
+    # Ancien interrupteur « Maintenance des équipements » : l'option de la barre latérale suit
+    if "maintenance_equipements" in maj and isinstance(boutique.get("options_sidebar"), dict) \
+            and bool(boutique["options_sidebar"].get("maintenance_equipements")) != maj["maintenance_equipements"]:
+        await enregistrer_options(boutique, {"maintenance_equipements": maj["maintenance_equipements"]}, admin)
     return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
+
+
+# ---------------------------------------------------------------------------
+# Options de la barre latérale (menu du back-office) d'une boutique
+# ---------------------------------------------------------------------------
+class OptionsSidebar(BaseModel):
+    """Options à changer : {clé de l'option: activée ?}. Les clés absentes ne changent pas."""
+    options: dict[str, bool]
+
+
+async def enregistrer_options(boutique: dict, changements: dict[str, bool], admin: dict) -> dict:
+    """Applique les changements, garde l'ancien interrupteur « maintenance_equipements »
+    synchronisé et JOURNALISE (qui, quand, avant / après). Renvoie les options effectives."""
+    inconnues = [c for c in changements if c not in options_sidebar.LIBELLES]
+    if inconnues:
+        raise HTTPException(400, f"Option inconnue : {', '.join(inconnues)}")
+    obligatoires = [options_sidebar.LIBELLES[c] for c, v in changements.items()
+                    if c in options_sidebar.OPTIONS_OBLIGATOIRES and not v]
+    if obligatoires:
+        raise HTTPException(400, f"Option obligatoire, impossible à désactiver : {', '.join(obligatoires)}")
+    avant = options_sidebar.options_effectives(boutique)
+    # Point de départ : l'état actuel (une boutique « historique » part de « tout activé »)
+    nouvelles = {c: avant[c] for c in options_sidebar.CLES}
+    nouvelles.update(changements)
+    for c in options_sidebar.OPTIONS_OBLIGATOIRES:
+        nouvelles[c] = True
+    await db.boutiques.update_one({"id": boutique["id"]}, {"$set": {
+        "options_sidebar": nouvelles, "maintenance_equipements": nouvelles["maintenance_equipements"]}})
+    apres = options_sidebar.options_effectives({**boutique, "options_sidebar": nouvelles,
+                                                "maintenance_equipements": nouvelles["maintenance_equipements"]})
+    differences = [{"cle": c, "libelle": options_sidebar.LIBELLES[c], "avant": avant[c], "apres": apres[c]}
+                   for c in options_sidebar.CLES if avant[c] != apres[c]]
+    if differences:
+        await db.options_sidebar_journal.insert_one({
+            "id": new_id(), "boutique_id": boutique["id"], "date": now_iso(),
+            "par": admin.get("email", ""), "par_nom": admin.get("nom", ""),
+            "historique_avant": not isinstance(boutique.get("options_sidebar"), dict),
+            "changements": differences, "avant": avant, "apres": apres})
+    return apres
+
+
+async def _etat_options(boutique: dict) -> dict:
+    effectives = options_sidebar.options_effectives(boutique)
+    journal = await db.options_sidebar_journal.find({"boutique_id": boutique["id"]}, SANS_ID) \
+        .sort("date", -1).to_list(50)
+    return {
+        # vrai = boutique créée avant cette fonction, jamais réglée : tout est activé
+        "historique": not isinstance(boutique.get("options_sidebar"), dict),
+        "options": [{"cle": c, "libelle": l, "obligatoire": c in options_sidebar.OPTIONS_OBLIGATOIRES,
+                     "active": effectives[c]} for c, l in options_sidebar.OPTIONS],
+        "journal": [{k: v for k, v in j.items() if k not in ("avant", "apres")} for j in journal],
+    }
+
+
+@router.get("/boutiques/{boutique_id}/options-sidebar")
+async def lire_options(boutique_id: str, _: dict = Depends(get_super_admin)):
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    if not boutique:
+        raise HTTPException(404, "Boutique introuvable")
+    return await _etat_options(boutique)
+
+
+@router.put("/boutiques/{boutique_id}/options-sidebar")
+async def modifier_options(boutique_id: str, payload: OptionsSidebar, admin: dict = Depends(get_super_admin)):
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    if not boutique:
+        raise HTTPException(404, "Boutique introuvable")
+    await enregistrer_options(boutique, payload.options, admin)
+    return await _etat_options(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
 
 
 @router.get("/statistiques")

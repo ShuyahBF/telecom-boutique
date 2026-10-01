@@ -122,7 +122,19 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 - **Lien de paiement Mobile Money** (PawaPay) et **Facturer**.
 - Deux espaces :
   - **plateforme** (`/plateforme/maintenance-equipements`) : le client est une boutique ; son téléphone est celui qui reçoit les messages d'adLyn (DG). Paiement encaissé pour adLyn ; facture adLyn imprimable (`FMT-AAAA-00001`) ;
-  - **boutique** (`/gestion/maintenance-equipements`) : fonction **activée boutique par boutique** par l'administrateur (bouton sur la carte de la boutique). Clients : fichier Clients ou saisie libre. Paiement réservé aux boutiques au dossier KYC validé, reversé comme les commandes ; facture ou proforma dans « Factures & proformas ».
+  - **boutique** (`/gestion/maintenance-equipements`) : option **activée boutique par boutique** par l'administrateur (fenêtre « Barre latérale & Caisse Aizenta »). Clients : fichier Clients ou saisie libre. Paiement réservé aux boutiques au dossier KYC validé, reversé comme les commandes ; facture ou proforma dans « Factures & proformas ».
+
+### Options de la barre latérale (activées par boutique)
+- « Tableau de bord » et « Caisse Aizenta » sont **toujours** actives. Toutes les autres entrées du menu sont **désactivées à la création** d'une boutique (création par l'administrateur, webhook, parrainage).
+- L'administrateur les active dans `/plateforme` → carte de la boutique → **« 🧭 Barre latérale & Caisse Aizenta »** (un interrupteur par option, « Tout activer / Tout désactiver », journal des changements : qui, quand, avant / après).
+- Une option désactivée disparaît du menu **et** ses routes d'API répondent 403 « Option non activée pour cette boutique » (adresse tapée à la main : retour au tableau de bord). Les droits par rôle s'appliquent en plus. Aucune donnée n'est supprimée.
+- **Boutiques existantes** (créées avant cette fonction, sans le champ `options_sidebar`) : **tout reste activé** tant que l'administrateur n'a pas enregistré de réglage.
+- Code : `backend/options_sidebar.py` (liste des options et table des routes protégées), `frontend/src/lib/options.js`.
+
+### Caisse Aizenta (données envoyées par Loois)
+- Loois lit les tables `RèglementCaisse` et `TypePaiementCaisse` du logiciel Aizenta et les envoie au webhook `POST /api/webhooks/caisse-aizenta` (jeton propre à chaque boutique, généré par l'administrateur, stocké haché).
+- Écran `/gestion/caisse-aizenta` (DG, comptable, secrétariat) : situation par période (aujourd'hui, hier, 7 jours, mois, intervalle), totaux, ventilations par type / mode de paiement / caissier, arrêts de caisse, liste filtrable, export CSV, alerte si aucune réception depuis 24 h.
+- Contrat JSON complet et mise en service : **[docs/caisse-aizenta.md](docs/caisse-aizenta.md)**.
 
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.

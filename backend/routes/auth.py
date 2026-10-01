@@ -63,6 +63,9 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
     if not super_admin:
         b.pop("test", None)
     b["kyc"] = kyc_public(b.get("kyc"))
+    # État réel des options de la barre latérale (menu affiché par le site)
+    import options_sidebar
+    b["options_actives"] = options_sidebar.options_effectives(boutique)
     if b.get("messagerie"):
         m = dict(b["messagerie"])
         m["a_mot_de_passe"] = bool(m.pop("smtp_mot_de_passe", None))
