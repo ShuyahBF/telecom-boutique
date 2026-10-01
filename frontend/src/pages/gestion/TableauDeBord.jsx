@@ -29,27 +29,31 @@ export default function TableauDeBord() {
   if (erreur) return <p className="card text-red-600">{erreur}</p>;
   if (!donnees) return <Chargement plein />;
 
-  // Tuiles d'indicateurs : libellé, valeur, précision, lien, mise en avant
-  const tuiles = vendeur
+  // Options de la barre latérale activées pour la boutique (renvoyées par le serveur avec
+  // les indicateurs) : une option désactivée n'a ni tuile, ni liste, ni raccourci.
+  const opt = (cle) => donnees.options?.[cle] !== false;
+
+  // Tuiles d'indicateurs : libellé, valeur, précision, lien, mise en avant (+ option nécessaire)
+  const tuiles = (vendeur
     ? [
-      { libelle: "CA HT du mois", valeur: prix(donnees.ca_mois_ht, devise), detail: `${donnees.nb_factures_mois} facture(s) validée(s)`, lien: "/gestion/documents?type=FAC&statut=VALIDE", couleur: "text-primary" },
-      { libelle: "Encaissé ce mois", valeur: prix(donnees.encaisse_mois, devise), detail: "règlements des factures du mois", lien: "/gestion/documents?type=FAC&statut=VALIDE", couleur: "text-green-700" },
-      { libelle: "Factures validées (mois)", valeur: donnees.nb_factures_mois, detail: "depuis le 1er du mois", lien: "/gestion/documents?type=FAC&statut=VALIDE" },
-      { libelle: "Factures en brouillon", valeur: donnees.brouillons, detail: "à valider", lien: "/gestion/documents?type=FAC&statut=BROUILLON", alerte: donnees.brouillons > 0 },
-      { libelle: "Commandes à traiter", valeur: donnees.nb_commandes_a_traiter, detail: "reçues, confirmées ou en préparation", lien: "/gestion/commandes", alerte: donnees.nb_commandes_a_traiter > 0 },
-      { libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: donnees.nb_dossiers_en_retard ? `dont ${donnees.nb_dossiers_en_retard} en retard` : "aucune en retard", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
-      { libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
-      { libelle: "Demandes de conseil", valeur: donnees.conversations_attente, detail: "en attente de réponse", lien: "/gestion/messagerie", alerte: donnees.conversations_attente > 0 },
+      { option: "documents", libelle: "CA HT du mois", valeur: prix(donnees.ca_mois_ht, devise), detail: `${donnees.nb_factures_mois} facture(s) validée(s)`, lien: "/gestion/documents?type=FAC&statut=VALIDE", couleur: "text-primary" },
+      { option: "documents", libelle: "Encaissé ce mois", valeur: prix(donnees.encaisse_mois, devise), detail: "règlements des factures du mois", lien: "/gestion/documents?type=FAC&statut=VALIDE", couleur: "text-green-700" },
+      { option: "documents", libelle: "Factures validées (mois)", valeur: donnees.nb_factures_mois, detail: "depuis le 1er du mois", lien: "/gestion/documents?type=FAC&statut=VALIDE" },
+      { option: "documents", libelle: "Factures en brouillon", valeur: donnees.brouillons, detail: "à valider", lien: "/gestion/documents?type=FAC&statut=BROUILLON", alerte: donnees.brouillons > 0 },
+      { option: "commandes", libelle: "Commandes à traiter", valeur: donnees.nb_commandes_a_traiter, detail: "reçues, confirmées ou en préparation", lien: "/gestion/commandes", alerte: donnees.nb_commandes_a_traiter > 0 },
+      { option: "maintenance", libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: donnees.nb_dossiers_en_retard ? `dont ${donnees.nb_dossiers_en_retard} en retard` : "aucune en retard", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
+      { option: "stock", libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
+      { option: "messagerie", libelle: "Demandes de conseil", valeur: donnees.conversations_attente, detail: "en attente de réponse", lien: "/gestion/messagerie", alerte: donnees.conversations_attente > 0 },
     ]
     : [
-      { libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: "dossiers non restitués", lien: "/gestion/maintenance" },
-      { libelle: "Réparations en retard", valeur: donnees.nb_dossiers_en_retard, detail: "date prévue dépassée", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
-      { libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: "/gestion/produits", alerte: donnees.nb_produits_alerte > 0 },
-    ];
+      { option: "maintenance", libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: "dossiers non restitués", lien: "/gestion/maintenance" },
+      { option: "maintenance", libelle: "Réparations en retard", valeur: donnees.nb_dossiers_en_retard, detail: "date prévue dépassée", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
+      { option: "stock", libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: opt("produits") ? "/gestion/produits" : "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
+    ]).filter((t) => opt(t.option));
 
   // Alertes du catalogue, ajoutées seulement quand il y a quelque chose à voir
   // (pour tous ceux qui peuvent consulter le catalogue)
-  if (peut(user, "catalogue.lecture")) {
+  if (peut(user, "catalogue.lecture") && opt("produits")) {
     if (donnees.nb_nouveautes_catalogue > 0) {
       tuiles.push({ libelle: "Nouveautés du catalogue public", valeur: donnees.nb_nouveautes_catalogue, detail: "nouveaux modèles reçus, à consulter", lien: "/gestion/produits?nouveau=1", alerte: true });
     }
@@ -63,13 +67,24 @@ export default function TableauDeBord() {
       {/* En-tête avec les raccourcis vers les saisies les plus fréquentes */}
       <EnTetePage titre={`Bonjour ${user?.nom || ""}`}
         sousTitre={`${boutique?.nom} · ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}>
-        {vendeur && <Link to="/gestion/documents/nouveau?type=FAC" className="btn-primary btn-sm">+ Nouvelle facture</Link>}
-        {vendeur && <Link to="/gestion/documents/nouveau?type=PRO" className="btn-outline btn-sm">+ Nouvelle proforma</Link>}
-        <Link to="/gestion/maintenance/nouveau" className="btn-accent btn-sm">🔧 Dépôt SAV</Link>
-        {vendeur && <Link to="/gestion/stock/bons/nouveau" className="btn-outline btn-sm">🚚 Réception fournisseur</Link>}
+        {vendeur && peut(user, "facturation") && opt("documents") && <Link to="/gestion/documents/nouveau?type=FAC" className="btn-primary btn-sm">+ Nouvelle facture</Link>}
+        {vendeur && peut(user, "facturation") && opt("documents") && <Link to="/gestion/documents/nouveau?type=PRO" className="btn-outline btn-sm">+ Nouvelle proforma</Link>}
+        {peut(user, "maintenance") && opt("maintenance") && <Link to="/gestion/maintenance/nouveau" className="btn-accent btn-sm">🔧 Dépôt SAV</Link>}
+        {vendeur && peut(user, "stock") && opt("stock") && <Link to="/gestion/stock/bons/nouveau" className="btn-outline btn-sm">🚚 Réception fournisseur</Link>}
         {/* Raccourci réservé au DG et au comptable (permission « paiements.historique ») */}
-        {peut(user, "paiements.historique") && <Link to="/gestion/paiements" className="btn-outline btn-sm">💳 Historique des paiements</Link>}
+        {peut(user, "paiements.historique") && opt("paiements") && <Link to="/gestion/paiements" className="btn-outline btn-sm">💳 Historique des paiements</Link>}
+        {/* Caisse Aizenta : toujours active */}
+        {peut(user, "caisse_aizenta") && <Link to="/gestion/caisse-aizenta" className="btn-outline btn-sm">🧮 Caisse Aizenta</Link>}
       </EnTetePage>
+
+      {/* Boutique sans autre option que le tableau de bord et la caisse */}
+      {tuiles.length === 0 && (
+        <div className="card text-center text-gray-600">
+          <p className="text-3xl">🧮</p>
+          <p className="mt-2">Votre espace adLyn est prêt. Consultez la situation de votre caisse dans <b>Caisse Aizenta</b>.</p>
+          <p className="mt-1 text-sm text-gray-500">Les autres fonctions (factures, stock, clients…) sont activées à la demande par l'équipe adLyn.</p>
+        </div>
+      )}
 
       {/* Tuiles d'indicateurs (2 colonnes sur téléphone, 4 sur grand écran) */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -84,7 +99,7 @@ export default function TableauDeBord() {
       </div>
 
       {/* Graphique des ventes (réservé à la vente) */}
-      {vendeur && (
+      {vendeur && opt("documents") && (
         <section className="card mt-6">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-bold">Ventes des 30 derniers jours <span className="text-sm font-normal text-gray-500">(factures validées, HT)</span></h2>
@@ -96,7 +111,7 @@ export default function TableauDeBord() {
 
       {/* Listes cliquables de ce qui attend une action */}
       <div className={`mt-6 grid gap-6 lg:grid-cols-2 ${vendeur ? "2xl:grid-cols-3" : ""}`}>
-        {vendeur && (
+        {vendeur && opt("commandes") && (
           <Bloc titre="Commandes à traiter" lien="/gestion/commandes" nombre={donnees.nb_commandes_a_traiter}
             vide="Aucune commande en attente." elements={donnees.commandes_a_traiter}>
             {(c) => (
@@ -111,7 +126,7 @@ export default function TableauDeBord() {
           </Bloc>
         )}
 
-        <Bloc titre="Réparations en cours" lien="/gestion/maintenance" nombre={donnees.nb_dossiers_en_cours}
+        {opt("maintenance") && <Bloc titre="Réparations en cours" lien="/gestion/maintenance" nombre={donnees.nb_dossiers_en_cours}
           vide="Aucune réparation en cours." elements={donnees.dossiers_en_cours}>
           {(d) => {
             // En retard : date prévue dépassée et appareil pas encore prêt
@@ -128,12 +143,12 @@ export default function TableauDeBord() {
               </Link>
             );
           }}
-        </Bloc>
+        </Bloc>}
 
-        <Bloc titre="Stock en alerte" lien={vendeur ? "/gestion/stock" : "/gestion/produits"} nombre={donnees.nb_produits_alerte}
+        {opt("stock") && <Bloc titre="Stock en alerte" lien={vendeur || !opt("produits") ? "/gestion/stock" : "/gestion/produits"} nombre={donnees.nb_produits_alerte}
           vide="Aucun produit en alerte. 👍" elements={donnees.produits_alerte}>
           {(p) => (
-            <Link key={p.id} to={`/gestion/produits/${p.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50">
+            <Link key={p.id} to={opt("produits") ? `/gestion/produits/${p.id}` : "/gestion/stock"} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50">
               <div className="min-w-0">
                 <p className="truncate font-semibold">{p.nom}</p>
                 <p className="text-xs text-gray-500">{p.reference} · seuil {p.stock_alerte}</p>
@@ -141,7 +156,7 @@ export default function TableauDeBord() {
               <span className={`badge shrink-0 ${p.stock <= 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{p.stock <= 0 ? "Épuisé" : `${p.stock} en stock`}</span>
             </Link>
           )}
-        </Bloc>
+        </Bloc>}
       </div>
     </div>
   );
