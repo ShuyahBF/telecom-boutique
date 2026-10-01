@@ -5,6 +5,7 @@ import PoweredBySawali from "@/components/PoweredBySawali";
 import { LiensLegaux } from "@/components/PageLegale";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
 // boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
@@ -83,7 +84,7 @@ export default function Connexion() {
             {/* Réinitialisation par code reçu sur WhatsApp, SMS ou e-mail */}
             {!administrateur && <Link to="/mot-de-passe-oublie" className="text-xs font-semibold text-primary">Mot de passe oublié ?</Link>}
           </div>
-          <input id="mdp" className="input" type="password" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
+          <ChampMotDePasse id="mdp" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
         <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter →"}</button>
         <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>

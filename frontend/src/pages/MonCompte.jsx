@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Page « Mon compte » (tout membre du personnel connecté) : ses identifiants
 // de connexion (e-mail et/ou téléphone) et son mot de passe.
@@ -145,7 +146,7 @@ export default function MonCompte() {
               <input className="input" type={TYPES[fenetre.type].type} required placeholder={TYPES[fenetre.type].saisie}
                 value={fenetre.valeur} onChange={(e) => maj({ valeur: e.target.value })} /></label>
             <label className="block"><span className="label">Votre mot de passe actuel</span>
-              <input className="input" type="password" required autoComplete="current-password"
+              <ChampMotDePasse required autoComplete="current-password"
                 value={fenetre.motDePasse} onChange={(e) => maj({ motDePasse: e.target.value })} /></label>
             <p className="text-xs text-gray-500">Un code à 6 chiffres sera envoyé {TYPES[fenetre.type].canal} à cette nouvelle valeur pour vérifier qu'elle est bien à vous.</p>
             {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
@@ -156,7 +157,7 @@ export default function MonCompte() {
           <form onSubmit={confirmerCode} className="space-y-3">
             <p className="rounded-lg bg-blue-50 p-2 text-sm text-blue-800">{fenetre.info}</p>
             <label className="block"><span className="label">Code reçu (6 chiffres)</span>
-              <input className="input text-center font-mono text-2xl tracking-[0.5em]" required inputMode="numeric" autoComplete="one-time-code"
+              <ChampMotDePasse className="input text-center font-mono text-2xl tracking-[0.5em]" required inputMode="numeric" autoComplete="one-time-code"
                 maxLength={6} value={fenetre.code} onChange={(e) => maj({ code: e.target.value.replace(/\D/g, "").slice(0, 6) })} /></label>
             {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
             <button className="btn-primary w-full" disabled={envoi || fenetre.code.length !== 6}>{envoi ? "Vérification…" : "Confirmer"}</button>
@@ -171,7 +172,7 @@ export default function MonCompte() {
           <form onSubmit={retirer} className="space-y-3">
             <p className="text-sm text-gray-600">Vous ne pourrez plus vous connecter avec <b>{user[fenetre.type]}</b>. Votre autre identifiant (vérifié) reste valable.</p>
             <label className="block"><span className="label">Votre mot de passe actuel</span>
-              <input className="input" type="password" required autoComplete="current-password"
+              <ChampMotDePasse required autoComplete="current-password"
                 value={fenetre.motDePasse} onChange={(e) => maj({ motDePasse: e.target.value })} /></label>
             {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
             <button className="btn-primary w-full bg-red-600 hover:bg-red-700" disabled={envoi}>{envoi ? "Retrait…" : "Retirer"}</button>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LogoAdlyn } from "@/components/Marque";
 import { apiClient, idBoutiqueMemorise, messageErreur } from "@/lib/api";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // « Mot de passe oublié ? » (personnel des boutiques), en 2 étapes :
 //   1. ID boutique + e-mail ou téléphone -> un code à 6 chiffres est envoyé
@@ -92,15 +93,15 @@ export default function MotDePasseOublie() {
           <form onSubmit={confirmer} className="space-y-4">
             <div>
               <label className="label" htmlFor="code">Code reçu (6 chiffres)</label>
-              <input id="code" className="input text-center font-mono text-2xl tracking-[0.5em]" required inputMode="numeric"
+              <ChampMotDePasse id="code" className="input text-center font-mono text-2xl tracking-[0.5em]" required inputMode="numeric"
                 autoComplete="one-time-code" maxLength={6} value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "").slice(0, 6) })} />
             </div>
             <div><label className="label" htmlFor="nouveau">Nouveau mot de passe (8 caractères minimum)</label>
-              <input id="nouveau" className="input" type="password" required autoComplete="new-password"
+              <ChampMotDePasse id="nouveau" required autoComplete="new-password"
                 value={form.nouveau} onChange={(e) => setForm({ ...form, nouveau: e.target.value })} /></div>
             <div><label className="label" htmlFor="confirmation">Nouveau mot de passe, encore une fois</label>
-              <input id="confirmation" className="input" type="password" required autoComplete="new-password"
+              <ChampMotDePasse id="confirmation" required autoComplete="new-password"
                 value={form.confirmation} onChange={(e) => setForm({ ...form, confirmation: e.target.value })} /></div>
             {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
             <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Enregistrement…" : "Changer mon mot de passe"}</button>

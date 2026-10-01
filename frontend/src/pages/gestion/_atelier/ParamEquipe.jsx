@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { dateHeure } from "@/lib/format";
 import { Champ } from "./communs";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Canaux d'envoi des accès provisoires (WhatsApp en priorité, puis SMS, puis e-mail)
 const CANAUX = { WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "e-mail" };
@@ -191,7 +192,7 @@ export default function ParamEquipe() {
             <Champ label="Nom complet"><input className="input" required minLength={2} value={ajout.nom} onChange={(e) => setAjout({ ...ajout, nom: e.target.value })} /></Champ>
             <Champ label="Téléphone (WhatsApp)" aide="Sert d'identifiant de connexion ; les accès y sont envoyés par WhatsApp (sinon par SMS)."><input className="input" type="tel" placeholder="70 12 34 56" value={ajout.telephone} onChange={(e) => setAjout({ ...ajout, telephone: e.target.value })} /></Champ>
             <Champ label="E-mail (facultatif si un téléphone est indiqué)"><input className="input" type="email" value={ajout.email} onChange={(e) => setAjout({ ...ajout, email: e.target.value })} /></Champ>
-            <Champ label="Mot de passe provisoire (facultatif)" aide="Laissez vide : un mot de passe provisoire est créé et envoyé à la personne avec l'ID boutique. Elle devra le changer à sa première connexion."><input className="input" type="text" minLength={8} autoComplete="new-password" value={ajout.mot_de_passe} onChange={(e) => setAjout({ ...ajout, mot_de_passe: e.target.value })} /></Champ>
+            <Champ label="Mot de passe provisoire (facultatif)" aide="Laissez vide : un mot de passe provisoire est créé et envoyé à la personne avec l'ID boutique. Elle devra le changer à sa première connexion."><ChampMotDePasse visibleParDefaut minLength={8} autoComplete="new-password" value={ajout.mot_de_passe} onChange={(e) => setAjout({ ...ajout, mot_de_passe: e.target.value })} /></Champ>
             <Champ label="Rôle">
               <select className="input" value={ajout.role} onChange={(e) => setAjout({ ...ajout, role: e.target.value })}>
                 {ROLES_BOUTIQUE.map(([r]) => <option key={r} value={r}>{ROLES[r]}</option>)}
@@ -236,7 +237,7 @@ export default function ParamEquipe() {
       <Modal ouvert={!!motDePasse} titre={`Nouveau mot de passe — ${motDePasse?.membre.nom || ""}`} onFermer={() => setMotDePasse(null)}>
         {motDePasse && (
           <form onSubmit={changerMotDePasse} className="space-y-3">
-            <Champ label="Nouveau mot de passe" aide="Provisoire (8 caractères minimum) : la personne devra le changer à sa prochaine connexion."><input className="input" type="text" required minLength={8} autoComplete="new-password" value={motDePasse.valeur} onChange={(e) => setMotDePasse({ ...motDePasse, valeur: e.target.value })} /></Champ>
+            <Champ label="Nouveau mot de passe" aide="Provisoire (8 caractères minimum) : la personne devra le changer à sa prochaine connexion."><ChampMotDePasse visibleParDefaut required minLength={8} autoComplete="new-password" value={motDePasse.valeur} onChange={(e) => setMotDePasse({ ...motDePasse, valeur: e.target.value })} /></Champ>
             <button className="btn-primary w-full">Enregistrer</button>
           </form>
         )}
