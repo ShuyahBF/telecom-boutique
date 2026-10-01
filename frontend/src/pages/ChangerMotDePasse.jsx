@@ -51,7 +51,7 @@ export default function ChangerMotDePasse() {
           <h1 className="mt-1 text-xl font-extrabold">{oblige ? "Choisissez votre mot de passe" : "Changer mon mot de passe"}</h1>
           <p className="text-sm text-gray-500">
             {oblige ? "Vous utilisez un mot de passe provisoire : remplacez-le par un mot de passe personnel pour continuer."
-              : `${user.nom} · ${user.email}`}
+              : `${user.nom} · ${user.email || user.telephone || ""}`}
           </p>
         </div>
         {champ("ancien", oblige ? "Mot de passe provisoire reçu" : "Mot de passe actuel", "current-password")}

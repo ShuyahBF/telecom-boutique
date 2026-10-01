@@ -162,8 +162,8 @@ export default function GestionLayout() {
             <div className="ml-auto flex items-center gap-3 text-sm">
               <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
               <span className="hidden text-gray-600 sm:inline">{user.nom} · {ROLES[user.role]}</span>
-              {/* Changer son propre mot de passe */}
-              <Link to="/mot-de-passe" className="text-gray-500 hover:text-primary" title="Changer mon mot de passe">🔑</Link>
+              {/* Mon compte : e-mail / téléphone de connexion et mot de passe */}
+              <Link to="/mon-compte" className="text-gray-500 hover:text-primary" title="Mon compte : identifiants et mot de passe">👤</Link>
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
             </div>
           </header>

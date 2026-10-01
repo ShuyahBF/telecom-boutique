@@ -12,6 +12,8 @@ import Reversements from "@/pages/gestion/Reversements";
 import ReversementsPlateforme from "@/pages/plateforme/Reversements";
 import ChangerMotDePasse from "@/pages/ChangerMotDePasse";
 import Connexion from "@/pages/Connexion";
+import MotDePasseOublie from "@/pages/MotDePasseOublie";
+import MonCompte from "@/pages/MonCompte";
 // --- Portail public ---
 import Accueil from "@/pages/public/Accueil";
 import Vitrine from "@/pages/public/Vitrine";
@@ -94,6 +96,10 @@ export default function App() {
 
             <Route path="/connexion" element={<Connexion />} />
             <Route path="/mot-de-passe" element={<ChangerMotDePasse />} />
+            {/* Mot de passe oublié : code reçu par WhatsApp, SMS ou e-mail */}
+            <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+            {/* Mon compte : e-mail / téléphone de connexion (changement confirmé par code) */}
+            <Route path="/mon-compte" element={<MonCompte />} />
             {/* Lien de parrainage partagé par une boutique : demande d'ouverture d'une boutique */}
             <Route path="/ouvrir-ma-boutique" element={<OuvrirBoutique />} />
             {/* Lien de paiement Mobile Money d'une fiche de maintenance des équipements */}
