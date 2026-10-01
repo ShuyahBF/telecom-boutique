@@ -443,14 +443,18 @@ def test_modele_whatsapp_authentication(monkeypatch):
 
 def test_ancien_index_email_remplace_au_demarrage(client):
     """Base de production : l'ancien index (e-mail obligatoire et unique) est
-    remplacé par l'index partiel (e-mail facultatif mais unique)."""
-    from db import db, ensure_indexes
+    remplacé par l'index partiel (e-mail facultatif mais unique). Essai sur une
+    collection à part, qui reproduit la base de l'ancienne version."""
+    from db import db, index_identifiants
 
     async def scenario():
-        await db.users.drop_index("email_connexion")
-        await db.users.create_index("email", unique=True)  # index de l'ancienne version
-        await ensure_indexes()
-        return await db.users.index_information()
+        anciens = db["test_migration_users"]
+        await anciens.insert_one({"id": "a", "email": "a@test.bf"})
+        await anciens.create_index("email", unique=True)  # index de l'ancienne version (« email_1 »)
+        await index_identifiants(anciens)
+        await anciens.insert_one({"id": "b", "telephone": "+22670000001"})  # sans e-mail : accepté
+        await anciens.insert_one({"id": "c", "telephone": "+22670000002"})  # un 2e sans e-mail aussi
+        return await anciens.index_information()
 
     infos = client.portal.call(scenario)
     assert "email_1" not in infos
