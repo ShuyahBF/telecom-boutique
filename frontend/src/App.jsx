@@ -169,7 +169,7 @@ export default function App() {
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
             {/* Maintenance des équipements confiés par les boutiques */}
             <Route path="/plateforme/maintenance-equipements" element={<RouteProtegee roles={["super_admin"]}><MaintenanceEquipementsPlateforme /></RouteProtegee>} />
-            {/* Paramètres généraux : serveur d'envoi des e-mails (SMTP) */}
+            {/* Paramètres généraux : service d'envoi des e-mails */}
             <Route path="/plateforme/parametres" element={<RouteProtegee roles={["super_admin"]}><ParametresPlateforme /></RouteProtegee>} />
             {/* Cycle de vie des abonnements non renouvelés, KYC des DG */}
             <Route path="/plateforme/cycle-vie" element={<RouteProtegee roles={["super_admin"]}><CycleVie /></RouteProtegee>} />

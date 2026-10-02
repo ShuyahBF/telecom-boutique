@@ -1,10 +1,12 @@
 """Envois de la PLATEFORME adLyn (distincts de la messagerie de chaque boutique) :
-  - e-mail par l'API Resend (RESEND_API_KEY, prioritaire : le SMTP est bloqué
-    depuis Render), sinon par le serveur SMTP de la plateforme (PLATEFORME_SMTP_*) :
-    rapport de la nuit, identifiants d'une nouvelle boutique... ;
+  - e-mail par le service choisi dans l'écran Plateforme > Paramètres : Resend,
+    ZeptoMail (Zoho), Brevo (API HTTPS) ou SMTP (bloqué sur les services Render
+    gratuits) ; à défaut, variables d'environnement de repli (RESEND_*, SMTP...) :
+    rapport de la nuit, identifiants d'une nouvelle boutique... Les mêmes fonctions
+    servent aux boutiques qui ont leur propre service (messagerie.py) ;
   - SMS par Orange SMS API, avec OVH en repli (même code que beauthentik.net).
 
-Aucune fonction ne lève d'exception vers l'appelant : chacune renvoie un
+Les points d'entrée (envoyer_email, envoyer_sms...) ne lèvent pas d'exception : ils renvoient un
 statut ("ENVOYE", "ECHEC" ou "NON_CONFIGURE") et un message d'erreur, pour
 que l'appelant puisse l'enregistrer dans son journal.
 """
@@ -34,10 +36,10 @@ _jeton_orange: dict = {}  # jeton OAuth Orange gardé en mémoire jusqu'à son e
 
 
 # ---------------------------------------------------------------------------
-# E-mail (serveur SMTP de la plateforme)
+# E-mail : chiffrement des secrets gardés en base
 # ---------------------------------------------------------------------------
-# Le serveur d'envoi se règle dans l'administration (/plateforme/parametres) ; il est
-# gardé en base (mot de passe chiffré). À défaut, les variables PLATEFORME_SMTP_*.
+# Clés API et mots de passe (plateforme et boutiques) sont gardés CHIFFRÉS en base,
+# jamais renvoyés au navigateur (seulement « a_cle » / « a_mot_de_passe »).
 def _cle_chiffrement() -> bytes:
     """Clé de chiffrement des secrets gardés en base, dérivée de JWT_SECRET."""
     return base64.urlsafe_b64encode(hashlib.sha256(("adlyn-secrets|" + get_settings().jwt_secret).encode()).digest())
@@ -50,85 +52,126 @@ def chiffrer(valeur: str) -> str:
 
 def dechiffrer(valeur: str) -> str:
     from cryptography.fernet import Fernet, InvalidToken
+    if not valeur:
+        return ""
     try:
         return Fernet(_cle_chiffrement()).decrypt(valeur.encode()).decode()
     except (InvalidToken, ValueError):
-        return ""  # clé changée : le mot de passe est à ressaisir
-
-
-async def config_smtp() -> dict:
-    """Réglages en vigueur : ceux de l'administration, sinon les variables d'environnement."""
-    from db import db
-    doc = await db.parametres_plateforme.find_one({"_id": "smtp"}) or {}
-    if doc.get("hote"):
-        return {"hote": doc["hote"], "port": int(doc.get("port") or 587), "utilisateur": doc.get("utilisateur", ""),
-                "mot_de_passe": dechiffrer(doc.get("mot_de_passe_chiffre", "")) if doc.get("mot_de_passe_chiffre") else "",
-                "expediteur": doc.get("expediteur", ""), "nom_expediteur": doc.get("nom_expediteur", "adLyn"),
-                "ssl": bool(doc.get("ssl")), "actif": doc.get("actif", True), "source": "administration"}
-    s = get_settings()
-    return {"hote": s.plateforme_smtp_hote or "", "port": s.plateforme_smtp_port, "utilisateur": s.plateforme_smtp_utilisateur or "",
-            "mot_de_passe": s.plateforme_smtp_mot_de_passe or "", "expediteur": s.plateforme_expediteur or "",
-            "nom_expediteur": "adLyn", "ssl": s.plateforme_smtp_ssl, "actif": bool(s.plateforme_smtp_hote),
-            "source": "variables d'environnement"}
-
-
-def email_configure() -> bool:
-    return resend_configure() or bool(get_settings().plateforme_smtp_hote)
+        return ""  # clé changée : le secret est à ressaisir
 
 
 # ---------------------------------------------------------------------------
-# E-mail par l'API Resend (HTTPS, port 443 : jamais bloqué par Render)
+# E-mail : les 4 services d'envoi au choix (Resend, ZeptoMail, Brevo, SMTP)
 # ---------------------------------------------------------------------------
+# Resend, ZeptoMail et Brevo passent par HTTPS (port 443) ; le SMTP utilise les
+# ports 25/465/587, BLOQUÉS sur les services Render gratuits (offre payante requise).
+FOURNISSEURS_API = ("resend", "zeptomail", "brevo")
+FOURNISSEURS = FOURNISSEURS_API + ("smtp",)
+NOMS_FOURNISSEURS = {"resend": "Resend", "zeptomail": "ZeptoMail", "brevo": "Brevo", "smtp": "SMTP"}
 RESEND_URL = "https://api.resend.com/emails"
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+ZEPTOMAIL_URL = "https://{hote}/v1.1/email"
+ZEPTOMAIL_HOTES = ("api.zeptomail.com", "api.zeptomail.eu", "api.zeptomail.in")
+PREFIXE_ZEPTOMAIL = "Zoho-enczapikey"
+DOC_EMAIL = "smtp"  # document historique de parametres_plateforme, gardé pour la compatibilité
 
 
-def resend_configure() -> bool:
-    """Vrai si la clé ET l'adresse d'envoi Resend sont renseignées dans Render."""
-    s = get_settings()
-    return bool(s.resend_api_key and s.resend_expediteur)
+class ErreurEnvoi(RuntimeError):
+    """Échec d'un envoi, avec le message du fournisseur (jamais la clé)."""
 
 
-def resend_expediteur() -> str:
-    """Adresse d'envoi Resend (domaine validé), sans le nom affiché."""
-    return (get_settings().resend_expediteur or "").strip()
+def nettoyer_nom(nom: Optional[str], defaut: str = "adLyn") -> str:
+    """Nom affiché : sans < > ni retour à la ligne, 60 caractères au plus."""
+    propre = " ".join(str(nom or "").replace("<", "").replace(">", "").split())[:60].strip()
+    return propre or defaut
 
 
-async def envoyer_resend(sujet: str, corps: str, destinataire: str, nom_expediteur: str = "adLyn",
-                         reponse_a: Optional[str] = None) -> None:
-    """Envoie un e-mail texte par l'API Resend ; lève une exception en cas d'échec.
-    `nom_expediteur` : nom affiché (ex. nom de la boutique), l'adresse reste celle du
-    domaine validé ; `reponse_a` : adresse qui recevra les réponses (ex. celle de la boutique)."""
+def hote_zeptomail(hote: Optional[str]) -> str:
+    """Région ZeptoMail : .com (défaut), .eu ou .in ; toute autre valeur revient au défaut."""
+    hote = (hote or "").strip().lower()
+    return hote if hote in ZEPTOMAIL_HOTES else ZEPTOMAIL_HOTES[0]
+
+
+def _jeton_zeptomail(cle: str) -> str:
+    """En-tête ZeptoMail : « Zoho-enczapikey <clé> », sans doubler le préfixe s'il est déjà collé."""
+    cle = cle.strip()
+    if cle.lower().startswith(PREFIXE_ZEPTOMAIL.lower()):
+        return PREFIXE_ZEPTOMAIL + " " + cle[len(PREFIXE_ZEPTOMAIL):].strip()
+    return f"{PREFIXE_ZEPTOMAIL} {cle}"
+
+
+def _message_erreur(fournisseur: str, r: httpx.Response, cle: str) -> str:
+    """« <Fournisseur> <code HTTP> : <message du fournisseur> », tronqué à 250 caractères, sans la clé."""
+    try:
+        doc = r.json()
+    except ValueError:
+        doc = None
+    detail = ""
+    if isinstance(doc, dict):
+        if fournisseur == "zeptomail" and isinstance(doc.get("error"), dict):
+            # ZeptoMail : {"error": {"message": ..., "details": [{"message": ...}]}}
+            err = doc["error"]
+            morceaux = [err.get("message")] + [d.get("message") for d in err.get("details") or [] if isinstance(d, dict)]
+            detail = " : ".join(str(m) for m in morceaux if m)
+        else:
+            # Resend : {"message": ...} ; Brevo : {"code": ..., "message": ...}
+            detail = str(doc.get("message") or "")
+    detail = detail or (r.text or "")
+    if cle:
+        detail = detail.replace(cle, "***")  # par précaution : la clé ne sort jamais
+    return f"{NOMS_FOURNISSEURS[fournisseur]} {r.status_code} : {detail}"[:250]
+
+
+async def envoyer_par_api(fournisseur: str, cle: str, expediteur: str, nom: str, destinataire: str,
+                          sujet: str, corps: str, reponse_a: Optional[str] = None,
+                          zeptomail_hote: Optional[str] = None) -> None:
+    """Envoie un e-mail texte par l'API HTTPS du fournisseur ; lève ErreurEnvoi en cas d'échec.
+    `nom` : nom affiché ; `reponse_a` : adresse qui recevra les réponses (facultative)."""
     from email.utils import formataddr
-    # Nom affiché nettoyé : pas de retour à la ligne ni de caractères d'en-tête
-    nom = " ".join((nom_expediteur or "adLyn").replace("<", "").replace(">", "").split())[:60] or "adLyn"
-    charge = {"from": formataddr((nom, resend_expediteur())), "to": [destinataire],
-              "subject": sujet, "text": corps}
-    if reponse_a:
-        charge["reply_to"] = reponse_a
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.post(RESEND_URL, json=charge,
-                              headers={"Authorization": f"Bearer {get_settings().resend_api_key}"})
+    nom = nettoyer_nom(nom)
+    # Requête propre à chaque fournisseur (URL, en-têtes, forme du JSON)
+    if fournisseur == "resend":
+        url, entetes = RESEND_URL, {"Authorization": f"Bearer {cle}"}
+        charge: dict = {"from": formataddr((nom, expediteur)), "to": [destinataire], "subject": sujet, "text": corps}
+        if reponse_a:
+            charge["reply_to"] = reponse_a
+    elif fournisseur == "brevo":
+        url, entetes = BREVO_URL, {"api-key": cle, "accept": "application/json"}
+        charge = {"sender": {"name": nom, "email": expediteur}, "to": [{"email": destinataire}],
+                  "subject": sujet, "textContent": corps}
+        if reponse_a:
+            charge["replyTo"] = {"email": reponse_a}
+    elif fournisseur == "zeptomail":
+        url = ZEPTOMAIL_URL.format(hote=hote_zeptomail(zeptomail_hote))
+        entetes = {"Authorization": _jeton_zeptomail(cle), "Accept": "application/json"}
+        charge = {"from": {"address": expediteur, "name": nom}, "to": [{"email_address": {"address": destinataire}}],
+                  "subject": sujet, "textbody": corps}
+        if reponse_a:
+            charge["reply_to"] = [{"address": reponse_a}]
+    else:
+        raise ErreurEnvoi(f"Service d'envoi inconnu : {fournisseur}")
+    # Appel HTTPS (20 s au plus) ; une coupure réseau est rapportée sans la clé
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(url, json=charge, headers=entetes)
+    except httpx.HTTPError as exc:
+        raise ErreurEnvoi(f"{NOMS_FOURNISSEURS[fournisseur]} : connexion impossible ({type(exc).__name__})") from None
     if r.status_code >= 300:
-        # Message d'erreur de Resend (jamais la clé) : ex. « domain is not verified »
-        try:
-            detail = r.json().get("message") or r.text
-        except ValueError:
-            detail = r.text
-        raise RuntimeError(f"Resend {r.status_code} : {str(detail)[:250]}")
+        raise ErreurEnvoi(_message_erreur(fournisseur, r, cle))
 
 
-def envoyer_smtp(sujet: str, corps: str, destinataire: str, c: Optional[dict] = None) -> None:
-    """Envoi SYNCHRONE (à appeler dans un thread) ; lève une exception en cas d'échec.
-    `c` : réglages (config_smtp) ; à défaut, variables d'environnement."""
+def envoyer_smtp(sujet: str, corps: str, destinataire: str, c: Optional[dict] = None,
+                 reponse_a: Optional[str] = None) -> None:
+    """Envoi SYNCHRONE par SMTP (à appeler dans un thread) ; lève une exception en cas d'échec.
+    `c` : réglages SMTP (config_smtp) ; à défaut, variables d'environnement."""
     if c is None:
-        s = get_settings()
-        c = {"hote": s.plateforme_smtp_hote, "port": s.plateforme_smtp_port, "utilisateur": s.plateforme_smtp_utilisateur,
-             "mot_de_passe": s.plateforme_smtp_mot_de_passe, "expediteur": s.plateforme_expediteur,
-             "nom_expediteur": "adLyn", "ssl": s.plateforme_smtp_ssl}
+        c = _smtp_env()
     from email.utils import formataddr
     msg = EmailMessage()
     msg["Subject"], msg["To"] = sujet, destinataire
-    msg["From"] = formataddr((c.get("nom_expediteur") or "adLyn", c.get("expediteur") or c.get("utilisateur") or ""))
+    msg["From"] = formataddr((nettoyer_nom(c.get("nom_expediteur")), c.get("expediteur") or c.get("utilisateur") or ""))
+    if reponse_a:
+        msg["Reply-To"] = reponse_a
     msg.set_content(corps)
     if c.get("ssl"):
         serveur = smtplib.SMTP_SSL(c["hote"], int(c["port"]), timeout=20)
@@ -141,26 +184,161 @@ def envoyer_smtp(sujet: str, corps: str, destinataire: str, c: Optional[dict] = 
         serveur.send_message(msg)
 
 
+# ---------------------------------------------------------------------------
+# E-mail : réglages de la PLATEFORME (écran Plateforme > Paramètres)
+# ---------------------------------------------------------------------------
+# Document parametres_plateforme {_id: "smtp"} : fournisseur, actif, expediteur,
+# nom_expediteur, zeptomail_hote, cles_chiffrees {resend, zeptomail, brevo} et les
+# champs SMTP historiques (hote, port, ssl, utilisateur, mot_de_passe_chiffre).
+# Un ancien document sans « fournisseur » mais avec un hôte vaut « smtp ».
+def _smtp_env() -> dict:
+    """Serveur SMTP de repli (PLATEFORME_SMTP_* ou SMTP_*)."""
+    s = get_settings()
+    return {"hote": s.plateforme_smtp_hote or "", "port": s.plateforme_smtp_port, "utilisateur": s.plateforme_smtp_utilisateur or "",
+            "mot_de_passe": s.plateforme_smtp_mot_de_passe or "",
+            "expediteur": s.plateforme_expediteur or s.email_expediteur or "",
+            "nom_expediteur": "adLyn", "ssl": s.plateforme_smtp_ssl}
+
+
+def _smtp_doc(doc: dict) -> dict:
+    """Serveur SMTP réglé dans l'écran (mot de passe déchiffré)."""
+    return {"hote": doc.get("hote") or "", "port": int(doc.get("port") or 587), "utilisateur": doc.get("utilisateur", ""),
+            "mot_de_passe": dechiffrer(doc.get("mot_de_passe_chiffre", "")),
+            "expediteur": doc.get("expediteur", ""), "nom_expediteur": doc.get("nom_expediteur") or "adLyn",
+            "ssl": bool(doc.get("ssl"))}
+
+
+async def config_smtp() -> dict:
+    """Réglages SMTP en vigueur : ceux de l'administration, sinon les variables d'environnement."""
+    from db import db
+    doc = await db.parametres_plateforme.find_one({"_id": DOC_EMAIL}) or {}
+    if doc.get("hote"):
+        return {**_smtp_doc(doc), "actif": doc.get("actif", True), "source": "administration"}
+    return {**_smtp_env(), "actif": bool(get_settings().plateforme_smtp_hote), "source": "variables d'environnement"}
+
+
+def resend_configure() -> bool:
+    """Vrai si Resend est réglé par les variables d'environnement (clé ET adresse d'envoi)."""
+    s = get_settings()
+    return bool(s.resend_api_key and (s.resend_expediteur or s.email_expediteur))
+
+
+def cle_env(fournisseur: str) -> str:
+    """Clé API de repli d'un fournisseur, lue dans les variables d'environnement."""
+    s = get_settings()
+    return {"resend": s.resend_api_key, "brevo": s.brevo_api_key, "zeptomail": s.zeptomail_api_key}.get(fournisseur) or ""
+
+
+def config_env() -> dict:
+    """Repli quand rien n'est réglé dans l'écran, par ordre de priorité :
+    1. RESEND_API_KEY + RESEND_EXPEDITEUR ; 2. PLATEFORME_SMTP_* / SMTP_* ;
+    puis BREVO_API_KEY et ZEPTOMAIL_API_KEY (+ ZEPTOMAIL_HOTE), avec EMAIL_EXPEDITEUR."""
+    s = get_settings()
+    commun = (s.email_expediteur or "").strip()
+    smtp = _smtp_env()
+    base = {"actif": True, "nom_expediteur": "adLyn", "source": "variables d'environnement",
+            "zeptomail_hote": hote_zeptomail(s.zeptomail_hote), "smtp": smtp, "cle": ""}
+    if resend_configure():
+        return {**base, "fournisseur": "resend", "cle": s.resend_api_key, "expediteur": (s.resend_expediteur or commun).strip()}
+    if smtp["hote"]:
+        return {**base, "fournisseur": "smtp", "expediteur": smtp["expediteur"]}
+    if s.brevo_api_key and commun:
+        return {**base, "fournisseur": "brevo", "cle": s.brevo_api_key, "expediteur": commun}
+    if s.zeptomail_api_key and commun:
+        return {**base, "fournisseur": "zeptomail", "cle": s.zeptomail_api_key, "expediteur": commun}
+    return {**base, "fournisseur": "", "actif": False, "expediteur": commun, "source": ""}
+
+
+def fournisseur_choisi(doc: dict) -> str:
+    """Choix enregistré dans l'écran ; ancien document sans « fournisseur » avec un hôte -> « smtp »."""
+    return doc.get("fournisseur") or ("smtp" if doc.get("hote") else "")
+
+
+async def lire_reglages_email() -> dict:
+    """Document brut des réglages e-mail de la plateforme (secrets chiffrés)."""
+    from db import db
+    return await db.parametres_plateforme.find_one({"_id": DOC_EMAIL}) or {}
+
+
+async def config_email() -> dict:
+    """Service d'envoi en vigueur pour la plateforme (secrets déchiffrés, usage serveur seulement)."""
+    doc = await lire_reglages_email()
+    choix = fournisseur_choisi(doc)
+    # Rien de réglé dans l'écran -> variables d'environnement.
+    # Transition : un ancien réglage SMTP (sans « fournisseur ») ne prend pas le pas sur
+    # Resend réglé dans Render, comme avant cette version ; il redevient actif dès que
+    # Resend n'est plus réglé, ou après un enregistrement dans l'écran.
+    if not choix or (not doc.get("fournisseur") and resend_configure()):
+        return config_env()
+    smtp = _smtp_doc(doc)
+    c = {"fournisseur": choix, "actif": bool(doc.get("actif", True)) and choix != "desactive",
+         "expediteur": doc.get("expediteur") or "", "nom_expediteur": doc.get("nom_expediteur") or "adLyn",
+         "zeptomail_hote": hote_zeptomail(doc.get("zeptomail_hote")), "smtp": smtp, "cle": "",
+         "source": "administration"}
+    if choix in FOURNISSEURS_API:
+        # Clé saisie dans l'écran ; à défaut, celle des variables d'environnement du même fournisseur
+        c["cle"] = dechiffrer((doc.get("cles_chiffrees") or {}).get(choix, "")) or cle_env(choix)
+    return c
+
+
+def config_prete(c: dict) -> tuple[bool, str]:
+    """(prêt, raison) : vérifie qu'un réglage permet réellement d'envoyer."""
+    f = c.get("fournisseur")
+    if f == "desactive" or (f and not c.get("actif")):
+        return False, "Envoi des e-mails désactivé"
+    if f not in FOURNISSEURS:
+        return False, "Service d'envoi des e-mails non réglé (Plateforme > Paramètres)"
+    if f == "smtp":
+        if not (c.get("smtp") or {}).get("hote"):
+            return False, "Serveur SMTP non renseigné"
+    elif not c.get("cle"):
+        return False, f"Clé API {NOMS_FOURNISSEURS[f]} manquante"
+    if not (c.get("expediteur") or (f == "smtp" and (c.get("smtp") or {}).get("utilisateur"))):
+        return False, "Adresse d'expéditeur manquante"
+    return True, ""
+
+
+async def envoyer_selon(c: dict, sujet: str, corps: str, destinataire: str,
+                        nom: Optional[str] = None, reponse_a: Optional[str] = None) -> None:
+    """Envoie avec le réglage `c` (config_email ou celui d'une boutique) ; lève une exception en cas d'échec.
+    `nom` : nom affiché (sinon celui du réglage) ; `reponse_a` : adresse des réponses."""
+    nom = nettoyer_nom(nom or c.get("nom_expediteur"))
+    if c["fournisseur"] in FOURNISSEURS_API:
+        await envoyer_par_api(c["fournisseur"], c["cle"], c["expediteur"], nom, destinataire, sujet, corps,
+                              reponse_a=reponse_a, zeptomail_hote=c.get("zeptomail_hote"))
+        return
+    smtp = {**c["smtp"], "expediteur": c.get("expediteur") or c["smtp"].get("expediteur"), "nom_expediteur": nom}
+    await asyncio.to_thread(envoyer_smtp, sujet, corps, destinataire, smtp, reponse_a)
+
+
+async def email_pret() -> bool:
+    """Vrai si la plateforme peut envoyer des e-mails (affiché dans l'écran des sauvegardes)."""
+    return config_prete(await config_email())[0]
+
+
+async def journaliser_reglage(par: dict, fournisseur: str, cible: str = "plateforme",
+                              boutique_id: Optional[str] = None) -> None:
+    """Journal des modifications du service d'envoi : qui, quand, quel fournisseur (jamais la clé)."""
+    from db import db
+    from utils import new_id, now_iso
+    await db.journal_reglages_email.insert_one({
+        "id": new_id(), "date": now_iso(), "cible": cible, "boutique_id": boutique_id,
+        "par": (par or {}).get("email", ""), "par_id": (par or {}).get("id", ""), "fournisseur": fournisseur})
+
+
 async def envoyer_email(sujet: str, corps: str, destinataire: str) -> tuple[str, str]:
-    """E-mail de la plateforme -> (statut, erreur)."""
+    """E-mail de la plateforme -> (statut, erreur). Ne lève jamais d'exception."""
     if not destinataire:
         return "NON_CONFIGURE", "Aucune adresse e-mail"
-    if resend_configure():
-        # Resend en priorité : le SMTP ne passe pas depuis Render
-        try:
-            await envoyer_resend(sujet, corps, destinataire)
-            return "ENVOYE", ""
-        except Exception as exc:  # noqa: BLE001 — l'échec est rapporté, pas propagé
-            logger.warning("E-mail plateforme (Resend) vers %s en échec : %s", destinataire, exc)
-            return "ECHEC", str(exc)[:300]
-    c = await config_smtp()
-    if not (c["hote"] and c["actif"]):
-        return "NON_CONFIGURE", "Serveur d'envoi de la plateforme non réglé (Plateforme > Paramètres)"
+    c = await config_email()
+    pret, raison = config_prete(c)
+    if not pret:
+        return "NON_CONFIGURE", raison
     try:
-        await asyncio.to_thread(envoyer_smtp, sujet, corps, destinataire, c)
+        await envoyer_selon(c, sujet, corps, destinataire)
         return "ENVOYE", ""
     except Exception as exc:  # noqa: BLE001 — l'échec est rapporté, pas propagé
-        logger.warning("E-mail plateforme vers %s en échec : %s", destinataire, exc)
+        logger.warning("E-mail plateforme (%s) vers %s en échec : %s", c["fournisseur"], destinataire, exc)
         return "ECHEC", str(exc)[:300]
 
 

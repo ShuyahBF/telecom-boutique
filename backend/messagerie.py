@@ -1,10 +1,10 @@
 """Centre de messagerie : e-mails automatiques paramétrés PAR BOUTIQUE.
 
 Chaque gérant règle dans l'écran « Paramètres > Messagerie » de SA boutique :
-serveur SMTP, expéditeur, e-mail de l'équipe, et les textes des messages.
-Si Resend est configuré pour la plateforme (RESEND_API_KEY), les e-mails des
-boutiques passent par Resend : nom affiché = la boutique, réponses vers
-l'adresse d'expéditeur de la boutique (le SMTP est bloqué depuis Render).
+le service d'envoi, l'expéditeur, l'e-mail de l'équipe et les textes des messages.
+Service d'envoi : « Service de la plateforme » (défaut : adresse de la plateforme,
+nom de la boutique, réponses vers l'adresse de la boutique) ou son propre compte
+Resend / ZeptoMail / Brevo (clé chiffrée en base) ou son serveur SMTP.
 Point d'entrée unique : `notifier(ctx_boutique, code, destinataire, contexte)`.
 Un souci d'envoi ne bloque JAMAIS l'action en cours (commande, dossier...) :
 l'erreur est notée dans le journal des envois, consultable par le gérant.
@@ -124,11 +124,44 @@ def lien_suivi(boutique: dict, objet: str, donnees: dict) -> str:
     return base
 
 
+# ---------------------------------------------------------------------------
+# Service d'envoi de la boutique : « plateforme » (défaut) ou son propre service
+# ---------------------------------------------------------------------------
+FOURNISSEURS_BOUTIQUE = ("plateforme",) + envois_plateforme.FOURNISSEURS
+
+
+def fournisseur_boutique(p: dict) -> str:
+    """Service choisi par la boutique. Ancienne boutique sans « fournisseur » :
+    « smtp » si un serveur SMTP est renseigné, sinon « plateforme ».
+    Transition : tant que Resend est réglé dans Render, une ancienne boutique SMTP
+    continue de passer par la plateforme, comme avant cette version."""
+    f = p.get("fournisseur")
+    if f in FOURNISSEURS_BOUTIQUE:
+        return f
+    if p.get("smtp_hote") and not envois_plateforme.resend_configure():
+        return "smtp"
+    return "plateforme"
+
+
+def mot_de_passe_smtp(p: dict) -> str:
+    """Mot de passe SMTP de la boutique : chiffré (nouveau) ou en clair (ancien réglage)."""
+    if p.get("smtp_mot_de_passe_chiffre"):
+        return envois_plateforme.dechiffrer(p["smtp_mot_de_passe_chiffre"])
+    return p.get("smtp_mot_de_passe") or ""
+
+
+def cle_api_boutique(p: dict, fournisseur: str) -> str:
+    """Clé API (déchiffrée) de la boutique pour ce fournisseur, ou ""."""
+    return envois_plateforme.dechiffrer((p.get("cles_chiffrees") or {}).get(fournisseur, ""))
+
+
 def _envoyer_smtp(p: dict, destinataire: str, sujet: str, corps: str) -> None:
-    """Envoi réel (fonction bloquante, exécutée dans un fil séparé)."""
+    """Envoi réel par le serveur SMTP de la boutique (fonction bloquante, exécutée dans un fil séparé)."""
+    from email.utils import formataddr
     msg = EmailMessage()
     msg["Subject"] = sujet
-    msg["From"] = f"{p.get('expediteur_nom') or 'Boutique'} <{p.get('expediteur_email') or p.get('smtp_utilisateur')}>"
+    msg["From"] = formataddr((envois_plateforme.nettoyer_nom(p.get("expediteur_nom"), "Boutique"),
+                              p.get("expediteur_email") or p.get("smtp_utilisateur") or ""))
     msg["To"] = destinataire
     msg.set_content(corps)
     port = int(p.get("smtp_port") or 587)
@@ -140,36 +173,55 @@ def _envoyer_smtp(p: dict, destinataire: str, sujet: str, corps: str) -> None:
             serveur.starttls()
     with serveur:
         if p.get("smtp_utilisateur"):
-            serveur.login(p["smtp_utilisateur"], p.get("smtp_mot_de_passe") or "")
+            serveur.login(p["smtp_utilisateur"], mot_de_passe_smtp(p))
         serveur.send_message(msg)
 
 
+async def _envoyer_selon_boutique(boutique: dict, p: dict, destinataire: str, sujet: str, corps: str) -> str:
+    """Envoie selon le service de la boutique. Renvoie "" si parti, sinon la raison du
+    non-envoi (réglage incomplet) ; lève une exception si le fournisseur refuse."""
+    f = fournisseur_boutique(p)
+    nom = envois_plateforme.nettoyer_nom(p.get("expediteur_nom") or boutique.get("nom"), "Boutique")
+    if f == "plateforme":
+        # Adresse de la plateforme, nom de la boutique ; réponses vers l'adresse de la boutique
+        c = await envois_plateforme.config_email()
+        pret, raison = envois_plateforme.config_prete(c)
+        if not pret:
+            return f"Service d'envoi de la plateforme indisponible : {raison}"
+        await envois_plateforme.envoyer_selon(c, sujet, corps, destinataire, nom=nom,
+                                              reponse_a=p.get("expediteur_email") or boutique.get("email") or None)
+        return ""
+    if f == "smtp":
+        if not p.get("smtp_hote"):
+            return "Serveur SMTP non renseigné"
+        await asyncio.to_thread(_envoyer_smtp, {**p, "expediteur_nom": nom}, destinataire, sujet, corps)
+        return ""
+    # Propre compte Resend / ZeptoMail / Brevo de la boutique, avec SA clé
+    cle, expediteur = cle_api_boutique(p, f), p.get("expediteur_email") or ""
+    if not cle:
+        return f"Clé API {envois_plateforme.NOMS_FOURNISSEURS[f]} manquante"
+    if not expediteur:
+        return "Adresse de l'expéditeur manquante"
+    await envois_plateforme.envoyer_par_api(f, cle, expediteur, nom, destinataire, sujet, corps,
+                                            zeptomail_hote=p.get("zeptomail_hote"))
+    return ""
+
+
 async def envoyer_email(boutique: dict, destinataire: str, sujet: str, corps: str, code: str = "") -> dict:
+    """Envoie un e-mail de la boutique et l'inscrit au journal des envois (ENVOYE / ECHEC / NON_ENVOYE)."""
     p = boutique.get("messagerie") or {}
     journal = {"id": new_id(), "date": now_iso(), "code": code, "destinataire": destinataire,
                "sujet": sujet, "corps": corps, "erreur": ""}
     if boutique.get("test"):
         # Boutique interne (coordonnées imaginaires) : aucun e-mail ne part
         journal.update({"statut": "NON_ENVOYE", "erreur": "Boutique interne : envoi désactivé"})
-    elif p.get("email_actif") and envois_plateforme.resend_configure():
-        # Envoi par Resend (adresse du domaine validé de la plateforme), au nom de la boutique
-        try:
-            await envois_plateforme.envoyer_resend(
-                sujet, corps, destinataire,
-                nom_expediteur=p.get("expediteur_nom") or boutique.get("nom") or "Boutique",
-                reponse_a=p.get("expediteur_email") or boutique.get("email") or None)
-            journal["statut"] = "ENVOYE"
-        except Exception as exc:  # noqa: BLE001 — tout est capté et journalisé
-            logger.warning("Échec d'envoi d'e-mail (Resend) à %s : %s", destinataire, exc)
-            journal["statut"] = "ECHEC"
-            journal["erreur"] = str(exc)[:500]
-    elif not (p.get("email_actif") and p.get("smtp_hote")):
+    elif not p.get("email_actif"):
         journal["statut"] = "NON_ENVOYE"
     else:
         try:
-            await asyncio.to_thread(_envoyer_smtp, p, destinataire, sujet, corps)
-            journal["statut"] = "ENVOYE"
-        except Exception as exc:  # noqa: BLE001 — tout est capté et journalisé
+            raison = await _envoyer_selon_boutique(boutique, p, destinataire, sujet, corps)
+            journal.update({"statut": "NON_ENVOYE", "erreur": raison} if raison else {"statut": "ENVOYE"})
+        except Exception as exc:  # noqa: BLE001 — tout est capté et journalisé, l'action continue
             logger.warning("Échec d'envoi d'e-mail à %s : %s", destinataire, exc)
             journal["statut"] = "ECHEC"
             journal["erreur"] = str(exc)[:500]

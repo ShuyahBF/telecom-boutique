@@ -1,4 +1,4 @@
-"""Envoi des e-mails par l'API Resend (le SMTP est bloqué depuis Render) :
+"""Resend réglé par les variables d'environnement (repli quand rien n'est choisi dans l'écran) :
 plateforme (essai, rapports) et boutiques (au nom de la boutique, réponses vers elle)."""
 import httpx
 import pytest

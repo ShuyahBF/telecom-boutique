@@ -60,7 +60,7 @@ async def _reponse_session(user: dict) -> dict:
 
 
 def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | None:
-    """Ne jamais renvoyer le mot de passe SMTP ni les clés des pièces KYC au navigateur.
+    """Ne jamais renvoyer le mot de passe SMTP, la clé API d'envoi ni les clés des pièces KYC au navigateur.
     Le drapeau interne « test » (boutique de démonstration) n'est renvoyé qu'aux écrans
     du super-administrateur (super_admin=True) : le personnel de la boutique ne le voit pas."""
     if not boutique:
@@ -78,8 +78,15 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
     import abonnement_grace
     b["abonnement_grace"] = abonnement_grace.resume(boutique)
     if b.get("messagerie"):
+        # Messagerie : ni mot de passe SMTP ni clé API, seulement leur présence
+        from messagerie import fournisseur_boutique
         m = dict(b["messagerie"])
-        m["a_mot_de_passe"] = bool(m.pop("smtp_mot_de_passe", None))
+        m["fournisseur"] = fournisseur_boutique(m)
+        ancien, chiffre = m.pop("smtp_mot_de_passe", None), m.pop("smtp_mot_de_passe_chiffre", None)
+        m["a_mot_de_passe"] = bool(ancien or chiffre)
+        cles = m.pop("cles_chiffrees", None) or {}
+        m["cles"] = {f: bool(cles.get(f)) for f in ("resend", "zeptomail", "brevo")}
+        m["a_cle"] = m["cles"].get(m["fournisseur"], False)
         b["messagerie"] = m
     return b
 

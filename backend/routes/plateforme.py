@@ -198,8 +198,10 @@ def boutique_par_defaut(nom: str) -> dict:
         "devise": "FCFA", "taux_tva_defaut": 18.0, "prix_ttc": True, "validite_proforma_jours": 15,
         "conditions_facture": "Les marchandises vendues ne sont ni reprises ni échangées.",
         "couleur": "#0b5ed7", "paiement_mobile_money": True,
-        "messagerie": {"email_actif": False, "smtp_hote": "", "smtp_port": 587, "smtp_utilisateur": "",
-                       "smtp_mot_de_passe": "", "smtp_tls": True, "smtp_ssl": False,
+        # Messagerie : service d'envoi de la plateforme par défaut
+        "messagerie": {"email_actif": False, "fournisseur": "plateforme",
+                       "smtp_hote": "", "smtp_port": 587, "smtp_utilisateur": "", "smtp_mot_de_passe": "",
+                       "smtp_tls": True, "smtp_ssl": False,
                        "expediteur_nom": nom, "expediteur_email": "", "email_equipe": ""},
     }
 
