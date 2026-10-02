@@ -139,6 +139,11 @@ class Settings(BaseSettings):
     plateforme_smtp_mot_de_passe: Optional[str] = None
     plateforme_smtp_ssl: bool = False
     plateforme_expediteur: Optional[str] = None
+    # Resend (API HTTPS, https://resend.com) : remplace le SMTP, bloqué depuis Render.
+    # Si RESEND_API_KEY est renseignée, TOUS les e-mails (plateforme et boutiques) passent par Resend.
+    resend_api_key: Optional[str] = None
+    # Adresse d'envoi sur un domaine VALIDÉ dans Resend, ex. noreply@mondomaine.com
+    resend_expediteur: Optional[str] = None
 
     # --- SMS (identifiants envoyés au DG d'une boutique créée par le webhook) ---
     # Orange SMS API (Burkina Faso et Afrique de l'Ouest), OVH en repli : mêmes

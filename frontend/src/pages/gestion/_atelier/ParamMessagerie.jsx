@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -25,6 +25,11 @@ export default function ParamMessagerie() {
   const [test, setTest] = useState(null); // résultat du dernier e-mail de test
   const [testEnCours, setTestEnCours] = useState(false);
   const maj = (champ, valeur) => setReglages((r) => ({ ...r, [champ]: valeur }));
+  // Mode d'envoi en vigueur : si la plateforme a activé Resend, le SMTP ci-dessous n'est pas utilisé
+  const [fournisseur, setFournisseur] = useState({ resend_actif: false, resend_expediteur: "" });
+  useEffect(() => {
+    apiClient.get("/boutique/messagerie/fournisseur").then(({ data }) => setFournisseur(data)).catch(() => {});
+  }, []);
 
   // Enregistrement des réglages (PUT /boutique/messagerie)
   async function enregistrer(e) {
@@ -65,6 +70,14 @@ export default function ParamMessagerie() {
     <div className="grid gap-5 lg:grid-cols-3">
       <form onSubmit={enregistrer} className="card grid gap-4 sm:grid-cols-2 lg:col-span-2">
         <h2 className="font-bold sm:col-span-2">Serveur d'envoi (SMTP)</h2>
+        {/* Envoi par Resend (réglé par la plateforme) : seule la case et l'expéditeur comptent */}
+        {fournisseur.resend_actif && (
+          <p className="rounded-xl bg-green-50 p-3 text-sm text-green-900 sm:col-span-2">
+            ✅ Les e-mails partent par le service d'envoi de la plateforme (adresse <b className="font-mono">{fournisseur.resend_expediteur}</b>),
+            au nom de votre boutique. Les réponses des clients arrivent à votre « adresse d'expéditeur ». Il suffit de cocher
+            la case ci-dessous : les réglages SMTP ne sont pas utilisés.
+          </p>
+        )}
         <div className="sm:col-span-2"><Case label="Envoyer des e-mails aux clients et à l'équipe" aide="Confirmations de commande, avancement des réparations, réponses aux demandes de conseil…" checked={reglages.email_actif} onChange={(v) => maj("email_actif", v)} /></div>
         <Champ label="Serveur SMTP"><input className="input" maxLength={150} value={reglages.smtp_hote} onChange={(e) => maj("smtp_hote", e.target.value)} placeholder="smtp.gmail.com" /></Champ>
         <Champ label="Port"><input className="input" type="number" min={1} max={65535} value={reglages.smtp_port} onChange={(e) => maj("smtp_port", e.target.value)} /></Champ>
@@ -105,7 +118,7 @@ export default function ParamMessagerie() {
             test.statut === "ENVOYE"
               ? <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">✔ E-mail envoyé. Vérifiez la boîte de réception (et les indésirables).</p>
               : test.statut === "NON_ENVOYE"
-                ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Non envoyé : la messagerie est désactivée ou le serveur SMTP n'est pas renseigné.</p>
+                ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Non envoyé : la messagerie est désactivée{fournisseur.resend_actif ? "" : " ou le serveur SMTP n'est pas renseigné"}.</p>
                 : <div className="rounded-xl bg-red-50 p-3 text-sm text-red-800"><p className="font-semibold">✖ Échec de l'envoi</p><p className="mt-1 break-words font-mono text-xs">{test.erreur}</p></div>
           )}
         </form>

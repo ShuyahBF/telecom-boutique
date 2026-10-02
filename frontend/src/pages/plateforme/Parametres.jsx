@@ -27,7 +27,8 @@ export default function Parametres() {
   // Réglages affichés dans le formulaire (null = chargement)
   const [form, setForm] = useState(null);
   // Infos en lecture seule renvoyées par le serveur : mot de passe déjà saisi ? origine des réglages ?
-  const [etat, setEtat] = useState({ a_mot_de_passe: false, source: "" });
+  // resend_actif : envoi par l'API Resend (variables Render), prioritaire sur le SMTP
+  const [etat, setEtat] = useState({ a_mot_de_passe: false, source: "", resend_actif: false, resend_expediteur: "" });
   const [enregistrement, setEnregistrement] = useState(false);
   // Adresse qui recevra l'e-mail d'essai (par défaut : celle du super-admin connecté)
   const [destinataire, setDestinataire] = useState(user?.email || "");
@@ -38,7 +39,8 @@ export default function Parametres() {
     // Rien de réglé nulle part : on l'indique au lieu d'afficher une origine trompeuse
     if (!data.hote) data = { ...data, source: "" };
     setForm({ ...VIDE, ...Object.fromEntries(Object.entries(data).filter(([, v]) => v !== null && v !== "")), mot_de_passe: "" });
-    setEtat({ a_mot_de_passe: data.a_mot_de_passe, source: data.source });
+    setEtat({ a_mot_de_passe: data.a_mot_de_passe, source: data.source,
+      resend_actif: !!data.resend_actif, resend_expediteur: data.resend_expediteur || "" });
   };
 
   // Chargement initial des réglages
@@ -112,6 +114,19 @@ export default function Parametres() {
 
         {!form ? <Chargement /> : (
           <>
+            {/* ---------- Envoi par Resend (réglé dans Render : RESEND_API_KEY + RESEND_EXPEDITEUR) ---------- */}
+            <div className={`card text-sm ${etat.resend_actif ? "bg-green-50 text-green-900" : "bg-amber-50 text-amber-900"}`}>
+              {etat.resend_actif ? (
+                <p>✅ <b>Resend actif</b> : tous les e-mails (plateforme et boutiques) partent de
+                  <b className="font-mono"> {etat.resend_expediteur}</b>. Les réglages SMTP ci-dessous ne sont pas utilisés.
+                  Utilisez « Envoyer un essai » pour vérifier.</p>
+              ) : (
+                <p>⚠️ <b>Resend non configuré</b> : le SMTP est bloqué depuis Render. Renseignez
+                  <b className="font-mono"> RESEND_API_KEY</b> et <b className="font-mono">RESEND_EXPEDITEUR</b> dans
+                  les variables d'environnement de adlyn-backend.</p>
+              )}
+            </div>
+
             {/* ---------- Formulaire du serveur d'envoi (SMTP) ---------- */}
             <form onSubmit={enregistrer} className="card space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">

@@ -155,6 +155,13 @@ services:
         sync: false
       - key: PLATEFORME_EXPEDITEUR
         sync: false
+      # Resend (API HTTPS) : à renseigner pour que les e-mails partent (le SMTP est
+      # bloqué depuis Render). Prioritaire sur le SMTP pour la plateforme ET les boutiques.
+      - key: RESEND_API_KEY
+        sync: false
+      # Adresse d'envoi sur un domaine validé dans Resend, ex. noreply@mondomaine.com
+      - key: RESEND_EXPEDITEUR
+        sync: false
 
       # --- Bucket R2 PRIVÉ (pièces KYC, sauvegardes avant restauration) ---
       - key: R2_BUCKET_PRIVE

@@ -20,7 +20,9 @@ async def lire_smtp(_: dict = Depends(get_super_admin)):
     """Réglages en vigueur, SANS le mot de passe (seulement s'il est renseigné)."""
     c = await envois.config_smtp()
     return {**{k: c[k] for k in ("hote", "port", "utilisateur", "expediteur", "nom_expediteur", "ssl", "actif", "source")},
-            "a_mot_de_passe": bool(c["mot_de_passe"])}
+            "a_mot_de_passe": bool(c["mot_de_passe"]),
+            # Resend (prioritaire sur le SMTP) : état seulement, jamais la clé
+            "resend_actif": envois.resend_configure(), "resend_expediteur": envois.resend_expediteur()}
 
 
 class ReglagesSmtp(BaseModel):

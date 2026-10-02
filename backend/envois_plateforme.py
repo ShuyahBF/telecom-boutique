@@ -1,5 +1,6 @@
 """Envois de la PLATEFORME adLyn (distincts de la messagerie de chaque boutique) :
-  - e-mail par le serveur SMTP de la plateforme (PLATEFORME_SMTP_*) :
+  - e-mail par l'API Resend (RESEND_API_KEY, prioritaire : le SMTP est bloqué
+    depuis Render), sinon par le serveur SMTP de la plateforme (PLATEFORME_SMTP_*) :
     rapport de la nuit, identifiants d'une nouvelle boutique... ;
   - SMS par Orange SMS API, avec OVH en repli (même code que beauthentik.net).
 
@@ -72,7 +73,48 @@ async def config_smtp() -> dict:
 
 
 def email_configure() -> bool:
-    return bool(get_settings().plateforme_smtp_hote)
+    return resend_configure() or bool(get_settings().plateforme_smtp_hote)
+
+
+# ---------------------------------------------------------------------------
+# E-mail par l'API Resend (HTTPS, port 443 : jamais bloqué par Render)
+# ---------------------------------------------------------------------------
+RESEND_URL = "https://api.resend.com/emails"
+
+
+def resend_configure() -> bool:
+    """Vrai si la clé ET l'adresse d'envoi Resend sont renseignées dans Render."""
+    s = get_settings()
+    return bool(s.resend_api_key and s.resend_expediteur)
+
+
+def resend_expediteur() -> str:
+    """Adresse d'envoi Resend (domaine validé), sans le nom affiché."""
+    return (get_settings().resend_expediteur or "").strip()
+
+
+async def envoyer_resend(sujet: str, corps: str, destinataire: str, nom_expediteur: str = "adLyn",
+                         reponse_a: Optional[str] = None) -> None:
+    """Envoie un e-mail texte par l'API Resend ; lève une exception en cas d'échec.
+    `nom_expediteur` : nom affiché (ex. nom de la boutique), l'adresse reste celle du
+    domaine validé ; `reponse_a` : adresse qui recevra les réponses (ex. celle de la boutique)."""
+    from email.utils import formataddr
+    # Nom affiché nettoyé : pas de retour à la ligne ni de caractères d'en-tête
+    nom = " ".join((nom_expediteur or "adLyn").replace("<", "").replace(">", "").split())[:60] or "adLyn"
+    charge = {"from": formataddr((nom, resend_expediteur())), "to": [destinataire],
+              "subject": sujet, "text": corps}
+    if reponse_a:
+        charge["reply_to"] = reponse_a
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(RESEND_URL, json=charge,
+                              headers={"Authorization": f"Bearer {get_settings().resend_api_key}"})
+    if r.status_code >= 300:
+        # Message d'erreur de Resend (jamais la clé) : ex. « domain is not verified »
+        try:
+            detail = r.json().get("message") or r.text
+        except ValueError:
+            detail = r.text
+        raise RuntimeError(f"Resend {r.status_code} : {str(detail)[:250]}")
 
 
 def envoyer_smtp(sujet: str, corps: str, destinataire: str, c: Optional[dict] = None) -> None:
@@ -103,6 +145,14 @@ async def envoyer_email(sujet: str, corps: str, destinataire: str) -> tuple[str,
     """E-mail de la plateforme -> (statut, erreur)."""
     if not destinataire:
         return "NON_CONFIGURE", "Aucune adresse e-mail"
+    if resend_configure():
+        # Resend en priorité : le SMTP ne passe pas depuis Render
+        try:
+            await envoyer_resend(sujet, corps, destinataire)
+            return "ENVOYE", ""
+        except Exception as exc:  # noqa: BLE001 — l'échec est rapporté, pas propagé
+            logger.warning("E-mail plateforme (Resend) vers %s en échec : %s", destinataire, exc)
+            return "ECHEC", str(exc)[:300]
     c = await config_smtp()
     if not (c["hote"] and c["actif"]):
         return "NON_CONFIGURE", "Serveur d'envoi de la plateforme non réglé (Plateforme > Paramètres)"
