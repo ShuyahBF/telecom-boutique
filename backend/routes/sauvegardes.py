@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 
+import envois_plateforme
 import gdrive
 import sauvegarde
 import taches_nocturnes
@@ -30,7 +31,7 @@ async def historique(boutique_id: str = "", du: str = "", au: str = "", _: dict 
     return {
         "configuration": {"cle_chiffrement": bool(s.sauvegarde_cle), "google_drive": gdrive.configure(),
                           "dossier_drive": s.gdrive_nom_dossier, "retention_jours": s.sauvegarde_retention_jours,
-                          "rapport_email": s.rapport_email or "", "smtp_plateforme": bool(s.plateforme_smtp_hote),
+                          "rapport_email": s.rapport_email or "", "smtp_plateforme": await envois_plateforme.email_pret(),
                           "prochaine_execution": taches_nocturnes.prochaine_execution().isoformat()},
         "sauvegardes": await db.sauvegardes.find(filtre, SANS_ID).sort("date", -1).to_list(500),
         "rapports": await db.rapports.find({}, {"_id": 0, "corps": 0}).sort("date", -1).to_list(30),

@@ -1,5 +1,5 @@
 """Paramètres de SA boutique (réservé au DG) : fiche d'identité, logo,
-messagerie (SMTP, textes des e-mails, journal) et équipe."""
+messagerie (service d'envoi, textes des e-mails, journal) et équipe."""
 from __future__ import annotations
 
 from typing import Literal, Optional, Union
@@ -110,6 +110,12 @@ async def retirer_justificatif(piece_id: str, ctx: Contexte = Depends(parametres
 # ---------------------------------------------------------------------------
 class ParametresMessagerie(BaseModel):
     email_actif: bool = False
+    # Service d'envoi : celui de la plateforme (défaut) ou le propre service de la boutique.
+    # Absent (ancien écran) = choix actuel conservé.
+    fournisseur: Optional[Literal["plateforme", "resend", "zeptomail", "brevo", "smtp"]] = None
+    # Clé API du service choisi (Resend, ZeptoMail, Brevo) : vide = clé actuelle conservée
+    cle_api: Optional[str] = Field(None, max_length=500)
+    zeptomail_hote: Literal["api.zeptomail.com", "api.zeptomail.eu", "api.zeptomail.in"] = "api.zeptomail.com"
     smtp_hote: str = Field("", max_length=150)
     smtp_port: int = Field(587, ge=1, le=65535)
     smtp_utilisateur: str = Field("", max_length=150)
@@ -124,22 +130,42 @@ class ParametresMessagerie(BaseModel):
 
 @router.put("/messagerie")
 async def regler_messagerie(payload: ParametresMessagerie, ctx: Contexte = Depends(parametres)):
+    import envois_plateforme
+    from messagerie import fournisseur_boutique, mot_de_passe_smtp
     actuel = ctx.boutique.get("messagerie") or {}
-    nouveau = payload.model_dump()
-    if not nouveau.get("smtp_mot_de_passe"):
-        nouveau["smtp_mot_de_passe"] = actuel.get("smtp_mot_de_passe", "")
+    nouveau = payload.model_dump(exclude={"cle_api", "smtp_mot_de_passe"})
+    # Service : choix envoyé, sinon celui en vigueur (règle des anciennes boutiques)
+    nouveau["fournisseur"] = payload.fournisseur or fournisseur_boutique({**actuel, **nouveau})
+    # Mot de passe SMTP chiffré en base ; vide = conservé (un ancien mot de passe en clair est chiffré au passage)
+    mdp = payload.smtp_mot_de_passe or mot_de_passe_smtp(actuel)
+    nouveau["smtp_mot_de_passe_chiffre"] = envois_plateforme.chiffrer(mdp) if mdp else ""
+    nouveau["smtp_mot_de_passe"] = ""
+    # Clés API chiffrées, une par fournisseur ; vide = conservée
+    cles = dict(actuel.get("cles_chiffrees") or {})
+    if payload.cle_api and payload.cle_api.strip() and nouveau["fournisseur"] in envois_plateforme.FOURNISSEURS_API:
+        cles[nouveau["fournisseur"]] = envois_plateforme.chiffrer(payload.cle_api.strip())
+    nouveau["cles_chiffrees"] = cles
     nouveau["expediteur_email"] = nouveau.get("expediteur_email") or ""
     nouveau["email_equipe"] = nouveau.get("email_equipe") or ""
     await db.boutiques.update_one({"id": ctx.boutique["id"]}, {"$set": {"messagerie": nouveau}})
+    # Journal des modifications : qui, quand, quel service (jamais la clé)
+    await envois_plateforme.journaliser_reglage(ctx.user, nouveau["fournisseur"], cible="boutique",
+                                                boutique_id=ctx.boutique["id"])
     return _sans_secrets(await db.boutiques.find_one({"id": ctx.boutique["id"]}, SANS_ID))["messagerie"]
 
 
 @router.get("/messagerie/fournisseur")
 async def fournisseur_messagerie(_: Contexte = Depends(parametres)):
-    """Mode d'envoi en vigueur : Resend (réglé par la plateforme) ou SMTP de la boutique."""
+    """Service d'envoi de la plateforme (utilisé par le choix « Service de la plateforme »)."""
     import envois_plateforme
-    actif = envois_plateforme.resend_configure()
-    return {"resend_actif": actif, "resend_expediteur": envois_plateforme.resend_expediteur() if actif else ""}
+    c = await envois_plateforme.config_email()
+    pret, raison = envois_plateforme.config_prete(c)
+    expediteur = c.get("expediteur") or "" if pret else ""
+    return {"plateforme_pret": pret, "plateforme_raison": raison,
+            "plateforme_fournisseur": c.get("fournisseur") or "", "plateforme_expediteur": expediteur,
+            # Anciens champs (écran d'avant) : Resend de la plateforme actif ?
+            "resend_actif": pret and c.get("fournisseur") == "resend",
+            "resend_expediteur": expediteur if c.get("fournisseur") == "resend" else ""}
 
 
 class EmailTest(BaseModel):

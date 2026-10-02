@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -132,18 +133,31 @@ class Settings(BaseSettings):
 
     # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
     rapport_email: Optional[str] = None
-    # Serveur d'envoi de la PLATEFORME (distinct de celui de chaque boutique)
-    plateforme_smtp_hote: Optional[str] = None
-    plateforme_smtp_port: int = 587
-    plateforme_smtp_utilisateur: Optional[str] = None
-    plateforme_smtp_mot_de_passe: Optional[str] = None
-    plateforme_smtp_ssl: bool = False
-    plateforme_expediteur: Optional[str] = None
-    # Resend (API HTTPS, https://resend.com) : remplace le SMTP, bloqué depuis Render.
-    # Si RESEND_API_KEY est renseignée, TOUS les e-mails (plateforme et boutiques) passent par Resend.
+    # Service d'envoi des e-mails de la PLATEFORME : il se choisit dans l'écran
+    # Plateforme > Paramètres (Resend, ZeptoMail, Brevo ou SMTP). Les variables
+    # ci-dessous ne servent que de REPLI quand rien n'est réglé dans l'écran, dans cet
+    # ordre : 1. Resend ; 2. SMTP ; puis Brevo et ZeptoMail (facultatifs).
+    # Serveur SMTP de repli (PLATEFORME_SMTP_* ou, à défaut, SMTP_*) : bloqué sur les
+    # services Render gratuits (ports 25, 465, 587), seulement avec une offre payante.
+    plateforme_smtp_hote: Optional[str] = Field(None, validation_alias=AliasChoices("plateforme_smtp_hote", "smtp_hote"))
+    plateforme_smtp_port: int = Field(587, validation_alias=AliasChoices("plateforme_smtp_port", "smtp_port"))
+    plateforme_smtp_utilisateur: Optional[str] = Field(
+        None, validation_alias=AliasChoices("plateforme_smtp_utilisateur", "smtp_utilisateur"))
+    plateforme_smtp_mot_de_passe: Optional[str] = Field(
+        None, validation_alias=AliasChoices("plateforme_smtp_mot_de_passe", "smtp_mot_de_passe"))
+    plateforme_smtp_ssl: bool = Field(False, validation_alias=AliasChoices("plateforme_smtp_ssl", "smtp_ssl"))
+    plateforme_expediteur: Optional[str] = Field(
+        None, validation_alias=AliasChoices("plateforme_expediteur", "smtp_expediteur"))
+    # Resend (API HTTPS, https://resend.com) : premier repli.
     resend_api_key: Optional[str] = None
     # Adresse d'envoi sur un domaine VALIDÉ dans Resend, ex. noreply@mondomaine.com
     resend_expediteur: Optional[str] = None
+    # Replis facultatifs par API HTTPS (port 443, jamais bloqué par Render) :
+    # adresse d'envoi commune EMAIL_EXPEDITEUR (domaine validé chez le fournisseur)
+    email_expediteur: Optional[str] = None
+    brevo_api_key: Optional[str] = None
+    zeptomail_api_key: Optional[str] = None
+    zeptomail_hote: str = "api.zeptomail.com"  # ou api.zeptomail.eu / api.zeptomail.in
 
     # --- SMS (identifiants envoyés au DG d'une boutique créée par le webhook) ---
     # Orange SMS API (Burkina Faso et Afrique de l'Ouest), OVH en repli : mêmes

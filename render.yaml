@@ -143,8 +143,17 @@ services:
       # --- Rapport de la nuit (sauvegardes + catalogue) ---
       - key: RAPPORT_EMAIL
         value: jfrancois.ouoba@gmail.com
-      # Serveur d'envoi de la plateforme (ex. Gmail : smtp.gmail.com, 587,
-      # adresse Gmail + « mot de passe d'application »)
+      # E-mails de la plateforme : le service (Resend, ZeptoMail, Brevo ou SMTP) se
+      # choisit dans l'écran Plateforme > Paramètres (clés chiffrées en base). Les
+      # variables ci-dessous sont FACULTATIVES : valeurs de repli quand rien n'est réglé
+      # dans l'écran, dans cet ordre : 1. Resend ; 2. SMTP ; puis Brevo, ZeptoMail.
+      # 1. Resend (API HTTPS) : clé + adresse sur un domaine validé, ex. noreply@mondomaine.com
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_EXPEDITEUR
+        sync: false
+      # 2. Serveur SMTP (PLATEFORME_SMTP_* ou SMTP_*) : bloqué sur les services Render
+      # gratuits (ports 25, 465, 587), seulement avec une offre payante (Starter)
       - key: PLATEFORME_SMTP_HOTE
         sync: false
       - key: PLATEFORME_SMTP_PORT
@@ -155,13 +164,16 @@ services:
         sync: false
       - key: PLATEFORME_EXPEDITEUR
         sync: false
-      # Resend (API HTTPS) : à renseigner pour que les e-mails partent (le SMTP est
-      # bloqué depuis Render). Prioritaire sur le SMTP pour la plateforme ET les boutiques.
-      - key: RESEND_API_KEY
+      # 3. Brevo et ZeptoMail (API HTTPS), avec l'adresse commune EMAIL_EXPEDITEUR
+      - key: EMAIL_EXPEDITEUR
         sync: false
-      # Adresse d'envoi sur un domaine validé dans Resend, ex. noreply@mondomaine.com
-      - key: RESEND_EXPEDITEUR
+      - key: BREVO_API_KEY
         sync: false
+      - key: ZEPTOMAIL_API_KEY
+        sync: false
+      # Région ZeptoMail : api.zeptomail.com (défaut), api.zeptomail.eu ou api.zeptomail.in
+      - key: ZEPTOMAIL_HOTE
+        value: api.zeptomail.com
 
       # --- Bucket R2 PRIVÉ (pièces KYC, sauvegardes avant restauration) ---
       - key: R2_BUCKET_PRIVE
