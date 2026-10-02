@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiClient, BOUTIQUE_ACTIVE_KEY, EVENEMENT_SESSION_PERDUE, memoriserIdBoutique } from "@/lib/api";
+import { apiClient, BOUTIQUE_ACTIVE_KEY, EVENEMENT_ABONNEMENT_EXPIRE, EVENEMENT_SESSION_PERDUE, memoriserIdBoutique } from "@/lib/api";
 
 // Session du personnel : utilisateur connecté + sa boutique.
 // La session vit dans un cookie HttpOnly (30 jours) : à l'ouverture du site,
@@ -8,10 +8,11 @@ const AuthContext = createContext(null);
 // Motif d'une déconnexion imposée (lu puis effacé par la page de connexion)
 export const MOTIF_DECONNEXION_KEY = "adlyn_motif_deconnexion";
 
-// Motifs montrés à la connexion : session fermée par un administrateur ou après inactivité
+// Motifs montrés à la connexion : session fermée (administrateur, autre appareil,
+// nombre maximal d'appareils atteint) ou expirée après inactivité
 function noterMotif(detail) {
   try {
-    if (typeof detail === "string" && /fermée par un administrateur|après inactivité/.test(detail)) {
+    if (typeof detail === "string" && /fermée|après inactivité/.test(detail)) {
       sessionStorage.setItem(MOTIF_DECONNEXION_KEY, detail);
     }
   } catch { /* stockage indisponible */ }
@@ -59,6 +60,12 @@ export function AuthProvider({ children }) {
     window.addEventListener(EVENEMENT_SESSION_PERDUE, surPerte);
     return () => window.removeEventListener(EVENEMENT_SESSION_PERDUE, surPerte);
   }, []);
+
+  // Abonnement expiré en cours d'utilisation (403) : relecture de la session -> écran « Abonnement expiré »
+  useEffect(() => {
+    window.addEventListener(EVENEMENT_ABONNEMENT_EXPIRE, rafraichir);
+    return () => window.removeEventListener(EVENEMENT_ABONNEMENT_EXPIRE, rafraichir);
+  }, [rafraichir]);
 
   /** Connexion : ID boutique (vide pour le super-admin) + e-mail OU téléphone + mot de passe.
    *  Le serveur pose le cookie de session ; on retient seulement l'ID boutique. */

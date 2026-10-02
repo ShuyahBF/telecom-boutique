@@ -8,6 +8,7 @@ import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
 import { DECLENCHEURS, tailleLisible } from "./_plateforme/outils";
 import TransfertDonnees from "./_plateforme/TransfertDonnees";
+import SauvegardeGenerale from "./_plateforme/SauvegardeGenerale";
 
 // Statut d'une sauvegarde (badge vert / rouge)
 const STATUTS_SAUVEGARDE = {
@@ -190,6 +191,9 @@ export default function Sauvegardes() {
             </section>
           </>
         )}
+
+        {/* Sauvegarde générale automatique de toute la base vers R2 (Cron Job Render) */}
+        <SauvegardeGenerale />
 
         {/* Export / import complet de la base (changement de cluster MongoDB) */}
         <TransfertDonnees />

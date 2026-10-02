@@ -7,6 +7,7 @@ import { EnTetePlateforme } from "./_plateforme/composants";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
 import ReglageInactivite from "@/components/ReglageInactivite";
+import ReglageSessionsMax from "@/components/ReglageSessionsMax";
 
 // Valeurs proposées quand rien n'est encore réglé (exemple : messagerie sawalismartsystems.com)
 const VIDE = {
@@ -101,6 +102,12 @@ export default function Parametres() {
         <div className="card space-y-2">
           <h2 className="text-lg font-bold">⏳ Déconnexion après inactivité</h2>
           <ReglageInactivite mode="plateforme" />
+        </div>
+
+        {/* Sessions simultanées : nombre maximal par compte */}
+        <div className="card space-y-2">
+          <h2 className="text-lg font-bold">💻 Sessions simultanées par compte</h2>
+          <ReglageSessionsMax />
         </div>
 
         {!form ? <Chargement /> : (

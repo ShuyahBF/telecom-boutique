@@ -10,7 +10,8 @@ import { useToast } from "@/components/Toast";
 import ReglageInactivite from "@/components/ReglageInactivite";
 
 // Actions de fermeture des sessions notées dans le journal des identifiants
-const ACTIONS_SESSIONS = ["SESSIONS_FERMEES", "SESSIONS_BOUTIQUE_FERMEES", "SESSIONS_AUTRES_FERMEES"];
+const ACTIONS_SESSIONS = ["SESSIONS_FERMEES", "SESSIONS_BOUTIQUE_FERMEES", "SESSIONS_AUTRES_FERMEES",
+  "SESSIONS_LIMITE_FERMEES", "SESSION_FERMEE", "SESSION_FERMEE_ADMIN"];
 
 /** boutique : boutique affichée (null = fenêtre fermée) */
 export default function SessionsBoutique({ boutique, onFermer }) {
@@ -18,6 +19,9 @@ export default function SessionsBoutique({ boutique, onFermer }) {
   const [comptes, setComptes] = useState(null);
   const [journal, setJournal] = useState([]);
   const [occupe, setOccupe] = useState(""); // id du compte en cours, ou "tous"
+  // Sessions ouvertes de chaque compte ({ comptes: {user_id: {nb, sessions}}, limite }) et compte déplié
+  const [sessions, setSessions] = useState(null);
+  const [deplie, setDeplie] = useState("");
 
   const id = boutique?.id;
   const charger = useCallback(() => {
@@ -25,6 +29,7 @@ export default function SessionsBoutique({ boutique, onFermer }) {
     apiClient.get(`/plateforme/boutiques/${id}/comptes`)
       .then(({ data }) => setComptes(data))
       .catch((err) => toast.erreur(messageErreur(err, "Impossible de charger les comptes")));
+    apiClient.get(`/plateforme/boutiques/${id}/sessions`).then(({ data }) => setSessions(data)).catch(() => setSessions(null));
     apiClient.get("/plateforme/journal-identifiants", { params: { boutique_id: id } })
       .then(({ data }) => setJournal(data.filter((l) => ACTIONS_SESSIONS.includes(l.action)).slice(0, 20)))
       .catch(() => setJournal([]));
@@ -68,10 +73,28 @@ export default function SessionsBoutique({ boutique, onFermer }) {
                   <p className="font-semibold">{c.nom} <span className="text-xs font-normal text-gray-500">· {ROLES[c.role] || c.role}{c.actif === false ? " · désactivé" : ""}</span></p>
                   <p className="truncate text-xs text-gray-500">{[c.telephone, c.email].filter(Boolean).join(" · ")}</p>
                 </div>
+                {/* Nombre de sessions ouvertes (cliquer pour les voir et en fermer une) */}
+                <button type="button" className="badge bg-gray-100 text-gray-700" disabled={!sessions?.comptes?.[c.id]?.nb}
+                  onClick={() => setDeplie(deplie === c.id ? "" : c.id)}>
+                  {sessions?.comptes?.[c.id]?.nb ?? 0} session(s) {sessions?.comptes?.[c.id]?.nb ? (deplie === c.id ? "▲" : "▼") : ""}
+                </button>
                 <button type="button" className="btn-outline btn-sm" disabled={!!occupe}
                   onClick={() => fermer(`${base}/comptes/${c.id}/fermer-sessions`, `Fermer les sessions de ${c.nom} sur tous ses appareils ?`, c.id)}>
                   {occupe === c.id ? "Fermeture…" : "🚪 Fermer ses sessions"}
                 </button>
+                {deplie === c.id && (
+                  <ul className="w-full space-y-1 rounded-lg bg-gray-50 p-2 text-xs">
+                    {(sessions?.comptes?.[c.id]?.sessions || []).map((s) => (
+                      <li key={s.id} className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1"><b>{s.appareil}</b> · IP {s.ip || "—"} · ouverte {dateHeure(s.ouverte_le)} · active {dateHeure(s.derniere_activite)}</span>
+                        <button type="button" className="btn-outline btn-sm" disabled={!!occupe}
+                          onClick={() => fermer(`${base}/sessions/${s.id}/fermer`, `Fermer la session « ${s.appareil} » de ${c.nom} ?`, s.id)}>
+                          {occupe === s.id ? "…" : "Fermer"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
             {!comptes.length && <li className="p-3 text-gray-500">Aucun compte.</li>}
