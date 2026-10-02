@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
 import { DECLENCHEURS, tailleLisible } from "./_plateforme/outils";
+import TransfertDonnees from "./_plateforme/TransfertDonnees";
 
 // Statut d'une sauvegarde (badge vert / rouge)
 const STATUTS_SAUVEGARDE = {
@@ -189,6 +190,9 @@ export default function Sauvegardes() {
             </section>
           </>
         )}
+
+        {/* Export / import complet de la base (changement de cluster MongoDB) */}
+        <TransfertDonnees />
       </main>
 
       {/* Fenêtre : texte complet d'un rapport */}
