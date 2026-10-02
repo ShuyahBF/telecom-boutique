@@ -147,6 +147,8 @@ async def ensure_indexes() -> None:
         await collection.create_index([("cle", 1), ("date", 1)])
         await collection.create_index("expire_le", expireAfterSeconds=0)
     await db.journal_identifiants.create_index([("boutique_id", 1), ("date", -1)])
+    # Dernière activité de chaque session (déconnexion après inactivité) : effacée à l'expiration du jeton
+    await db.sessions_activite.create_index("expire_le", expireAfterSeconds=0)
     # Connexion (anti force brute) et webhook (anti-rejeu : nonces effacés après 7 jours)
     await db.echecs_connexion.create_index([("cle", 1), ("date", 1)])
     await db.echecs_connexion.create_index("expire_le", expireAfterSeconds=0)

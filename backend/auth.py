@@ -20,6 +20,7 @@ choisir la boutique sur laquelle il agit (en-tête X-Boutique-Id).
 """
 from __future__ import annotations
 
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -29,6 +30,7 @@ from fastapi import Depends, Header, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 
+import inactivite
 import maintenance_plateforme
 from config import get_settings
 from db import SANS_ID, TenantDB, db
@@ -78,8 +80,10 @@ def create_access_token(user_id: str, version: int = 0) -> str:
     tous les jetons déjà distribués."""
     s = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=s.jwt_expires_minutes)
-    # « ouv » = heure d'ouverture de la session (invalidation après une maintenance)
-    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at, "ouv": time.time()},
+    # « ouv » = heure d'ouverture de la session (invalidation après une maintenance) ;
+    # « sid » = identifiant de la session (suivi de l'inactivité, voir inactivite.py)
+    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at, "ouv": time.time(),
+                       "sid": secrets.token_urlsafe(12)},
                       s.jwt_secret, algorithm=s.jwt_algorithm)
 
 
@@ -163,6 +167,8 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
     await maintenance_plateforme.controler_session(user, contenu)
+    # Déconnexion après inactivité (durée réglée par l'administrateur et le DG)
+    await inactivite.controler(user, contenu, request)
     return user
 
 

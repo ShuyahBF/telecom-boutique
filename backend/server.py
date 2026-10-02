@@ -24,6 +24,7 @@ from seed import creer_demo, ensure_super_admin
 from routes import transfert_donnees  # export / import complet de la base (changement de cluster)
 from routes import maintenance_plateforme  # déconnexion programmée de tous les utilisateurs
 from routes import sessions  # fermeture des sessions d'un compte (sans changer le mot de passe)
+from routes import inactivite  # déconnexion après inactivité (réglages)
 
 settings = get_settings()
 
@@ -50,6 +51,10 @@ for module in (auth, identifiants, plateforme, boutique, catalogue, tiers, stock
 api.include_router(sessions.boutique)
 api.include_router(sessions.compte)
 api.include_router(sessions.admin)
+# Déconnexion après inactivité : durée de chacun, réglages plateforme / boutique / DG
+api.include_router(inactivite.compte)
+api.include_router(inactivite.admin)
+api.include_router(inactivite.boutique)
 # Abonnements : page du DG et administration (super-admin)
 api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
