@@ -30,7 +30,9 @@ async def sauvegarder_toutes(declencheur: str = "planification") -> list[dict]:
     """Sauvegarde toutes les boutiques ; un échec n'empêche jamais les suivantes."""
     s = get_settings()
     # Boutiques internes (présentation) : pas de sauvegarde sur le Drive
-    boutiques = await db.boutiques.find({"test": {"$ne": True}}, SANS_ID).sort("nom", 1).to_list(None)
+    # ni les boutiques archivées par le cycle de vie (données déjà archivées sur R2)
+    boutiques = await db.boutiques.find({"test": {"$ne": True}, "cycle_vie.statut": {"$ne": "ARCHIVE"}},
+                                        SANS_ID).sort("nom", 1).to_list(None)
     resultats: list[dict] = []
     drive = None
     async with httpx.AsyncClient(timeout=120) as client:

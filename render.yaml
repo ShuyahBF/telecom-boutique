@@ -125,6 +125,21 @@ services:
       - key: GDRIVE_NOM_DOSSIER
         value: adLyn - Sauvegardes
 
+      # --- Sauvegarde GÉNÉRALE automatique (toute la base, format .adlexport) vers R2 ---
+      # Phrase de chiffrement (12 caractères minimum) : sans elle, sauvegarde DÉSACTIVÉE.
+      # À conserver AUSSI hors de Render : sans elle, aucune restauration possible.
+      - key: SAUVEGARDE_AUTO_PHRASE
+        sync: false
+      # Jeton secret du Cron Job (ex. : openssl rand -hex 32), envoyé dans l'en-tête X-Sauvegarde-Jeton
+      - key: SAUVEGARDE_AUTO_JETON
+        sync: false
+      # Bucket R2 dédié (facultatif : à défaut R2_BUCKET_PRIVE) ; identifiants R2 ci-dessus réutilisés
+      - key: ADLYN_SAUVEGARDES_BUCKET
+        sync: false
+      # Dossier des archives des boutiques supprimées après non-renouvellement (cycle de vie)
+      - key: ADLYN_ARCHIVES_PREFIXE
+        value: archives-locataires/
+
       # --- Rapport de la nuit (sauvegardes + catalogue) ---
       - key: RAPPORT_EMAIL
         value: jfrancois.ouoba@gmail.com
@@ -139,6 +154,13 @@ services:
       - key: PLATEFORME_SMTP_MOT_DE_PASSE
         sync: false
       - key: PLATEFORME_EXPEDITEUR
+        sync: false
+      # Resend (API HTTPS) : à renseigner pour que les e-mails partent (le SMTP est
+      # bloqué depuis Render). Prioritaire sur le SMTP pour la plateforme ET les boutiques.
+      - key: RESEND_API_KEY
+        sync: false
+      # Adresse d'envoi sur un domaine validé dans Resend, ex. noreply@mondomaine.com
+      - key: RESEND_EXPEDITEUR
         sync: false
 
       # --- Bucket R2 PRIVÉ (pièces KYC, sauvegardes avant restauration) ---
@@ -208,6 +230,26 @@ services:
         sync: false
       - key: WEBHOOK_QUOTA_JOUR
         value: "20"
+
+  # Cron Job de la sauvegarde générale (à créer dans Render, service payant ; laissé en
+  # commentaire pour ne rien créer automatiquement). Il réveille le serveur et déclenche
+  # la sauvegarde du jour (idempotente : un second appel le même jour ne refait rien).
+  # - type: cron
+  #   name: adlyn-sauvegarde-generale
+  #   runtime: docker | python
+  #   schedule: "30 1 * * *"   # 01h30 UTC chaque nuit
+  #   # Puis, avec le même jeton, la tâche quotidienne du cycle de vie des abonnements non
+  #   # renouvelés (J+103 / J+110 / J+112 / J+113, backend/cycle_vie.py ; idempotente aussi).
+  #   # Le « sleep » laisse la sauvegarde générale du jour se faire AVANT tout archivage.
+  #   startCommand: >-
+  #     curl -fsS -X POST -H "X-Sauvegarde-Jeton: $SAUVEGARDE_AUTO_JETON"
+  #     https://<adresse-du-backend>/api/sauvegarde-auto/declencher
+  #     && sleep 900 &&
+  #     curl -fsS -X POST -H "X-Sauvegarde-Jeton: $SAUVEGARDE_AUTO_JETON"
+  #     https://<adresse-du-backend>/api/cycle-vie/declencher
+  #   envVars:
+  #     - key: SAUVEGARDE_AUTO_JETON
+  #       sync: false
 
   - type: web
     name: adlyn-frontend

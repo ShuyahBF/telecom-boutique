@@ -5,6 +5,8 @@ import { apiClient, messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import SessionsCompte from "@/components/SessionsCompte";
+import DernieresSauvegardes from "@/components/DernieresSauvegardes";
 
 // Page « Mon compte » (tout membre du personnel connecté) : ses identifiants
 // de connexion (e-mail et/ou téléphone) et son mot de passe.
@@ -26,6 +28,7 @@ export default function MonCompte() {
   const [erreur, setErreur] = useState("");
   const [succes, setSucces] = useState("");
   const [envoi, setEnvoi] = useState(false);
+  const [versionSessions, setVersionSessions] = useState(0); // recharge la liste des sessions
 
   if (chargement) return <Chargement plein />;
   if (!user) return <Navigate to="/connexion" replace />;
@@ -90,6 +93,7 @@ export default function MonCompte() {
     try {
       const { data } = await apiClient.post("/auth/sessions/fermer-autres");
       setSucces(data.message);
+      setVersionSessions((v) => v + 1);
     } catch (err) {
       setErreur(messageErreur(err, "Opération impossible"));
     }
@@ -149,6 +153,9 @@ export default function MonCompte() {
         <Link to="/mot-de-passe" className="btn-outline block w-full text-center">🔑 Changer mon mot de passe</Link>
         {/* Téléphone perdu, poste partagé… : sans changer le mot de passe */}
         <button type="button" className="btn-outline block w-full text-center" onClick={fermerAutresSessions}>🚪 Déconnecter mes autres appareils</button>
+        {/* Sessions ouvertes (une à une) et dates des dernières sauvegardes */}
+        <SessionsCompte version={versionSessions} />
+        <DernieresSauvegardes />
         <div className="text-center text-sm">
           <button type="button" className="text-primary" onClick={() => navigate(accueil)}>← Retour</button>
         </div>

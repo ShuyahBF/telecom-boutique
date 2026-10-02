@@ -65,6 +65,10 @@ ACTIONS = {
     "SESSIONS_FERMEES": "Sessions fermées sur tous les appareils",
     "SESSIONS_AUTRES_FERMEES": "Autres appareils déconnectés",
     "SESSIONS_BOUTIQUE_FERMEES": "Toutes les sessions de la boutique fermées",
+    # Sessions simultanées limitées (sessions_actives.py)
+    "SESSIONS_LIMITE_FERMEES": "Session la plus ancienne fermée (nombre maximal d'appareils atteint)",
+    "SESSION_FERMEE": "Une session fermée depuis Mon compte",
+    "SESSION_FERMEE_ADMIN": "Une session fermée par l'administrateur",
 }
 
 _MOTIF_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")

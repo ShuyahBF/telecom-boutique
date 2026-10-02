@@ -2,6 +2,9 @@
 
 Chaque gérant règle dans l'écran « Paramètres > Messagerie » de SA boutique :
 serveur SMTP, expéditeur, e-mail de l'équipe, et les textes des messages.
+Si Resend est configuré pour la plateforme (RESEND_API_KEY), les e-mails des
+boutiques passent par Resend : nom affiché = la boutique, réponses vers
+l'adresse d'expéditeur de la boutique (le SMTP est bloqué depuis Render).
 Point d'entrée unique : `notifier(ctx_boutique, code, destinataire, contexte)`.
 Un souci d'envoi ne bloque JAMAIS l'action en cours (commande, dossier...) :
 l'erreur est notée dans le journal des envois, consultable par le gérant.
@@ -16,6 +19,7 @@ from email.message import EmailMessage
 from typing import Any, Optional
 from urllib.parse import urlencode
 
+import envois_plateforme
 from config import get_settings
 from db import TenantDB
 from utils import new_id, now_iso
@@ -147,6 +151,18 @@ async def envoyer_email(boutique: dict, destinataire: str, sujet: str, corps: st
     if boutique.get("test"):
         # Boutique interne (coordonnées imaginaires) : aucun e-mail ne part
         journal.update({"statut": "NON_ENVOYE", "erreur": "Boutique interne : envoi désactivé"})
+    elif p.get("email_actif") and envois_plateforme.resend_configure():
+        # Envoi par Resend (adresse du domaine validé de la plateforme), au nom de la boutique
+        try:
+            await envois_plateforme.envoyer_resend(
+                sujet, corps, destinataire,
+                nom_expediteur=p.get("expediteur_nom") or boutique.get("nom") or "Boutique",
+                reponse_a=p.get("expediteur_email") or boutique.get("email") or None)
+            journal["statut"] = "ENVOYE"
+        except Exception as exc:  # noqa: BLE001 — tout est capté et journalisé
+            logger.warning("Échec d'envoi d'e-mail (Resend) à %s : %s", destinataire, exc)
+            journal["statut"] = "ECHEC"
+            journal["erreur"] = str(exc)[:500]
     elif not (p.get("email_actif") and p.get("smtp_hote")):
         journal["statut"] = "NON_ENVOYE"
     else:

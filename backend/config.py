@@ -116,6 +116,20 @@ class Settings(BaseSettings):
     gdrive_refresh_token: Optional[str] = None
     gdrive_nom_dossier: str = "adLyn - Sauvegardes"
 
+    # --- Sauvegarde GÉNÉRALE automatique (toute la base, format .adlexport) vers R2 ---
+    # Déclenchée chaque nuit par un Cron Job Render : POST /api/sauvegarde-auto/declencher
+    # avec l'en-tête X-Sauvegarde-Jeton = SAUVEGARDE_AUTO_JETON. Sans phrase de chiffrement
+    # (12 caractères minimum), la sauvegarde générale est DÉSACTIVÉE (alerte dans l'admin).
+    sauvegarde_auto_phrase: Optional[str] = None
+    sauvegarde_auto_jeton: Optional[str] = None
+    # Identifiants R2 : ceux du stockage existant (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+    # R2_SECRET_ACCESS_KEY). Bucket dédié conseillé ; à défaut, le bucket PRIVÉ (R2_BUCKET_PRIVE).
+    adlyn_sauvegardes_bucket: Optional[str] = None
+    adlyn_sauvegardes_prefixe: str = "sauvegardes-generales/"
+    # Cycle de vie du non-renouvellement (cycle_vie.py) : archives des boutiques supprimées,
+    # même bucket que la sauvegarde générale, dans ce dossier
+    adlyn_archives_prefixe: str = "archives-locataires/"
+
     # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
     rapport_email: Optional[str] = None
     # Serveur d'envoi de la PLATEFORME (distinct de celui de chaque boutique)
@@ -125,6 +139,11 @@ class Settings(BaseSettings):
     plateforme_smtp_mot_de_passe: Optional[str] = None
     plateforme_smtp_ssl: bool = False
     plateforme_expediteur: Optional[str] = None
+    # Resend (API HTTPS, https://resend.com) : remplace le SMTP, bloqué depuis Render.
+    # Si RESEND_API_KEY est renseignée, TOUS les e-mails (plateforme et boutiques) passent par Resend.
+    resend_api_key: Optional[str] = None
+    # Adresse d'envoi sur un domaine VALIDÉ dans Resend, ex. noreply@mondomaine.com
+    resend_expediteur: Optional[str] = None
 
     # --- SMS (identifiants envoyés au DG d'une boutique créée par le webhook) ---
     # Orange SMS API (Burkina Faso et Afrique de l'Ouest), OVH en repli : mêmes
@@ -172,6 +191,12 @@ class Settings(BaseSettings):
     # où se connecter, 4 variables : {{1}} nom de la personne, {{2}} nom de la boutique,
     # {{3}} ID boutique, {{4}} identifiant de connexion (e-mail ou téléphone)
     whatsapp_identifiants_template: Optional[str] = None
+    # Facultatifs : modèles « Utility » des avertissements du cycle de vie (2 variables :
+    # {{1}} nom de la boutique, {{2}} message) et des rappels KYC aux DG (3 variables :
+    # {{1}} nom du DG, {{2}} nom de la boutique, {{3}} état du KYC). Sans modèle : message
+    # texte (fenêtre de 24 h), puis SMS en repli pour le cycle de vie.
+    whatsapp_cycle_vie_template: Optional[str] = None
+    whatsapp_kyc_template: Optional[str] = None
 
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique

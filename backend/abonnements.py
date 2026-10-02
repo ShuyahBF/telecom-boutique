@@ -6,7 +6,8 @@ Cycle de vie d'une boutique :
      chaque paiement repousse l'échéance du nombre de mois de la formule ;
   3. sans paiement à l'échéance, la boutique passe EN RETARD : elle apparaît
      dans la liste des retards du super-administrateur (jours de retard et
-     montant attendu), qui choisit celles dont il SUSPEND l'accès ;
+     montant attendu), qui peut SUSPENDRE son accès ; sinon l'accès est coupé
+     automatiquement à la fin de la période de grâce (voir abonnement_grace.py) ;
   4. un paiement reçu réactive automatiquement une boutique suspendue pour
      impayé (une suspension décidée pour un autre motif reste en place).
 
@@ -129,7 +130,14 @@ async def etat(boutique: dict, tarifs: Optional[dict] = None) -> dict:
         "jours_restants": max(restants, 0), "jours_retard": max(-restants, 0),
         "formule_libelle": f.get("libelle", ""), "montant_attendu": int(f.get("montant", 0)),
         "motif_suspension": (boutique.get("suspension") or {}).get("motif") if boutique.get("actif") is False else None,
+        # Période de grâce après l'échéance, puis coupure automatique (abonnement_grace.py)
+        "grace": _grace(boutique),
     }
+
+
+def _grace(boutique: dict) -> dict:
+    import abonnement_grace
+    return abonnement_grace.resume(boutique)
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +171,10 @@ async def enregistrer_paiement(boutique_id: str, code_formule: str, montant: int
 
     ab = boutique.get("abonnement") or abonnement_initial(boutique.get("created_at"))
     ancienne = date.fromisoformat(ab["echeance"])
-    suspendue_impaye = boutique.get("actif") is False and (boutique.get("suspension") or {}).get("motif") == "IMPAYE"
+    # Suspendue pour impayé, ou par le cycle de vie du non-renouvellement (cycle_vie.py) :
+    # le paiement lui rend l'accès
+    suspendue_impaye = boutique.get("actif") is False \
+        and (boutique.get("suspension") or {}).get("motif") in ("IMPAYE", "NON_RENOUVELE")
     # Point de départ : l'ancienne échéance (jours déjà consommés dus, essai conservé)...
     # ... sauf pour une boutique suspendue pour impayé : elle repart du jour du paiement
     depart = aujourd_hui() - timedelta(days=1) if suspendue_impaye else ancienne

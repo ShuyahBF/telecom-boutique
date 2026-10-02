@@ -8,6 +8,7 @@ import { useToast } from "@/components/Toast";
 import { Champ, EnTetePlateforme } from "./_plateforme/composants";
 import { MODES_ABONNEMENT, STATUTS_ABONNEMENT } from "./_plateforme/outils";
 import ServiceSms from "./_plateforme/ServiceSms";
+import GraceBoutique from "./_plateforme/GraceBoutique";
 
 // Onglets de la page (gardés dans l'adresse : ?onglet=...)
 const ONGLETS = [
@@ -173,6 +174,8 @@ function Retards({ onPaiement }) {
                     <button type="button" className="btn-outline btn-sm flex-1" onClick={() => onPaiement(b)}>💵 Paiement reçu</button>
                     {suspendue && <button type="button" className="btn-outline btn-sm flex-1 text-green-700" disabled={occupe} onClick={() => agir("reactiver", [b.id])}>Rendre l'accès</button>}
                   </div>
+                  {/* Période de grâce, puis coupure automatique (la suspension manuelle reste possible) */}
+                  {!suspendue && <GraceBoutique boutique={b} grace={a.grace} onMaj={charger} />}
                 </div>
               );
             })}

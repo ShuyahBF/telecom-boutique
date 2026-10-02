@@ -6,6 +6,8 @@ import { optionActive } from "@/lib/options";
 import { ROLES } from "@/lib/statuts";
 import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
+import { BandeauGrace, useCoupureProgrammee } from "@/components/AbonnementGrace";
+import DernieresSauvegardes from "@/components/DernieresSauvegardes";
 
 // Menu du back-office : chaque entrée indique
 //  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
@@ -64,10 +66,12 @@ function BandeauAbonnement({ boutique }) {
 
 // Mise en page du back-office : barre latérale (menu), barre du haut, contenu.
 export default function GestionLayout() {
-  const { user, boutique, deconnexion } = useAuth();
+  const { user, boutique, deconnexion, rafraichir } = useAuth();
   const navigate = useNavigate();
   const [menuMobile, setMenuMobile] = useState(false);
   const [compteurs, setCompteurs] = useState({ conversations: 0, nouveautes: 0 });
+  // Fin de la période de grâce : la session est relue à l'heure exacte de la coupure
+  useCoupureProgrammee(boutique?.abonnement_grace, rafraichir);
 
   // Pastilles du menu (rafraîchies chaque minute) : demandes de conseil en
   // attente et nouveaux modèles reçus du catalogue public
@@ -93,9 +97,11 @@ export default function GestionLayout() {
   if (user?.role === "super_admin" && !boutique) return <Navigate to="/plateforme" replace />;
   if (!boutique) return null;
 
-  // Boutique suspendue : le DG ne voit que sa page Abonnement (pour payer et
-  // retrouver l'accès) ; les autres membres voient un simple message
-  if (boutique.actif === false && user.role !== "super_admin") {
+  // Boutique suspendue, ou abonnement expiré après la période de grâce : le DG ne
+  // voit que sa page Abonnement (pour payer et retrouver l'accès) ; les autres
+  // membres voient un simple message, sans aucune donnée de la boutique
+  const expire = boutique.actif !== false && !!boutique.abonnement_grace?.coupe;
+  if ((boutique.actif === false || expire) && user.role !== "super_admin") {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
@@ -106,9 +112,11 @@ export default function GestionLayout() {
           {user.role === "dg" ? <Abonnement /> : (
             <div className="card mx-auto max-w-lg text-center">
               <p className="text-4xl">🔒</p>
-              <h1 className="mt-2 text-xl font-extrabold">Accès à la boutique suspendu</h1>
+              <h1 className="mt-2 text-xl font-extrabold">{expire ? "Abonnement expiré — renouveler" : "Accès à la boutique suspendu"}</h1>
               <p className="mt-2 text-gray-600">
-                {boutique.suspension?.motif === "IMPAYE"
+                {expire
+                  ? "L'abonnement adLyn de la boutique a expiré et la période de grâce est terminée. Prévenez votre DG : l'accès reviendra dès le renouvellement."
+                  : boutique.suspension?.motif === "IMPAYE"
                   ? "L'abonnement adLyn de la boutique n'a pas été renouvelé. Prévenez votre DG : l'accès reviendra dès le paiement."
                   : "La boutique a été suspendue par l'administrateur de la plateforme. Prévenez votre DG."}
               </p>
@@ -175,10 +183,14 @@ export default function GestionLayout() {
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
             </div>
           </header>
-          {user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
+          {boutique.abonnement_grace?.en_grace
+            ? <BandeauGrace grace={boutique.abonnement_grace} dg={user.role === "dg"} />
+            : user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
           {menuMobile && <div className="no-print border-b border-white/5 bg-nuit-900 p-3 lg:hidden">{menu}</div>}
           <main className="mx-auto max-w-7xl p-4 sm:p-6">
             <Outlet />
+            {/* Dates des dernières sauvegardes, en pied de page discret */}
+            <DernieresSauvegardes compact />
           </main>
         </div>
       </div>

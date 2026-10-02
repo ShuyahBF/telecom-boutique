@@ -134,6 +134,14 @@ async def regler_messagerie(payload: ParametresMessagerie, ctx: Contexte = Depen
     return _sans_secrets(await db.boutiques.find_one({"id": ctx.boutique["id"]}, SANS_ID))["messagerie"]
 
 
+@router.get("/messagerie/fournisseur")
+async def fournisseur_messagerie(_: Contexte = Depends(parametres)):
+    """Mode d'envoi en vigueur : Resend (réglé par la plateforme) ou SMTP de la boutique."""
+    import envois_plateforme
+    actif = envois_plateforme.resend_configure()
+    return {"resend_actif": actif, "resend_expediteur": envois_plateforme.resend_expediteur() if actif else ""}
+
+
 class EmailTest(BaseModel):
     destinataire: EmailStr
 

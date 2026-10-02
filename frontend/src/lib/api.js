@@ -48,10 +48,18 @@ export const EN_ARRIERE_PLAN = { headers: { "X-Adlyn-Fond": "1" } };
 // Session refusée par le serveur (401) en cours d'utilisation : fermée par un
 // administrateur, expirée après inactivité… AuthContext renvoie vers la connexion.
 export const EVENEMENT_SESSION_PERDUE = "adlyn:session-perdue";
+// Abonnement expiré après la période de grâce (403 « Abonnement expiré… », voir
+// backend/abonnement_grace.py) : AuthContext relit la session et le site bascule
+// sur l'écran « Abonnement expiré — renouveler »
+export const EVENEMENT_ABONNEMENT_EXPIRE = "adlyn:abonnement-expire";
 apiClient.interceptors.response.use(undefined, (err) => {
   const url = err?.config?.url || "";
   if (err?.response?.status === 401 && !url.startsWith("/auth/login") && !url.startsWith("/auth/logout")) {
     window.dispatchEvent(new CustomEvent(EVENEMENT_SESSION_PERDUE, { detail: err.response.data?.detail }));
+  }
+  const detail = err?.response?.data?.detail;
+  if (err?.response?.status === 403 && typeof detail === "string" && detail.startsWith("Abonnement expiré")) {
+    window.dispatchEvent(new CustomEvent(EVENEMENT_ABONNEMENT_EXPIRE));
   }
   return Promise.reject(err);
 });

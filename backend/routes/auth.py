@@ -21,6 +21,8 @@ from fastapi.responses import JSONResponse
 
 import acces
 import maintenance_plateforme
+import sessions_actives
+from config import get_settings
 from pydantic import BaseModel, Field
 
 from auth import (create_access_token, effacer_cookie_session, get_current_user, hash_password,
@@ -72,6 +74,9 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
     # État réel des options de la barre latérale (menu affiché par le site)
     import options_sidebar
     b["options_actives"] = options_sidebar.options_effectives(boutique)
+    # Période de grâce de l'abonnement (bandeau rouge, puis écran « Abonnement expiré »)
+    import abonnement_grace
+    b["abonnement_grace"] = abonnement_grace.resume(boutique)
     if b.get("messagerie"):
         m = dict(b["messagerie"])
         m["a_mot_de_passe"] = bool(m.pop("smtp_mot_de_passe", None))
@@ -130,13 +135,18 @@ async def login(payload: Connexion, request: Request, response: Response):
             return refus
     await db.echecs_connexion.delete_many({"cle": cle_echecs})
     session = await _reponse_session(user)
+    # Sessions simultanées limitées : les plus anciennes au-delà du maximum sont fermées
+    session["sessions_fermees"] = await sessions_actives.ouvrir(user, session["access_token"], request)
     poser_cookie_session(response, session["access_token"])
     return session
 
 
 @router.post("/logout")
-async def logout(response: Response):
-    """Déconnexion : le navigateur oublie le cookie de session."""
+async def logout(request: Request, response: Response):
+    """Déconnexion : le navigateur oublie le cookie de session (et la session libère sa place)."""
+    entete = request.headers.get("authorization", "")
+    jeton = entete[7:] if entete.lower().startswith("bearer ") else request.cookies.get(get_settings().session_cookie_nom)
+    await sessions_actives.fermer_jeton(jeton)
     effacer_cookie_session(response)
     return {"ok": True}
 
