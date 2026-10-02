@@ -9,7 +9,7 @@ import { LogoAdlyn } from "@/components/Marque";
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
 // Boutiques / Référentiel mondial / Catalogue public / Abonnements / Reversements /
-// Maintenance des équipements / Sauvegardes / Paramètres.
+// Maintenance des équipements / KYC des DG / Cycle de vie / Sauvegardes / Paramètres.
 // ---------------------------------------------------------------------------
 const MENU_PLATEFORME = [
   { to: "/plateforme", label: "Boutiques", court: "Boutiques", icone: "🏪", end: true },
@@ -18,6 +18,8 @@ const MENU_PLATEFORME = [
   { to: "/plateforme/abonnements", label: "Abonnements", court: "Abonnements", icone: "💰" },
   { to: "/plateforme/reversements", label: "Reversements", court: "Reversements", icone: "💸" },
   { to: "/plateforme/maintenance-equipements", label: "Maintenance", court: "Maintenance", icone: "🛠️" },
+  { to: "/plateforme/kyc-dg", label: "KYC des DG", court: "KYC", icone: "🪪" },
+  { to: "/plateforme/cycle-vie", label: "Cycle de vie", court: "Cycle", icone: "♻️" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
   { to: "/plateforme/parametres", label: "Paramètres", court: "Paramètres", icone: "⚙️" },
 ];

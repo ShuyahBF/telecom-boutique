@@ -62,6 +62,8 @@ import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
 import Sauvegardes from "@/pages/plateforme/Sauvegardes";
 import ParametresPlateforme from "@/pages/plateforme/Parametres";
+import CycleVie from "@/pages/plateforme/CycleVie";
+import KycDg from "@/pages/plateforme/KycDg";
 import Referentiel from "@/pages/plateforme/Referentiel";
 import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
 import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
@@ -169,6 +171,9 @@ export default function App() {
             <Route path="/plateforme/maintenance-equipements" element={<RouteProtegee roles={["super_admin"]}><MaintenanceEquipementsPlateforme /></RouteProtegee>} />
             {/* Paramètres généraux : serveur d'envoi des e-mails (SMTP) */}
             <Route path="/plateforme/parametres" element={<RouteProtegee roles={["super_admin"]}><ParametresPlateforme /></RouteProtegee>} />
+            {/* Cycle de vie des abonnements non renouvelés, KYC des DG */}
+            <Route path="/plateforme/cycle-vie" element={<RouteProtegee roles={["super_admin"]}><CycleVie /></RouteProtegee>} />
+            <Route path="/plateforme/kyc-dg" element={<RouteProtegee roles={["super_admin"]}><KycDg /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
