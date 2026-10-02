@@ -36,10 +36,10 @@ export function AuthProvider({ children }) {
     rafraichir();
   }, [rafraichir]);
 
-  /** Connexion : ID boutique (vide pour le super-admin) + e-mail + mot de passe.
+  /** Connexion : ID boutique (vide pour le super-admin) + e-mail OU téléphone + mot de passe.
    *  Le serveur pose le cookie de session ; on retient seulement l'ID boutique. */
-  async function connexion(codeBoutique, email, password) {
-    const { data } = await apiClient.post("/auth/login", { code_boutique: codeBoutique || null, email, password });
+  async function connexion(codeBoutique, identifiant, password) {
+    const { data } = await apiClient.post("/auth/login", { code_boutique: codeBoutique || null, identifiant, password });
     memoriserIdBoutique(codeBoutique);
     localStorage.removeItem(BOUTIQUE_ACTIVE_KEY);
     setUser(data.user);

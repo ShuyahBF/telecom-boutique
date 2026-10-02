@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Valeurs proposées quand rien n'est encore réglé (exemple : messagerie sawalismartsystems.com)
 const VIDE = {
@@ -140,7 +141,7 @@ export default function Parametres() {
                 {/* Mot de passe : jamais réaffiché ; vide = inchangé */}
                 <label>
                   <span className="label">Mot de passe</span>
-                  <input className="input" type="password" value={form.mot_de_passe} autoComplete="new-password"
+                  <ChampMotDePasse value={form.mot_de_passe} autoComplete="new-password"
                     placeholder={etat.a_mot_de_passe ? "•••••••• (laisser vide pour garder)" : "Mot de passe de la boîte"}
                     onChange={(e) => maj("mot_de_passe", e.target.value)} />
                 </label>

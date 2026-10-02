@@ -1,9 +1,10 @@
 """Connexion du personnel (DG, commerciaux, secrétaires, comptables, techniciens, super-admin).
 
 Identifiants du personnel d'une boutique : ID BOUTIQUE (code de 6 caractères,
-ex. « K7M2QD ») + e-mail + mot de passe personnel. L'ID boutique évite toute
+ex. « K7M2QD ») + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique évite toute
 confusion entre boutiques (et une faute de frappe sur un nom de boutique).
-Le super-administrateur se connecte sans ID boutique.
+Le super-administrateur se connecte sans ID boutique (avec son e-mail).
+Mot de passe oublié et changement d'identifiant : voir routes/identifiants.py.
 
 Après la connexion, la session est gardée 30 jours dans un cookie HttpOnly
 (le site se reconnecte tout seul à son ouverture). Le mot de passe n'est
@@ -19,11 +20,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 import acces
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from auth import (create_access_token, effacer_cookie_session, get_current_user, hash_password,
                   poser_cookie_session, user_public, verify_password)
 from db import SANS_ID, db
+from identifiants import lire_identifiant
 from utils import now_iso
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
@@ -35,7 +37,10 @@ MAX_ECHECS, FENETRE_ECHECS = 10, timedelta(minutes=15)
 class Connexion(BaseModel):
     # ID boutique (code marchand de 6 caractères) ; vide pour le super-administrateur
     code_boutique: Optional[str] = Field(None, max_length=20)
-    email: EmailStr
+    # E-mail OU numéro de téléphone (un seul champ sur la page de connexion)
+    identifiant: Optional[str] = Field(None, max_length=200)
+    # Ancien nom du champ (outils et anciennes versions du site) : toujours accepté
+    email: Optional[str] = Field(None, max_length=200)
     password: str = Field(..., max_length=200)
 
 
@@ -72,7 +77,10 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
 
 @router.post("/login")
 async def login(payload: Connexion, request: Request, response: Response):
-    email = payload.email.lower()
+    saisie = (payload.identifiant or payload.email or "").strip()
+    type_identifiant, valeur = lire_identifiant(saisie)
+    # Identifiant tel que noté dans le journal (même s'il est mal tapé)
+    email = valeur or saisie.lower()[:200]
     code = re.sub(r"[^A-Za-z0-9]", "", payload.code_boutique or "").upper()
     cle_echecs = f"{code}|{email}"
     depuis = (datetime.now(timezone.utc) - FENETRE_ECHECS).isoformat()
@@ -81,7 +89,7 @@ async def login(payload: Connexion, request: Request, response: Response):
 
     # Boutique désignée par l'ID tapé (sert aussi à tracer les tentatives dans SON journal)
     boutique = await db.boutiques.find_one({"code_marchand": code}, SANS_ID) if code else None
-    user = await db.users.find_one({"email": email}, SANS_ID)
+    user = await db.users.find_one({type_identifiant: valeur}, SANS_ID) if valeur else None
     erreur = None
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         erreur = "Identifiants incorrects"

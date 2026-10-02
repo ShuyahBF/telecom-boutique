@@ -6,7 +6,7 @@ import re
 import secrets
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
@@ -137,36 +137,52 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
 
 
 async def envoyer_identifiants(boutique: dict, dg: dict, mot_de_passe: str, telephone: str) -> dict:
-    """Envoie au DG son ID boutique et son mot de passe provisoire, par e-mail
-    ET par SMS (serveurs de la plateforme). Renvoie le statut de chaque canal,
-    sans jamais le mot de passe."""
+    """Envoie au DG son ID boutique et son mot de passe provisoire :
+      - au TÉLÉPHONE (celui de son compte, sinon `telephone`) : WhatsApp en
+        priorité, SMS seulement si WhatsApp n'a pas pu partir ;
+      - à son E-MAIL s'il en a un (comme avant).
+    Renvoie le statut de chaque canal, sans jamais le mot de passe."""
     from config import get_settings
     import envois_plateforme as envois
+    import identifiants
 
     if boutique.get("test"):
         # Boutique interne : coordonnées imaginaires, rien n'est envoyé
         return {"date": now_iso(), "email": "NON_CONFIGURE", "email_erreur": "Boutique interne",
+                "whatsapp": "NON_CONFIGURE", "whatsapp_erreur": "Boutique interne",
                 "sms": "NON_CONFIGURE", "sms_erreur": "Boutique interne"}
 
     url = get_settings().public_site_url
+    identifiant = identifiants.identifiant_principal(dg)
     sujet = f"[adLyn] Votre boutique « {boutique['nom']} » est créée"
     corps = "\n".join([
         f"Bonjour {dg.get('nom') or ''},", "",
         f"Votre boutique « {boutique['nom']} » a été créée sur adLyn.", "",
         f"Adresse de connexion : {url}/connexion",
         f"ID boutique : {boutique['code_marchand']}",
-        f"E-mail : {dg['email']}",
+        f"Identifiant (e-mail ou téléphone) : {identifiant}",
         f"Mot de passe provisoire : {mot_de_passe}", "",
         "Ce mot de passe devra être changé dès votre première connexion.",
         "Votre boutique sera visible du public après validation par l'équipe adLyn.", "",
         "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.",
     ])
     sms = (f"adLyn : boutique {boutique['nom'][:40]} creee. ID boutique {boutique['code_marchand']}, "
-           f"mot de passe provisoire {mot_de_passe} (a changer a la 1re connexion). {url}/connexion")
-    email_statut, email_erreur = await envois.envoyer_email(sujet, corps, dg["email"])
-    sms_statut, sms_erreur = await envois.envoyer_sms(telephone, sms)
-    envoi = {"date": now_iso(), "email": email_statut, "email_erreur": email_erreur,
-             "sms": sms_statut, "sms_erreur": sms_erreur}
+           f"identifiant {identifiant}, mot de passe provisoire {mot_de_passe} (a changer a la 1re connexion). "
+           f"{url}/connexion")
+    envoi = {"date": now_iso(), "whatsapp": "NON_CONFIGURE", "whatsapp_erreur": "Aucun numéro de téléphone",
+             "sms": "NON_ENVOYE", "sms_erreur": "", "email": "NON_CONFIGURE", "email_erreur": "Aucune adresse e-mail"}
+    numero = dg.get("telephone") or telephone
+    if numero:
+        resultat = await identifiants.envoyer_message(
+            telephone=numero, sujet=sujet, texte=sms, code=mot_de_passe,
+            infos_whatsapp=[dg.get("nom") or "", boutique["nom"], boutique["code_marchand"], identifiant])
+        for essai in resultat["essais"]:
+            cle = essai["canal"].lower()
+            envoi[cle], envoi[f"{cle}_erreur"] = essai["statut"], essai["erreur"]
+    else:
+        envoi.update({"sms": "NON_CONFIGURE", "sms_erreur": "Aucun numéro de téléphone"})
+    if dg.get("email"):
+        envoi["email"], envoi["email_erreur"] = await envois.envoyer_email(sujet, corps, dg["email"])
     await db.boutiques.update_one({"id": boutique["id"]}, {"$set": {"identifiants_envoi": envoi}})
     return envoi
 
@@ -187,9 +203,11 @@ def boutique_par_defaut(nom: str) -> dict:
 @router.get("/boutiques")
 async def lister_boutiques(_: dict = Depends(get_super_admin)):
     boutiques = await db.boutiques.find({}, SANS_ID).sort("nom", 1).to_list(1000)
-    # Nombre de comptes par boutique (aide au suivi)
+    # Nombre de comptes par boutique (aide au suivi) et identifiants de connexion du DG
     for b in boutiques:
         b["nb_utilisateurs"] = await db.users.count_documents({"boutique_id": b["id"]})
+        b["dg_compte"] = await db.users.find_one({"boutique_id": b["id"], "role": "dg", "actif": True},
+                                                 {"_id": 0, "id": 1, "nom": 1, "email": 1, "telephone": 1})
     return [_sans_secrets(b, super_admin=True) for b in boutiques]
 
 
@@ -223,9 +241,12 @@ async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_adm
 
 
 @router.post("/boutiques/{boutique_id}/renvoyer-identifiants")
-async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_admin)):
-    """Nouveau mot de passe provisoire pour le DG, renvoyé par e-mail et SMS
-    (ex. : le premier envoi a échoué). L'ancien mot de passe ne fonctionne plus."""
+async def renvoyer_identifiants(boutique_id: str, request: Request, admin: dict = Depends(get_super_admin)):
+    """Nouveau mot de passe provisoire pour le DG, renvoyé par WhatsApp (SMS en
+    repli) et par e-mail (ex. : le premier envoi a échoué, mot de passe oublié).
+    L'ancien mot de passe ne fonctionne plus."""
+    import identifiants
+
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
     dg = await db.users.find_one({"boutique_id": boutique_id, "role": "dg", "actif": True}, SANS_ID) if boutique else None
     if not dg:
@@ -235,7 +256,40 @@ async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_ad
         "$set": {"password_hash": hash_password(mot_de_passe), "doit_changer_mot_de_passe": True},
         "$inc": {"version_session": 1}})  # déconnecte les sessions ouvertes
     telephone = boutique.get("dg_telephone") or boutique.get("telephone", "")
-    return await envoyer_identifiants(boutique, dg, mot_de_passe, telephone)
+    envoi = await envoyer_identifiants(boutique, dg, mot_de_passe, telephone)
+    statuts = [envoi.get(c) for c in ("whatsapp", "sms", "email")]
+    await identifiants.journaliser("MDP_PROVISOIRE_ENVOYE", cible=dg, par=admin, request=request,
+                                   statut="ENVOYE" if "ENVOYE" in statuts else "ECHEC")
+    return envoi
+
+
+class IdentifiantsDg(BaseModel):
+    """Identifiants de connexion du DG ("" = retirer ; il doit en rester au moins un)."""
+    email: Optional[str] = Field(None, max_length=200)
+    telephone: Optional[str] = Field(None, max_length=30)
+
+
+@router.patch("/boutiques/{boutique_id}/dg-identifiants")
+async def modifier_identifiants_dg(boutique_id: str, payload: IdentifiantsDg, request: Request,
+                                   admin: dict = Depends(get_super_admin)):
+    """L'administrateur change l'e-mail et/ou le téléphone de connexion du DG
+    (sans code : il en répond ; le DG est prévenu sur l'ancien et le nouveau contact)."""
+    import identifiants
+
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    dg = await db.users.find_one({"boutique_id": boutique_id, "role": "dg", "actif": True}, SANS_ID) if boutique else None
+    if not dg:
+        raise HTTPException(404, "Boutique ou DG introuvable")
+    champs = {k: getattr(payload, k) or "" for k in ("email", "telephone") if k in payload.model_fields_set}
+    dg, notifications = await identifiants.modifier_par_responsable(dg, boutique, champs, par=admin, request=request)
+    return {"dg": user_public(dg), "notifications": notifications}
+
+
+@router.get("/journal-identifiants")
+async def journal_identifiants(boutique_id: Optional[str] = None, _: dict = Depends(get_super_admin)):
+    """Historique des actions sur les identifiants (toutes les boutiques, ou une seule)."""
+    import identifiants
+    return await identifiants.lire_journal({"boutique_id": boutique_id} if boutique_id else {}, 500)
 
 
 @router.patch("/boutiques/{boutique_id}")

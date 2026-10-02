@@ -6,7 +6,7 @@ import Modal from "@/components/Modal";
 
 // Libellés des statuts d'envoi des identifiants au DG (e-mail / SMS)
 export const LIBELLES_ENVOI = {
-  ENVOYE: "✅ envoyé", ECHEC: "❌ échec", NON_CONFIGURE: "⚙️ non configuré", undefined: "—",
+  ENVOYE: "✅ envoyé", ECHEC: "❌ échec", NON_CONFIGURE: "⚙️ non configuré", NON_ENVOYE: "— (pas nécessaire)", undefined: "—",
 };
 
 // Résultat de chaque appel du webhook : couleur du badge

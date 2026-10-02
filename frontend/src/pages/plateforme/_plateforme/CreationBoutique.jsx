@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Champ, ChampsIdentification, erreurCoordonnees, identificationVersApi, TitreSection } from "./composants";
 import { PAYS_DEFAUT } from "./outils";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Formulaire vierge
 const CREATION_VIDE = {
@@ -85,7 +86,7 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
         </Champ>
         <Champ label="Mot de passe provisoire *" aide="8 caractères minimum ; à transmettre au DG, qui pourra le changer.">
           <div className="flex gap-2">
-            <input className="input font-mono" type="text" required minLength={8} autoComplete="new-password" value={f.dg_mot_de_passe} onChange={(e) => maj("dg_mot_de_passe", e.target.value)} />
+            <ChampMotDePasse classeConteneur="flex-1" visibleParDefaut className="input font-mono" required minLength={8} autoComplete="new-password" value={f.dg_mot_de_passe} onChange={(e) => maj("dg_mot_de_passe", e.target.value)} />
             <button type="button" className="btn-outline btn-sm shrink-0" title="Proposer un mot de passe" onClick={() => maj("dg_mot_de_passe", motDePasseAleatoire())}>🎲</button>
           </div>
         </Champ>
