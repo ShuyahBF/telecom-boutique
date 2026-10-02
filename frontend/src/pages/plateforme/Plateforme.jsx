@@ -13,6 +13,7 @@ import DossierBoutique from "./_plateforme/DossierBoutique";
 import JournalWebhook, { LIBELLES_ENVOI } from "./_plateforme/JournalWebhook";
 import OptionsBoutique from "./_plateforme/OptionsBoutique";
 import Restauration from "./_plateforme/Restauration";
+import SessionsBoutique from "./_plateforme/SessionsBoutique";
 import { horodatage, messageErreurFichier, STATUTS_KYC, telechargerFichier } from "./_plateforme/outils";
 
 // Page d'administration de la PLATEFORME (super-administrateur) :
@@ -34,6 +35,7 @@ export default function Plateforme() {
   const [qr, setQr] = useState(null); // boutique dont on affiche le QR code
   const [dossierId, setDossierId] = useState(null); // boutique dont le « Dossier » est ouvert
   const [optionsId, setOptionsId] = useState(null); // boutique dont on règle la barre latérale / la caisse Aizenta
+  const [sessionsId, setSessionsId] = useState(null); // boutique dont on gère les sessions des comptes
   const [restauration, setRestauration] = useState(null); // boutique à restaurer
   const [telechargement, setTelechargement] = useState(null); // id de la boutique en cours de sauvegarde
   const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
@@ -282,6 +284,8 @@ export default function Plateforme() {
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>📲 Renvoyer les identifiants au DG</button>
+                  {/* Comptes du personnel : fermer les sessions d'un compte ou de toute la boutique */}
+                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => setSessionsId(b.id)}>🚪 Comptes & sessions</button>
                   {/* Options du menu de la boutique (Activer / Désactiver la barre latérale, dont la
                       maintenance des équipements) + jeton et journal de la caisse Aizenta */}
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => setOptionsId(b.id)}>
@@ -315,6 +319,9 @@ export default function Plateforme() {
 
       {/* Fenêtre « Barre latérale & Caisse Aizenta » */}
       <OptionsBoutique boutique={boutiques.find((b) => b.id === optionsId) || null} onFermer={() => setOptionsId(null)} onMaj={charger} />
+
+      {/* Fenêtre « Comptes & sessions » (fermeture des sessions sans changer les mots de passe) */}
+      <SessionsBoutique boutique={boutiques.find((b) => b.id === sessionsId) || null} onFermer={() => setSessionsId(null)} />
 
       {/* Fenêtre de restauration d'une sauvegarde */}
       <Restauration boutique={restauration} onFermer={() => setRestauration(null)} onRestauree={charger} />

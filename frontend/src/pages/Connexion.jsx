@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
 import { LiensLegaux } from "@/components/PageLegale";
-import { useAuth } from "@/context/AuthContext";
+import { MOTIF_DECONNEXION_KEY, useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import { AvisMaintenance } from "@/components/MaintenancePlateforme";
@@ -20,7 +20,14 @@ export default function Connexion() {
   const [administrateur, setAdministrateur] = useState(false);
   const [identifiant, setIdentifiant] = useState(""); // e-mail ou téléphone
   const [motDePasse, setMotDePasse] = useState("");
-  const [erreur, setErreur] = useState("");
+  // Session fermée par le DG ou l'administrateur : message affiché une seule fois
+  const [erreur, setErreur] = useState(() => {
+    try {
+      const motif = sessionStorage.getItem(MOTIF_DECONNEXION_KEY) || "";
+      sessionStorage.removeItem(MOTIF_DECONNEXION_KEY);
+      return motif;
+    } catch { return ""; }
+  });
   const [envoi, setEnvoi] = useState(false);
 
   // Saisie de l'ID : majuscules, sans espace ni tiret, 6 caractères au plus

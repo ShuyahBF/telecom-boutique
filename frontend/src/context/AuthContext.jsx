@@ -5,6 +5,8 @@ import { apiClient, BOUTIQUE_ACTIVE_KEY, memoriserIdBoutique } from "@/lib/api";
 // La session vit dans un cookie HttpOnly (30 jours) : à l'ouverture du site,
 // /auth/me suffit à retrouver l'utilisateur, sans rien retaper.
 const AuthContext = createContext(null);
+// Motif d'une déconnexion imposée (lu puis effacé par la page de connexion)
+export const MOTIF_DECONNEXION_KEY = "adlyn_motif_deconnexion";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -23,8 +25,13 @@ export function AuthProvider({ children }) {
       } else {
         setBoutique(data.boutique);
       }
-    } catch {
-      // Pas de session (ou session expirée) : il faudra se connecter
+    } catch (err) {
+      // Pas de session (ou session expirée) : il faudra se connecter.
+      // Session fermée par le DG ou l'administrateur : le motif est montré à la connexion.
+      const detail = err?.response?.status === 401 ? err.response.data?.detail : "";
+      try {
+        if (typeof detail === "string" && detail.includes("fermée par un administrateur")) sessionStorage.setItem(MOTIF_DECONNEXION_KEY, detail);
+      } catch { /* stockage indisponible */ }
       setUser(null);
       setBoutique(null);
     } finally {

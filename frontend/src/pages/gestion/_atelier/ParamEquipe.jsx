@@ -97,6 +97,17 @@ export default function ParamEquipe() {
     }
   }
 
+  // Fermer les sessions d'un membre sur tous ses appareils (mot de passe et compte inchangés)
+  async function fermerSessions(m) {
+    if (!window.confirm(`Fermer les sessions de ${m.nom} sur tous ses appareils ? Il devra se reconnecter (son mot de passe ne change pas).`)) return;
+    try {
+      const { data } = await apiClient.post(`/boutique/equipe/${m.id}/fermer-sessions`);
+      toast.succes(data.message || "Sessions fermées");
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Impossible de fermer les sessions"));
+    }
+  }
+
   // Historique des actions sur les identifiants (affiché à la demande)
   async function basculerJournal() {
     if (journal) return setJournal(null);
@@ -140,6 +151,7 @@ export default function ParamEquipe() {
                 </select>
                 {!moi && <button type="button" className="btn-outline btn-sm" onClick={() => setIdentifiants({ membre: m, email: m.email || "", telephone: m.telephone || "" })}>✏️ Identifiants</button>}
                 {!moi && <button type="button" className="btn-outline btn-sm" onClick={() => envoyerNouveauMotDePasse(m)}>📲 Nouveau mot de passe</button>}
+                {!moi && <button type="button" className="btn-outline btn-sm" title="Déconnecte la personne de tous ses appareils (téléphone perdu, poste partagé…)" onClick={() => fermerSessions(m)}>🚪 Fermer ses sessions</button>}
                 <button type="button" className="btn-outline btn-sm" onClick={() => setMotDePasse({ membre: m, valeur: "" })}>🔑 Saisir un mot de passe</button>
                 {!moi && (m.actif === false
                   ? <button type="button" className="btn-outline btn-sm text-green-700" onClick={() => modifier(m, { actif: true }, "Compte réactivé")}>Réactiver</button>
@@ -178,6 +190,7 @@ export default function ParamEquipe() {
                   {l.details?.type && <> · {l.details.type === "email" ? "e-mail" : "téléphone"}{l.details.nouveau ? ` → ${l.details.nouveau}` : ""}</>}
                   {l.canal && <> · {CANAUX[l.canal] || l.canal}</>}{l.statut && <> · {STATUTS[l.statut] || l.statut}</>}
                   {l.par_nom && <span className="text-gray-500"> · par {l.par_nom}</span>}
+                  {l.ip && <span className="text-gray-500"> · IP {l.ip}</span>}
                 </li>
               ))}
             </ul>
