@@ -25,6 +25,9 @@ from routes import transfert_donnees  # export / import complet de la base (chan
 from routes import maintenance_plateforme  # déconnexion programmée de tous les utilisateurs
 from routes import sessions  # fermeture des sessions d'un compte (sans changer le mot de passe)
 from routes import inactivite  # déconnexion après inactivité (réglages)
+from routes import abonnement_grace  # période de grâce des abonnements, puis coupure automatique
+from routes import sessions_actives  # sessions simultanées limitées par compte
+from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Job Render -> R2)
 
 settings = get_settings()
 
@@ -58,6 +61,14 @@ api.include_router(inactivite.boutique)
 # Abonnements : page du DG et administration (super-admin)
 api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
+api.include_router(abonnement_grace.admin)
+# Sessions ouvertes de chaque compte (Mon compte, super-admin) et nombre maximal par compte
+api.include_router(sessions_actives.compte)
+api.include_router(sessions_actives.admin)
+# Sauvegarde générale automatique et dernière sauvegarde (Mon compte)
+api.include_router(sauvegarde_auto.cron)
+api.include_router(sauvegarde_auto.admin)
+api.include_router(sauvegarde_auto.compte)
 # Paramètres de la plateforme (serveur d'envoi des e-mails)
 api.include_router(parametres_plateforme.router)
 api.include_router(transfert_donnees.router)  # export / import complet de la base (super-admin)
