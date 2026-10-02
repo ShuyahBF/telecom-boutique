@@ -2,33 +2,38 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/api";
+import { optionActive } from "@/lib/options";
 import { ROLES } from "@/lib/statuts";
 import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
 
-// Menu du back-office : chaque entrée indique la permission nécessaire pour la
-// voir (table PERMISSIONS de backend/auth.py, reçue à la connexion) et, le cas
-// échéant, la fonction que l'administrateur doit avoir activée pour la boutique.
+// Menu du back-office : chaque entrée indique
+//  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
+//    reçue à la connexion) ;
+//  - l'option de la barre latérale correspondante, activée boutique par boutique
+//    par l'administrateur adLyn (backend/options_sidebar.py). « Tableau de bord »
+//    et « Caisse Aizenta » sont toujours actives.
+// Il faut les DEUX : option activée ET rôle autorisé.
 const MENU = [
-  { to: "/gestion", label: "Tableau de bord", icone: "📊", permission: "tableau_de_bord", end: true },
-  { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", permission: "facturation" },
-  { to: "/gestion/paiements", label: "Historique des paiements", icone: "💳", permission: "paiements.historique" },
-  { to: "/gestion/reversements", label: "Reversements PawaPay", icone: "💸", permission: "paiements.historique" },
-  { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes" },
-  { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance" },
-  // Fonction activée boutique par boutique par l'administrateur adLyn
-  { to: "/gestion/maintenance-equipements", label: "Maintenance équipements", icone: "🛠️", permission: "maintenance", fonction: "maintenance_equipements" },
-  { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", compteur: "nouveautes" },
-  { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", permission: "catalogue.lecture" },
-  { to: "/gestion/stock", label: "Stock", icone: "🏷️", permission: "stock" },
-  { to: "/gestion/clients", label: "Clients", icone: "👥", permission: "clients" },
-  { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs" },
-  { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", compteur: "conversations" },
-  { to: "/gestion/sms", label: "SMS", icone: "📨", permission: "messagerie" },
-  { to: "/gestion/carrousel", label: "Carrousel WhatsApp", icone: "🎠", permission: "messagerie" },
-  { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres" },
-  { to: "/gestion/abonnement", label: "Abonnement adLyn", icone: "💰", permission: "parametres" },
-  { to: "/gestion/parrainage", label: "Parrainage", icone: "🤝", permission: "parametres" },
+  { to: "/gestion", label: "Tableau de bord", icone: "📊", permission: "tableau_de_bord", option: "tableau_de_bord", end: true },
+  { to: "/gestion/caisse-aizenta", label: "Caisse Aizenta", icone: "🧮", permission: "caisse_aizenta", option: "caisse_aizenta" },
+  { to: "/gestion/documents", label: "Factures & proformas", icone: "🧾", permission: "facturation", option: "documents" },
+  { to: "/gestion/paiements", label: "Historique des paiements", icone: "💳", permission: "paiements.historique", option: "paiements" },
+  { to: "/gestion/reversements", label: "Reversements PawaPay", icone: "💸", permission: "paiements.historique", option: "reversements" },
+  { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes", option: "commandes" },
+  { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance", option: "maintenance" },
+  { to: "/gestion/maintenance-equipements", label: "Maintenance équipements", icone: "🛠️", permission: "maintenance", option: "maintenance_equipements" },
+  { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", option: "produits", compteur: "nouveautes" },
+  { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", permission: "catalogue.lecture", option: "catalogue_public" },
+  { to: "/gestion/stock", label: "Stock", icone: "🏷️", permission: "stock", option: "stock" },
+  { to: "/gestion/clients", label: "Clients", icone: "👥", permission: "clients", option: "clients" },
+  { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs", option: "fournisseurs" },
+  { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", option: "messagerie", compteur: "conversations" },
+  { to: "/gestion/sms", label: "SMS", icone: "📨", permission: "messagerie", option: "sms" },
+  { to: "/gestion/carrousel", label: "Carrousel WhatsApp", icone: "🎠", permission: "messagerie", option: "carrousel" },
+  { to: "/gestion/parametres", label: "Paramètres", icone: "⚙️", permission: "parametres", option: "parametres" },
+  { to: "/gestion/abonnement", label: "Abonnement adLyn", icone: "💰", permission: "parametres", option: "abonnement" },
+  { to: "/gestion/parrainage", label: "Parrainage", icone: "🤝", permission: "parametres", option: "parrainage" },
 ];
 
 /** Jours entre aujourd'hui et l'échéance de l'abonnement (négatif = dépassée). */
@@ -70,10 +75,13 @@ export default function GestionLayout() {
     if (!boutique) return undefined;
     const charger = async () => {
       const suivants = { conversations: 0, nouveautes: 0 };
-      if (peut(user, "messagerie")) {
+      // Pas d'appel vers une option désactivée (le serveur la refuserait)
+      if (peut(user, "messagerie") && optionActive(boutique, "messagerie")) {
         suivants.conversations = (await apiClient.get("/conversations/non-lues").catch(() => ({ data: {} }))).data.non_lues || 0;
       }
-      suivants.nouveautes = (await apiClient.get("/produits", { params: { nouveau: true } }).catch(() => ({ data: [] }))).data.length || 0;
+      if (optionActive(boutique, "produits")) {
+        suivants.nouveautes = (await apiClient.get("/produits", { params: { nouveau: true } }).catch(() => ({ data: [] }))).data.length || 0;
+      }
       setCompteurs(suivants);
     };
     charger();
@@ -111,7 +119,7 @@ export default function GestionLayout() {
     );
   }
 
-  const entrees = MENU.filter((m) => peut(user, m.permission) && (!m.fonction || boutique[m.fonction]));
+  const entrees = MENU.filter((m) => peut(user, m.permission) && optionActive(boutique, m.option));
   const classeLien = ({ isActive }) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-primary text-white shadow-sm" : "text-gray-300 hover:bg-white/5 hover:text-white"}`;
 
@@ -162,8 +170,8 @@ export default function GestionLayout() {
             <div className="ml-auto flex items-center gap-3 text-sm">
               <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
               <span className="hidden text-gray-600 sm:inline">{user.nom} · {ROLES[user.role]}</span>
-              {/* Changer son propre mot de passe */}
-              <Link to="/mot-de-passe" className="text-gray-500 hover:text-primary" title="Changer mon mot de passe">🔑</Link>
+              {/* Mon compte : e-mail / téléphone de connexion et mot de passe */}
+              <Link to="/mon-compte" className="text-gray-500 hover:text-primary" title="Mon compte : identifiants et mot de passe">👤</Link>
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
             </div>
           </header>

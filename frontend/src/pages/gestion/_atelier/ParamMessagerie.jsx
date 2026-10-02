@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { Case, Champ } from "./communs";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Onglet « Messagerie (e-mails) » : réglages du serveur d'envoi (SMTP)
 // et envoi d'un e-mail de test.
@@ -69,7 +70,7 @@ export default function ParamMessagerie() {
         <Champ label="Port"><input className="input" type="number" min={1} max={65535} value={reglages.smtp_port} onChange={(e) => maj("smtp_port", e.target.value)} /></Champ>
         <Champ label="Utilisateur"><input className="input" maxLength={150} autoComplete="off" value={reglages.smtp_utilisateur} onChange={(e) => maj("smtp_utilisateur", e.target.value)} placeholder="votre.adresse@gmail.com" /></Champ>
         <Champ label="Mot de passe" aide={actuel.a_mot_de_passe ? "✔ Mot de passe enregistré. Laissez vide pour le conserver." : "Aucun mot de passe enregistré."}>
-          <input className="input" type="password" maxLength={150} autoComplete="new-password" value={reglages.smtp_mot_de_passe}
+          <ChampMotDePasse maxLength={150} autoComplete="new-password" value={reglages.smtp_mot_de_passe}
             onChange={(e) => maj("smtp_mot_de_passe", e.target.value)} placeholder={actuel.a_mot_de_passe ? "•••••••• (inchangé)" : ""} />
         </Champ>
         <Case label="STARTTLS (port 587)" checked={reglages.smtp_tls} onChange={(v) => maj("smtp_tls", v)} />

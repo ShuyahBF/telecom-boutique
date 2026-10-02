@@ -133,7 +133,7 @@ async def journaliser(boutique_id: str, request: Request, resultat: str, *, user
     ligne = {"id": new_id(), "boutique_id": boutique_id, "date": now_iso(), "resultat": resultat, "raison": raison,
              "ip": ip_client(request), "appareil_id": appareil or appareil_id(request),
              "appareil": description_appareil(ua), "user_agent": ua[:250],
-             "user_id": (user or {}).get("id"), "email": (user or {}).get("email") or email,
+             "user_id": (user or {}).get("id"), "email": (user or {}).get("email") or (user or {}).get("telephone") or email,
              "nom": (user or {}).get("nom", ""), "role": (user or {}).get("role", "")}
     await db.connexions_journal.insert_one(ligne.copy())
     # Même trace dans le journal du serveur (fichier de logs Render)

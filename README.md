@@ -58,11 +58,20 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 | Technicien | SAV, pièces détachées, consultation du catalogue |
 
 ### Connexion du personnel
-- Identifiants : **ID boutique** (code unique de 6 lettres ou chiffres, ex. `K7M2QD`, créé automatiquement) + **e-mail** + **mot de passe personnel**. L'identifiant interne de la boutique n'est jamais montré.
+- Identifiants : **ID boutique** (code unique de 6 lettres ou chiffres, ex. `K7M2QD`, créé automatiquement) + **e-mail OU numéro de téléphone** (un seul champ « E-mail ou téléphone ») + **mot de passe personnel**. L'identifiant interne de la boutique n'est jamais montré.
+- Un compte a au moins un identifiant : e-mail, téléphone, ou les deux. Chacun est **unique sur toute la plateforme**. Le téléphone est enregistré au format international (`70 12 34 56` devient `+22670123456` ; on peut le taper avec ou sans `+226`).
 - L'ID boutique est retenu par le navigateur. La session reste ouverte **30 jours** dans un cookie sécurisé (HttpOnly, illisible par le JavaScript) : le site se reconnecte tout seul à son ouverture. **Le mot de passe n'est jamais enregistré sur l'appareil.**
 - Un mot de passe **provisoire** (reçu par e-mail/SMS, ou donné par le DG) doit être changé à la première connexion. Changer son mot de passe déconnecte les autres appareils.
 - Anti force brute : après 10 échecs en 15 minutes, le compte est bloqué 15 minutes.
 - L'administrateur de la plateforme se connecte sans ID boutique (lien « Administrateur ? »).
+
+### Mot de passe oublié, changement d'e-mail ou de téléphone
+- **Mot de passe oublié** : lien « Mot de passe oublié ? » sur la page de connexion. Saisir l'ID boutique et son e-mail ou son téléphone : un **code à 6 chiffres** est envoyé **par WhatsApp en priorité**, par SMS si WhatsApp ne passe pas, ou par e-mail si le compte n'a qu'un e-mail. Saisir le code et le nouveau mot de passe : toutes les sessions ouvertes du compte sont fermées.
+- **Sécurité du code** : jamais enregistré en clair ni affiché, valable **10 minutes**, **5 essais** puis blocage de **15 minutes** ; **1 envoi par minute et 5 par heure**, par compte et par adresse IP. La réponse est la même que le compte existe ou non.
+- **Changer son e-mail ou son téléphone** : bouton 👤 « Mon compte » (en haut du back-office). Mot de passe actuel + nouvelle valeur : le code part **vers la nouvelle valeur** (WhatsApp/SMS pour un numéro, e-mail pour une adresse), puis on le saisit. Le bouton « Vérifier » confirme de la même façon un identifiant déjà présent. On peut **retirer** son e-mail si son téléphone est vérifié (et inversement), jamais les deux. L'ancien et le nouveau contact sont prévenus.
+- **Par le DG** (Paramètres > Équipe) : créer un membre avec un téléphone seulement (l'e-mail est facultatif) ; ses accès provisoires lui sont envoyés par WhatsApp, sinon SMS, sinon e-mail, et le DG voit le résultat réel (si rien n'a pu partir, le mot de passe provisoire lui est affiché une fois, à remettre en main propre). Boutons « ✏️ Identifiants » (modifier l'e-mail / le téléphone d'un membre, sans code : le membre est prévenu sur l'ancien et le nouveau contact) et « 📲 Nouveau mot de passe » (mot de passe provisoire envoyé, anciennes sessions fermées). « 📜 Historique des identifiants » liste toutes ces actions.
+- **Par l'administrateur** (`/plateforme`) : « 👤 Connexion du DG » modifie l'e-mail / le téléphone de connexion du DG ; « 📲 Renvoyer les identifiants » envoie un nouveau mot de passe provisoire par WhatsApp (SMS en repli) et par e-mail.
+- **Traçabilité** : chaque demande de code, échec, blocage, réinitialisation, changement d'identifiant et envoi de mot de passe provisoire est noté (qui, pour quel compte, canal, résultat, adresse IP) dans la collection `tlb_journal_identifiants`, **sans aucun code ni mot de passe**.
 
 ### Abonnements (modèle SaaS)
 - Chaque nouvelle boutique a **14 jours d'essai complet** à partir de sa création (les boutiques plus anciennes aussi, comptés depuis leur création).
@@ -122,7 +131,19 @@ Même architecture que beauthentik.net (`ShuyahBF/site-meetafrican`) :
 - **Lien de paiement Mobile Money** (PawaPay) et **Facturer**.
 - Deux espaces :
   - **plateforme** (`/plateforme/maintenance-equipements`) : le client est une boutique ; son téléphone est celui qui reçoit les messages d'adLyn (DG). Paiement encaissé pour adLyn ; facture adLyn imprimable (`FMT-AAAA-00001`) ;
-  - **boutique** (`/gestion/maintenance-equipements`) : fonction **activée boutique par boutique** par l'administrateur (bouton sur la carte de la boutique). Clients : fichier Clients ou saisie libre. Paiement réservé aux boutiques au dossier KYC validé, reversé comme les commandes ; facture ou proforma dans « Factures & proformas ».
+  - **boutique** (`/gestion/maintenance-equipements`) : option **activée boutique par boutique** par l'administrateur (fenêtre « Barre latérale & Caisse Aizenta »). Clients : fichier Clients ou saisie libre. Paiement réservé aux boutiques au dossier KYC validé, reversé comme les commandes ; facture ou proforma dans « Factures & proformas ».
+
+### Options de la barre latérale (activées par boutique)
+- « Tableau de bord » et « Caisse Aizenta » sont **toujours** actives. Toutes les autres entrées du menu sont **désactivées à la création** d'une boutique (création par l'administrateur, webhook, parrainage).
+- L'administrateur les active dans `/plateforme` → carte de la boutique → **« 🧭 Barre latérale & Caisse Aizenta »** (un interrupteur par option, « Tout activer / Tout désactiver », journal des changements : qui, quand, avant / après).
+- Une option désactivée disparaît du menu **et** ses routes d'API répondent 403 « Option non activée pour cette boutique » (adresse tapée à la main : retour au tableau de bord). Les droits par rôle s'appliquent en plus. Aucune donnée n'est supprimée.
+- **Boutiques existantes** (créées avant cette fonction, sans le champ `options_sidebar`) : **tout reste activé** tant que l'administrateur n'a pas enregistré de réglage.
+- Code : `backend/options_sidebar.py` (liste des options et table des routes protégées), `frontend/src/lib/options.js`.
+
+### Caisse Aizenta (données envoyées par Loois)
+- Loois lit les tables `RèglementCaisse` et `TypePaiementCaisse` du logiciel Aizenta et les envoie au webhook `POST /api/webhooks/caisse-aizenta` (jeton propre à chaque boutique, généré par l'administrateur, stocké haché).
+- Écran `/gestion/caisse-aizenta` (DG, comptable, secrétariat) : situation par période (aujourd'hui, hier, 7 jours, mois, intervalle), totaux, ventilations par type / mode de paiement / caissier, arrêts de caisse, liste filtrable, export CSV, alerte si aucune réception depuis 24 h.
+- Contrat JSON complet et mise en service : **[docs/caisse-aizenta.md](docs/caisse-aizenta.md)**.
 
 ### Pour l'administrateur de la plateforme (`/plateforme`)
 - Création des boutiques avec pays, localisation, DG, IFU, CNSS, RCCM et le compte du DG. Chaque nouvelle boutique reçoit **tout le catalogue public**.
@@ -187,6 +208,7 @@ Pages utiles :
    - **sauvegardes** : `SAUVEGARDE_CLE`, Google Drive, SMTP de la plateforme (détails ci-dessous) ;
    - **webhook** : `WEBHOOK_BOUTIQUES_SECRET` ; **SMS** : `ORANGE_SMS_*` (et `OVH_SMS_*` en repli), mêmes comptes que beauthentik ;
    - **WhatsApp** : `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (beauthentik) et `WHATSAPP_RAPPEL_TEMPLATE`. Faites approuver par Meta un modèle « Utility » en français à 3 variables, par exemple : « Bonjour, l'abonnement adLyn de {{1}} {{2}}. Montant à régler : {{3}}. Payez depuis votre espace boutique, page Abonnement. ». Sans modèle approuvé, WhatsApp n'accepte le message que si le DG a écrit au numéro dans les dernières 24 h : le SMS prend alors le relais.
+   - **WhatsApp, codes et mots de passe provisoires** : `WHATSAPP_CODE_TEMPLATE` = nom d'un modèle de catégorie **Authentication** (langue : français), par exemple `adlyn_code_connexion`. Meta impose son texte (« *{{1}}* est votre code de vérification. ») : cochez la recommandation de sécurité, le pied « Ce code expire dans 10 minutes » et le bouton « Copier le code ». Facultatif : `WHATSAPP_IDENTIFIANTS_TEMPLATE`, modèle **Utility** à 4 variables envoyé avant un mot de passe provisoire, par exemple `adlyn_identifiants` : « Bonjour {{1}}, voici vos accès à l'espace de la boutique {{2}} sur adLyn : ID boutique {{3}}, identifiant {{4}}. Votre mot de passe provisoire suit dans un message séparé ; changez-le dès votre première connexion. ». Sans ces modèles, un code n'arrive par WhatsApp que si la personne a écrit au numéro adLyn dans les dernières 24 h : le SMS prend alors le relais.
 3. Noms de domaine : décommenter les blocs `domains` de `render.yaml` et créer les CNAME chez Cloudflare, comme pour beauthentik. **Important pour la connexion** : donnez au site et à l'API deux sous-domaines du **même** domaine (ex. `adlyn.com` et `api.adlyn.com`). Sinon, avec les deux adresses `onrender.com`, Safari (iPhone, Mac) refuse le cookie de session et le personnel devrait se reconnecter à chaque ouverture.
 
 ### Webhook de création des boutiques
@@ -208,7 +230,7 @@ Réponses :
 - `200 {"resultat": "ignoree"}` : la boutique existe déjà (même nom, même `reference_externe` ou DG déjà inscrit) ;
 - `401` pour une signature ou un horodatage invalide, `409` pour un événement rejoué, `422` pour une demande invraisemblable, `429` pour un quota atteint ou une adresse IP bloquée.
 
-Le **mot de passe provisoire du DG n'est jamais dans la réponse** : la plateforme envoie l'ID boutique et ce mot de passe au DG lui-même, par e-mail et par SMS.
+Le **mot de passe provisoire du DG n'est jamais dans la réponse** : la plateforme envoie l'ID boutique et ce mot de passe au DG lui-même : par WhatsApp (SMS si WhatsApp ne passe pas) et par e-mail. La réponse indique `identifiants_envoyes: {"whatsapp", "sms", "email"}` (`NON_ENVOYE` pour le SMS quand WhatsApp a suffi).
 
 Protections contre les inscriptions « pour s'amuser » :
 1. signature HMAC (secret partagé) ;
@@ -252,6 +274,7 @@ backend/
   config.py              toutes les variables d'environnement, commentées
   db.py                  MongoDB + cloisonnement automatique par boutique (TenantDB)
   auth.py                connexion, rôles et table des PERMISSIONS
+  identifiants.py        e-mail/téléphone de connexion, codes (WhatsApp > SMS > e-mail), journal
   services.py            numérotation, stock, calcul des lignes de facture
   catalogue_public.py    catalogue commun, publication à 23h, assistant de recherche
   referentiel.py         référentiel mondial des appareils (Google Play + iPhone)
@@ -270,6 +293,7 @@ frontend/src/
   components/            mises en page et composants partagés
   context/AuthContext    session et droits (peut(user, "facturation"))
   lib/                   API, formats, panier, statuts
+  pages/Connexion, MotDePasseOublie, MonCompte, ChangerMotDePasse   connexion et compte
   pages/public/          portail public
   pages/gestion/         back-office des boutiques
   pages/plateforme/      administration de la plateforme

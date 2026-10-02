@@ -226,12 +226,12 @@ async def recevoir_boutique(request: Request):
             "\n".join([f"Boutique : {boutique['nom']} ({boutique['ville']}, {boutique['pays']})",
                        f"ID boutique : {boutique['code_marchand']}",
                        f"DG : {dg['nom']} — {dg['email']} — {donnees['dg_telephone']}",
-                       f"Identifiants envoyés : e-mail {envoi['email']}, SMS {envoi['sms']}", "",
+                       f"Identifiants envoyés : WhatsApp {envoi.get('whatsapp')}, SMS {envoi['sms']}, e-mail {envoi['email']}", "",
                        f"À valider dans l'administration : {s.public_site_url}/plateforme"]),
             s.rapport_email)
     return JSONResponse(status_code=201, content={
         "resultat": "creee", "code_boutique": boutique["code_marchand"], "statut": "EN_ATTENTE_VALIDATION",
-        "produits_copies": nb_produits, "identifiants_envoyes": {"email": envoi["email"], "sms": envoi["sms"]}})
+        "produits_copies": nb_produits, "identifiants_envoyes": {"email": envoi["email"], "sms": envoi["sms"], "whatsapp": envoi.get("whatsapp")}})
 
 
 # ---------------------------------------------------------------------------

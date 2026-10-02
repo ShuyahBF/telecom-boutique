@@ -6,10 +6,11 @@ import re
 import secrets
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
+import options_sidebar
 from abonnements import abonnement_initial
 from auth import get_super_admin, hash_password, user_public
 from db import SANS_ID, db
@@ -118,6 +119,9 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "validee": validee, "origine": origine, "test": test,
         # 14 jours de démo complète, puis abonnement (voir abonnements.py)
         "abonnement": abonnement_initial(now_iso()),
+        # Barre latérale : seuls « Tableau de bord » et « Caisse Aizenta » sont actifs
+        # au départ ; le super-admin active les autres options boutique par boutique
+        "options_sidebar": options_sidebar.options_par_defaut(),
         **boutique_par_defaut(nom),
         **Identification(**{k: v for k, v in donnees.items() if k in Identification.model_fields}).model_dump(),
     }
@@ -137,36 +141,52 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
 
 
 async def envoyer_identifiants(boutique: dict, dg: dict, mot_de_passe: str, telephone: str) -> dict:
-    """Envoie au DG son ID boutique et son mot de passe provisoire, par e-mail
-    ET par SMS (serveurs de la plateforme). Renvoie le statut de chaque canal,
-    sans jamais le mot de passe."""
+    """Envoie au DG son ID boutique et son mot de passe provisoire :
+      - au TÉLÉPHONE (celui de son compte, sinon `telephone`) : WhatsApp en
+        priorité, SMS seulement si WhatsApp n'a pas pu partir ;
+      - à son E-MAIL s'il en a un (comme avant).
+    Renvoie le statut de chaque canal, sans jamais le mot de passe."""
     from config import get_settings
     import envois_plateforme as envois
+    import identifiants
 
     if boutique.get("test"):
         # Boutique interne : coordonnées imaginaires, rien n'est envoyé
         return {"date": now_iso(), "email": "NON_CONFIGURE", "email_erreur": "Boutique interne",
+                "whatsapp": "NON_CONFIGURE", "whatsapp_erreur": "Boutique interne",
                 "sms": "NON_CONFIGURE", "sms_erreur": "Boutique interne"}
 
     url = get_settings().public_site_url
+    identifiant = identifiants.identifiant_principal(dg)
     sujet = f"[adLyn] Votre boutique « {boutique['nom']} » est créée"
     corps = "\n".join([
         f"Bonjour {dg.get('nom') or ''},", "",
         f"Votre boutique « {boutique['nom']} » a été créée sur adLyn.", "",
         f"Adresse de connexion : {url}/connexion",
         f"ID boutique : {boutique['code_marchand']}",
-        f"E-mail : {dg['email']}",
+        f"Identifiant (e-mail ou téléphone) : {identifiant}",
         f"Mot de passe provisoire : {mot_de_passe}", "",
         "Ce mot de passe devra être changé dès votre première connexion.",
         "Votre boutique sera visible du public après validation par l'équipe adLyn.", "",
         "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.",
     ])
     sms = (f"adLyn : boutique {boutique['nom'][:40]} creee. ID boutique {boutique['code_marchand']}, "
-           f"mot de passe provisoire {mot_de_passe} (a changer a la 1re connexion). {url}/connexion")
-    email_statut, email_erreur = await envois.envoyer_email(sujet, corps, dg["email"])
-    sms_statut, sms_erreur = await envois.envoyer_sms(telephone, sms)
-    envoi = {"date": now_iso(), "email": email_statut, "email_erreur": email_erreur,
-             "sms": sms_statut, "sms_erreur": sms_erreur}
+           f"identifiant {identifiant}, mot de passe provisoire {mot_de_passe} (a changer a la 1re connexion). "
+           f"{url}/connexion")
+    envoi = {"date": now_iso(), "whatsapp": "NON_CONFIGURE", "whatsapp_erreur": "Aucun numéro de téléphone",
+             "sms": "NON_ENVOYE", "sms_erreur": "", "email": "NON_CONFIGURE", "email_erreur": "Aucune adresse e-mail"}
+    numero = dg.get("telephone") or telephone
+    if numero:
+        resultat = await identifiants.envoyer_message(
+            telephone=numero, sujet=sujet, texte=sms, code=mot_de_passe,
+            infos_whatsapp=[dg.get("nom") or "", boutique["nom"], boutique["code_marchand"], identifiant])
+        for essai in resultat["essais"]:
+            cle = essai["canal"].lower()
+            envoi[cle], envoi[f"{cle}_erreur"] = essai["statut"], essai["erreur"]
+    else:
+        envoi.update({"sms": "NON_CONFIGURE", "sms_erreur": "Aucun numéro de téléphone"})
+    if dg.get("email"):
+        envoi["email"], envoi["email_erreur"] = await envois.envoyer_email(sujet, corps, dg["email"])
     await db.boutiques.update_one({"id": boutique["id"]}, {"$set": {"identifiants_envoi": envoi}})
     return envoi
 
@@ -187,9 +207,11 @@ def boutique_par_defaut(nom: str) -> dict:
 @router.get("/boutiques")
 async def lister_boutiques(_: dict = Depends(get_super_admin)):
     boutiques = await db.boutiques.find({}, SANS_ID).sort("nom", 1).to_list(1000)
-    # Nombre de comptes par boutique (aide au suivi)
+    # Nombre de comptes par boutique (aide au suivi) et identifiants de connexion du DG
     for b in boutiques:
         b["nb_utilisateurs"] = await db.users.count_documents({"boutique_id": b["id"]})
+        b["dg_compte"] = await db.users.find_one({"boutique_id": b["id"], "role": "dg", "actif": True},
+                                                 {"_id": 0, "id": 1, "nom": 1, "email": 1, "telephone": 1})
     return [_sans_secrets(b, super_admin=True) for b in boutiques]
 
 
@@ -223,9 +245,12 @@ async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_adm
 
 
 @router.post("/boutiques/{boutique_id}/renvoyer-identifiants")
-async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_admin)):
-    """Nouveau mot de passe provisoire pour le DG, renvoyé par e-mail et SMS
-    (ex. : le premier envoi a échoué). L'ancien mot de passe ne fonctionne plus."""
+async def renvoyer_identifiants(boutique_id: str, request: Request, admin: dict = Depends(get_super_admin)):
+    """Nouveau mot de passe provisoire pour le DG, renvoyé par WhatsApp (SMS en
+    repli) et par e-mail (ex. : le premier envoi a échoué, mot de passe oublié).
+    L'ancien mot de passe ne fonctionne plus."""
+    import identifiants
+
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
     dg = await db.users.find_one({"boutique_id": boutique_id, "role": "dg", "actif": True}, SANS_ID) if boutique else None
     if not dg:
@@ -235,11 +260,44 @@ async def renvoyer_identifiants(boutique_id: str, _: dict = Depends(get_super_ad
         "$set": {"password_hash": hash_password(mot_de_passe), "doit_changer_mot_de_passe": True},
         "$inc": {"version_session": 1}})  # déconnecte les sessions ouvertes
     telephone = boutique.get("dg_telephone") or boutique.get("telephone", "")
-    return await envoyer_identifiants(boutique, dg, mot_de_passe, telephone)
+    envoi = await envoyer_identifiants(boutique, dg, mot_de_passe, telephone)
+    statuts = [envoi.get(c) for c in ("whatsapp", "sms", "email")]
+    await identifiants.journaliser("MDP_PROVISOIRE_ENVOYE", cible=dg, par=admin, request=request,
+                                   statut="ENVOYE" if "ENVOYE" in statuts else "ECHEC")
+    return envoi
+
+
+class IdentifiantsDg(BaseModel):
+    """Identifiants de connexion du DG ("" = retirer ; il doit en rester au moins un)."""
+    email: Optional[str] = Field(None, max_length=200)
+    telephone: Optional[str] = Field(None, max_length=30)
+
+
+@router.patch("/boutiques/{boutique_id}/dg-identifiants")
+async def modifier_identifiants_dg(boutique_id: str, payload: IdentifiantsDg, request: Request,
+                                   admin: dict = Depends(get_super_admin)):
+    """L'administrateur change l'e-mail et/ou le téléphone de connexion du DG
+    (sans code : il en répond ; le DG est prévenu sur l'ancien et le nouveau contact)."""
+    import identifiants
+
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    dg = await db.users.find_one({"boutique_id": boutique_id, "role": "dg", "actif": True}, SANS_ID) if boutique else None
+    if not dg:
+        raise HTTPException(404, "Boutique ou DG introuvable")
+    champs = {k: getattr(payload, k) or "" for k in ("email", "telephone") if k in payload.model_fields_set}
+    dg, notifications = await identifiants.modifier_par_responsable(dg, boutique, champs, par=admin, request=request)
+    return {"dg": user_public(dg), "notifications": notifications}
+
+
+@router.get("/journal-identifiants")
+async def journal_identifiants(boutique_id: Optional[str] = None, _: dict = Depends(get_super_admin)):
+    """Historique des actions sur les identifiants (toutes les boutiques, ou une seule)."""
+    import identifiants
+    return await identifiants.lire_journal({"boutique_id": boutique_id} if boutique_id else {}, 500)
 
 
 @router.patch("/boutiques/{boutique_id}")
-async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = Depends(get_super_admin)):
+async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, admin: dict = Depends(get_super_admin)):
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
     if not boutique:
         raise HTTPException(404, "Boutique introuvable")
@@ -265,7 +323,80 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, _: dict = De
         maj["suspension"] = None
     if maj:
         await db.boutiques.update_one({"id": boutique_id}, {"$set": maj})
+    # Ancien interrupteur « Maintenance des équipements » : l'option de la barre latérale suit
+    if "maintenance_equipements" in maj and isinstance(boutique.get("options_sidebar"), dict) \
+            and bool(boutique["options_sidebar"].get("maintenance_equipements")) != maj["maintenance_equipements"]:
+        await enregistrer_options(boutique, {"maintenance_equipements": maj["maintenance_equipements"]}, admin)
     return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
+
+
+# ---------------------------------------------------------------------------
+# Options de la barre latérale (menu du back-office) d'une boutique
+# ---------------------------------------------------------------------------
+class OptionsSidebar(BaseModel):
+    """Options à changer : {clé de l'option: activée ?}. Les clés absentes ne changent pas."""
+    options: dict[str, bool]
+
+
+async def enregistrer_options(boutique: dict, changements: dict[str, bool], admin: dict) -> dict:
+    """Applique les changements, garde l'ancien interrupteur « maintenance_equipements »
+    synchronisé et JOURNALISE (qui, quand, avant / après). Renvoie les options effectives."""
+    inconnues = [c for c in changements if c not in options_sidebar.LIBELLES]
+    if inconnues:
+        raise HTTPException(400, f"Option inconnue : {', '.join(inconnues)}")
+    obligatoires = [options_sidebar.LIBELLES[c] for c, v in changements.items()
+                    if c in options_sidebar.OPTIONS_OBLIGATOIRES and not v]
+    if obligatoires:
+        raise HTTPException(400, f"Option obligatoire, impossible à désactiver : {', '.join(obligatoires)}")
+    avant = options_sidebar.options_effectives(boutique)
+    # Point de départ : l'état actuel (une boutique « historique » part de « tout activé »)
+    nouvelles = {c: avant[c] for c in options_sidebar.CLES}
+    nouvelles.update(changements)
+    for c in options_sidebar.OPTIONS_OBLIGATOIRES:
+        nouvelles[c] = True
+    await db.boutiques.update_one({"id": boutique["id"]}, {"$set": {
+        "options_sidebar": nouvelles, "maintenance_equipements": nouvelles["maintenance_equipements"]}})
+    apres = options_sidebar.options_effectives({**boutique, "options_sidebar": nouvelles,
+                                                "maintenance_equipements": nouvelles["maintenance_equipements"]})
+    differences = [{"cle": c, "libelle": options_sidebar.LIBELLES[c], "avant": avant[c], "apres": apres[c]}
+                   for c in options_sidebar.CLES if avant[c] != apres[c]]
+    if differences:
+        await db.options_sidebar_journal.insert_one({
+            "id": new_id(), "boutique_id": boutique["id"], "date": now_iso(),
+            "par": admin.get("email", ""), "par_nom": admin.get("nom", ""),
+            "historique_avant": not isinstance(boutique.get("options_sidebar"), dict),
+            "changements": differences, "avant": avant, "apres": apres})
+    return apres
+
+
+async def _etat_options(boutique: dict) -> dict:
+    effectives = options_sidebar.options_effectives(boutique)
+    journal = await db.options_sidebar_journal.find({"boutique_id": boutique["id"]}, SANS_ID) \
+        .sort("date", -1).to_list(50)
+    return {
+        # vrai = boutique créée avant cette fonction, jamais réglée : tout est activé
+        "historique": not isinstance(boutique.get("options_sidebar"), dict),
+        "options": [{"cle": c, "libelle": l, "obligatoire": c in options_sidebar.OPTIONS_OBLIGATOIRES,
+                     "active": effectives[c]} for c, l in options_sidebar.OPTIONS],
+        "journal": [{k: v for k, v in j.items() if k not in ("avant", "apres")} for j in journal],
+    }
+
+
+@router.get("/boutiques/{boutique_id}/options-sidebar")
+async def lire_options(boutique_id: str, _: dict = Depends(get_super_admin)):
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    if not boutique:
+        raise HTTPException(404, "Boutique introuvable")
+    return await _etat_options(boutique)
+
+
+@router.put("/boutiques/{boutique_id}/options-sidebar")
+async def modifier_options(boutique_id: str, payload: OptionsSidebar, admin: dict = Depends(get_super_admin)):
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    if not boutique:
+        raise HTTPException(404, "Boutique introuvable")
+    await enregistrer_options(boutique, payload.options, admin)
+    return await _etat_options(await db.boutiques.find_one({"id": boutique_id}, SANS_ID))
 
 
 @router.get("/statistiques")

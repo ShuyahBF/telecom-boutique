@@ -36,6 +36,7 @@ COLLECTIONS_BOUTIQUE = (
     "categories", "produits", "clients", "fournisseurs", "mouvements", "bons_entree", "documents",
     "commandes", "dossiers", "conversations", "modeles_messages", "journal_envois", "journal_paiements",
     "maintenance_fiches", "maintenance_types",  # maintenance des équipements
+    "caisse_operations", "caisse_arrets", "caisse_types_paiement",  # caisse Aizenta (reçue de Loois)
 )
 
 
@@ -114,6 +115,9 @@ async def restaurer(boutique_id: str, archive: bytes) -> dict:
     tdb = TenantDB(boutique_id)
     compte = {}
     for nom in COLLECTIONS_BOUTIQUE:
+        if nom.startswith("caisse_") and nom not in donnees["collections"]:
+            # Archive antérieure à la caisse Aizenta : on garde les données de caisse actuelles
+            continue
         collection = getattr(tdb, nom)
         await collection.delete_many({})
         documents = donnees["collections"].get(nom, [])
@@ -121,7 +125,13 @@ async def restaurer(boutique_id: str, archive: bytes) -> dict:
             await collection.insert_one(doc)
         compte[nom] = len(documents)
     # Fiche de la boutique, comptes du personnel, compteurs de numérotation
-    await db.boutiques.replace_one({"id": boutique_id}, donnees["boutique"])
+    fiche = dict(donnees["boutique"])
+    if "options_sidebar" not in fiche:
+        # Archive antérieure aux options de la barre latérale : on garde le réglage actuel
+        actuelle = await db.boutiques.find_one({"id": boutique_id}, {"_id": 0, "options_sidebar": 1}) or {}
+        if "options_sidebar" in actuelle:
+            fiche["options_sidebar"] = actuelle["options_sidebar"]
+    await db.boutiques.replace_one({"id": boutique_id}, fiche)
     await db.users.delete_many({"boutique_id": boutique_id})
     for u in donnees.get("utilisateurs", []):
         await db.users.insert_one(dict(u))

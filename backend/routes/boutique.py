@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Union
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
+from pymongo.errors import DuplicateKeyError
 
+import identifiants
 import kyc as service_kyc
 from auth import ROLES_BOUTIQUE, Contexte, hash_password, permission, tout_le_personnel, user_public
 from db import SANS_ID, db
@@ -182,8 +184,11 @@ async def journal_envois(ctx: Contexte = Depends(parametres)):
 # ---------------------------------------------------------------------------
 class MembreCreation(BaseModel):
     nom: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr
-    mot_de_passe: str = Field(..., min_length=8)
+    # Identifiants de connexion : e-mail et/ou téléphone (au moins l'un des deux)
+    email: Optional[Union[EmailStr, Literal[""]]] = None
+    telephone: Optional[str] = Field(None, max_length=30)
+    # Vide = mot de passe provisoire tiré au hasard par le serveur (conseillé)
+    mot_de_passe: Optional[str] = Field(None, max_length=200)
     role: Literal["dg", "commercial", "secretaire", "comptable", "technicien"] = "commercial"
 
 
@@ -192,6 +197,9 @@ class MembreMaj(BaseModel):
     role: Optional[Literal["dg", "commercial", "secretaire", "comptable", "technicien"]] = None
     actif: Optional[bool] = None
     mot_de_passe: Optional[str] = Field(None, min_length=8)
+    # Identifiants de connexion ("" = retirer ; il doit en rester au moins un)
+    email: Optional[Union[EmailStr, Literal[""]]] = None
+    telephone: Optional[str] = Field(None, max_length=30)
 
 
 @router.get("/equipe")
@@ -201,38 +209,109 @@ async def lister_equipe(ctx: Contexte = Depends(tout_le_personnel)):
 
 
 @router.post("/equipe", status_code=201)
-async def ajouter_membre(payload: MembreCreation, ctx: Contexte = Depends(parametres)):
-    if await db.users.find_one({"email": payload.email.lower()}):
-        raise HTTPException(409, "Un compte existe déjà avec cet e-mail")
+async def ajouter_membre(payload: MembreCreation, request: Request, ctx: Contexte = Depends(parametres)):
+    email = str(payload.email).lower() if payload.email else None
+    telephone = identifiants.valeur_normalisee("telephone", payload.telephone) if (payload.telephone or "").strip() else None
+    if not (email or telephone):
+        raise HTTPException(400, "Indiquez l'e-mail ou le numéro de téléphone de la personne (au moins l'un des deux)")
+    if payload.mot_de_passe and len(payload.mot_de_passe) < 8:
+        raise HTTPException(400, "Le mot de passe provisoire doit contenir au moins 8 caractères")
+    for type_, valeur in (("email", email), ("telephone", telephone)):
+        if valeur:
+            await identifiants.verifier_disponible(type_, valeur)
+    mot_de_passe = payload.mot_de_passe or identifiants.mot_de_passe_provisoire()
     membre = {
-        "id": new_id(), "email": payload.email.lower(), "nom": payload.nom.strip(),
-        "password_hash": hash_password(payload.mot_de_passe), "role": payload.role,
+        "id": new_id(), "nom": payload.nom.strip(),
+        "password_hash": hash_password(mot_de_passe), "role": payload.role,
         "boutique_id": ctx.boutique["id"], "actif": True, "created_at": now_iso(),
         # Mot de passe choisi par le DG : provisoire, à changer à la 1re connexion
         "doit_changer_mot_de_passe": True,
     }
-    await db.users.insert_one(membre.copy())
-    return user_public(membre)
+    # Un identifiant absent n'est PAS enregistré (ni vide) : l'index unique l'ignore
+    if email:
+        membre["email"] = email
+    if telephone:
+        membre["telephone"] = telephone
+    try:
+        await db.users.insert_one(membre.copy())
+    except DuplicateKeyError:
+        raise HTTPException(409, "Un compte existe déjà avec cet e-mail ou ce téléphone") from None
+    # Identifiants provisoires envoyés à la personne : WhatsApp, sinon SMS, sinon e-mail
+    envoi = await identifiants.envoyer_identifiants_provisoires(membre, ctx.boutique, mot_de_passe)
+    await identifiants.journaliser("COMPTE_CREE", cible=membre, par=ctx.user, request=request,
+                                   canal=envoi["canal"], statut=envoi["statut"])
+    return {**user_public(membre), "envoi": _envoi_public(envoi, mot_de_passe)}
 
 
-@router.patch("/equipe/{user_id}")
-async def modifier_membre(user_id: str, payload: MembreMaj, ctx: Contexte = Depends(parametres)):
+def _envoi_public(envoi: dict, mot_de_passe: str) -> dict:
+    """Résultat de l'envoi affiché au DG. Si RIEN n'a pu partir, le mot de passe
+    provisoire lui est montré (une seule fois) pour qu'il le remette en main propre."""
+    public = {k: envoi[k] for k in ("canal", "statut", "erreur", "essais")}
+    if envoi["statut"] != "ENVOYE":
+        public["mot_de_passe_provisoire"] = mot_de_passe
+    return public
+
+
+async def _membre_de_la_boutique(user_id: str, ctx: Contexte) -> dict:
     # Filtre boutique_id : un gérant ne peut modifier QUE les comptes de sa boutique
     membre = await db.users.find_one({"id": user_id, "boutique_id": ctx.boutique["id"]}, SANS_ID)
     if not membre:
         raise HTTPException(404, "Membre introuvable")
+    return membre
+
+
+@router.patch("/equipe/{user_id}")
+async def modifier_membre(user_id: str, payload: MembreMaj, request: Request, ctx: Contexte = Depends(parametres)):
+    membre = await _membre_de_la_boutique(user_id, ctx)
     if user_id == ctx.user["id"] and (payload.actif is False or (payload.role and payload.role != "dg")):
         raise HTTPException(400, "Vous ne pouvez pas vous retirer vous-même le rôle de DG")
-    maj = payload.model_dump(exclude_none=True)
+    # Identifiants de connexion (e-mail / téléphone) : sans code, le DG en répond ;
+    # le membre est prévenu sur l'ancien ET le nouveau contact
+    champs_identifiants = {k: (str(getattr(payload, k)) if getattr(payload, k) is not None else "")
+                           for k in ("email", "telephone") if k in payload.model_fields_set}
+    notifications = []
+    if champs_identifiants:
+        if user_id == ctx.user["id"]:
+            raise HTTPException(400, "Pour vos propres identifiants, passez par « Mon compte » (confirmation par code)")
+        membre, notifications = await identifiants.modifier_par_responsable(
+            membre, ctx.boutique, champs_identifiants, par=ctx.user, request=request)
+    maj = payload.model_dump(exclude_none=True, exclude={"email", "telephone"})
     operation: dict = {}
     if "mot_de_passe" in maj:
         maj["password_hash"] = hash_password(maj.pop("mot_de_passe"))
         # Mot de passe donné par le DG : provisoire, le membre le changera à sa connexion
         maj["doit_changer_mot_de_passe"] = user_id != ctx.user["id"]
+        await identifiants.journaliser("MDP_MODIFIE_PAR_DG", cible=membre, par=ctx.user, request=request)
     if ("password_hash" in maj and user_id != ctx.user["id"]) or payload.actif is False:
         operation["$inc"] = {"version_session": 1}  # ses sessions ouvertes sont fermées
     if maj:
         operation["$set"] = maj
     if operation:
         await db.users.update_one({"id": user_id, "boutique_id": ctx.boutique["id"]}, operation)
-    return user_public(await db.users.find_one({"id": user_id}, SANS_ID))
+    resultat = user_public(await db.users.find_one({"id": user_id}, SANS_ID))
+    if notifications:
+        resultat["notifications"] = notifications
+    return resultat
+
+
+@router.post("/equipe/{user_id}/nouveau-mot-de-passe")
+async def envoyer_nouveau_mot_de_passe(user_id: str, request: Request, ctx: Contexte = Depends(parametres)):
+    """Nouveau mot de passe PROVISOIRE tiré au hasard et envoyé au membre (WhatsApp,
+    sinon SMS, sinon e-mail). L'ancien ne fonctionne plus et ses sessions sont fermées."""
+    membre = await _membre_de_la_boutique(user_id, ctx)
+    if user_id == ctx.user["id"]:
+        raise HTTPException(400, "Pour votre propre mot de passe, utilisez « Changer mon mot de passe »")
+    mot_de_passe = identifiants.mot_de_passe_provisoire()
+    await db.users.update_one({"id": user_id}, {
+        "$set": {"password_hash": hash_password(mot_de_passe), "doit_changer_mot_de_passe": True},
+        "$inc": {"version_session": 1}})
+    envoi = await identifiants.envoyer_identifiants_provisoires(membre, ctx.boutique, mot_de_passe)
+    await identifiants.journaliser("MDP_PROVISOIRE_ENVOYE", cible=membre, par=ctx.user, request=request,
+                                   canal=envoi["canal"], statut=envoi["statut"])
+    return {"envoi": _envoi_public(envoi, mot_de_passe)}
+
+
+@router.get("/equipe/journal-identifiants")
+async def journal_identifiants(ctx: Contexte = Depends(parametres)):
+    """Historique des actions sur les identifiants des comptes de la boutique (sans secret)."""
+    return await identifiants.lire_journal({"boutique_id": ctx.boutique["id"]})

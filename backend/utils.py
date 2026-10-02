@@ -29,6 +29,24 @@ def normaliser_telephone(tel: str | None) -> str:
     return ("+" if tel.startswith("+") else "") + re.sub(r"\D", "", tel)
 
 
+def telephone_e164(tel: str | None, indicatif_defaut: str = "226") -> str | None:
+    """Numéro au format international E.164 (« +22670123456 »), utilisé comme
+    IDENTIFIANT DE CONNEXION. « 70 12 34 56 » (8 chiffres, numéro local) reçoit
+    l'indicatif du Burkina Faso ; « 0022670... » devient « +22670... ».
+    Renvoie None si ce n'est pas un numéro plausible (8 à 15 chiffres)."""
+    tel = normaliser_telephone(tel)
+    chiffres = tel.lstrip("+")
+    if tel.startswith("+"):
+        pass
+    elif chiffres.startswith("00"):
+        chiffres = chiffres[2:]
+    elif len(chiffres) == 8:
+        chiffres = indicatif_defaut + chiffres
+    if not chiffres.isdigit() or not 8 <= len(chiffres) <= 15 or chiffres.startswith("0"):
+        return None
+    return "+" + chiffres
+
+
 def slugifier(texte: str) -> str:
     """« Boutique Étoile & Fils » -> « boutique-etoile-fils » (pour les adresses web)."""
     texte = unicodedata.normalize("NFKD", texte or "").encode("ascii", "ignore").decode()

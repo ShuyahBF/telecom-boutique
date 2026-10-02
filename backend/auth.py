@@ -51,6 +51,9 @@ PERMISSIONS: dict[str, tuple[str, ...]] = {
     "messagerie": ("dg", "commercial", "secretaire"),
     "paiements.historique": ("dg", "comptable"),
     "parametres": ("dg",),
+    # Situation de la caisse Aizenta (reçue de Loois) : direction, comptabilité et
+    # secrétariat (accueil / caisse). Les commerciaux et techniciens ne la voient pas.
+    "caisse_aizenta": ("dg", "comptable", "secretaire"),
 }
 
 
@@ -220,6 +223,14 @@ async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_susp
         autorise, raison = acces.controler(boutique, request)
         if not autorise:
             raise HTTPException(403, f"Accès refusé : {raison.lower()}")
+    if request is not None:
+        # Options de la barre latérale activées par l'administrateur pour cette boutique :
+        # une route d'une option désactivée répond 403 (voir options_sidebar.py).
+        # S'applique aussi au super-admin qui consulte la boutique (il voit ce qu'elle voit).
+        import options_sidebar
+        route = request.scope.get("route")
+        chemin = getattr(route, "path", None) or request.url.path
+        options_sidebar.verifier_requete(boutique, request.method, chemin)
     return Contexte(user, boutique)
 
 

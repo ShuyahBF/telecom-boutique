@@ -17,7 +17,7 @@ import catalogue_public as service_catalogue
 import taches_nocturnes
 from config import get_settings
 from db import ensure_indexes
-from routes import (abonnements, acces_boutique, auth, boutique, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
+from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta, identifiants, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
                     maintenance, maintenance_equipements, paiements, parametres_plateforme, parrainage, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
                     tableau_de_bord, tiers, tiktok, webhooks)
 from seed import creer_demo, ensure_super_admin
@@ -38,7 +38,7 @@ app.add_middleware(
 )
 
 api = APIRouter(prefix="/api")
-for module in (auth, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
+for module in (auth, identifiants, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
 # Abonnements : page du DG et administration (super-admin)
@@ -76,6 +76,10 @@ api.include_router(tiktok.router)
 api.include_router(maintenance_equipements.boutique)
 api.include_router(maintenance_equipements.admin)
 api.include_router(maintenance_equipements.public)
+# Caisse Aizenta : webhook de Loois (jeton par boutique), écran de la boutique, administration
+api.include_router(caisse_aizenta.webhook)
+api.include_router(caisse_aizenta.boutique)
+api.include_router(caisse_aizenta.admin)
 
 
 @api.get("/health")

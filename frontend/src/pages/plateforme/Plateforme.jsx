@@ -11,6 +11,7 @@ import { BadgeKyc, Champ, EnTetePlateforme } from "./_plateforme/composants";
 import CreationBoutique from "./_plateforme/CreationBoutique";
 import DossierBoutique from "./_plateforme/DossierBoutique";
 import JournalWebhook, { LIBELLES_ENVOI } from "./_plateforme/JournalWebhook";
+import OptionsBoutique from "./_plateforme/OptionsBoutique";
 import Restauration from "./_plateforme/Restauration";
 import { horodatage, messageErreurFichier, STATUTS_KYC, telechargerFichier } from "./_plateforme/outils";
 
@@ -32,10 +33,12 @@ export default function Plateforme() {
   const [edition, setEdition] = useState(null); // boutique en cours de modification (nom, code, ordre)
   const [qr, setQr] = useState(null); // boutique dont on affiche le QR code
   const [dossierId, setDossierId] = useState(null); // boutique dont le « Dossier » est ouvert
+  const [optionsId, setOptionsId] = useState(null); // boutique dont on règle la barre latérale / la caisse Aizenta
   const [restauration, setRestauration] = useState(null); // boutique à restaurer
   const [telechargement, setTelechargement] = useState(null); // id de la boutique en cours de sauvegarde
   const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
   const [journalOuvert, setJournalOuvert] = useState(false); // fenêtre « Journal du webhook »
+  const [identifiantsDg, setIdentifiantsDg] = useState(null); // { boutique, email, telephone } : connexion du DG
 
   // Chargement des statistiques et de la liste des boutiques
   const charger = useCallback(() => {
@@ -83,16 +86,35 @@ export default function Plateforme() {
     }
   }
 
-  // Nouveau mot de passe provisoire envoyé au DG (e-mail + SMS)
+  // Nouveau mot de passe provisoire envoyé au DG (WhatsApp, SMS en repli, et e-mail)
   async function renvoyerIdentifiants(b) {
     if (!window.confirm(`Envoyer un NOUVEAU mot de passe provisoire au DG de « ${b.nom} » ? L'actuel ne fonctionnera plus.`)) return;
     try {
       const { data } = await apiClient.post(`/plateforme/boutiques/${b.id}/renvoyer-identifiants`);
       remplacer({ id: b.id, identifiants_envoi: data });
-      const ok = data.email === "ENVOYE" || data.sms === "ENVOYE";
-      toast[ok ? "succes" : "erreur"](`E-mail : ${LIBELLES_ENVOI[data.email]} · SMS : ${LIBELLES_ENVOI[data.sms]}`);
+      const ok = [data.whatsapp, data.sms, data.email].includes("ENVOYE");
+      toast[ok ? "succes" : "erreur"](`WhatsApp : ${LIBELLES_ENVOI[data.whatsapp]} · SMS : ${LIBELLES_ENVOI[data.sms]} · E-mail : ${LIBELLES_ENVOI[data.email]}`);
     } catch (err) {
       toast.erreur(messageErreur(err, "Envoi impossible"));
+    }
+  }
+
+  // Modification de l'e-mail / du téléphone de connexion du DG (il en est prévenu)
+  async function enregistrerIdentifiantsDg(e) {
+    e.preventDefault();
+    const { boutique: b, email, telephone } = identifiantsDg;
+    const actuel = b.dg_compte || {};
+    const changements = {};
+    if (email.trim() !== (actuel.email || "")) changements.email = email.trim();
+    if (telephone.trim() !== (actuel.telephone || "")) changements.telephone = telephone.trim();
+    if (!Object.keys(changements).length) return setIdentifiantsDg(null);
+    try {
+      const { data } = await apiClient.patch(`/plateforme/boutiques/${b.id}/dg-identifiants`, changements);
+      remplacer({ id: b.id, dg_compte: { ...actuel, email: data.dg.email, telephone: data.dg.telephone } });
+      toast.succes("Identifiants du DG modifiés : il en a été prévenu");
+      setIdentifiantsDg(null);
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Modification impossible"));
     }
   }
 
@@ -195,6 +217,11 @@ export default function Plateforme() {
                       {[b.ville, b.pays].filter(Boolean).join(", ") || "Lieu non renseigné"} · créée le {date(b.created_at)}
                     </p>
                     {b.dg_nom && <p className="truncate text-xs text-gray-500">DG : {b.dg_nom}</p>}
+                    {b.dg_compte && (
+                      <p className="truncate text-xs text-gray-500">
+                        Connexion du DG : {[b.dg_compte.telephone, b.dg_compte.email].filter(Boolean).join(" · ") || "—"}
+                      </p>
+                    )}
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className="badge bg-gray-100 font-mono text-gray-700">{b.code_marchand}</span>
                       {b.actif === false ? <span className="badge bg-red-100 text-red-700">Suspendue</span> : <span className="badge bg-green-100 text-green-800">Active</span>}
@@ -205,6 +232,12 @@ export default function Plateforme() {
                       <BadgeKyc statut={b.kyc?.statut} />
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
                       {b.maintenance_equipements && <span className="badge bg-teal-50 text-teal-800">🛠️ Maintenance</span>}
+                      {/* Nombre d'options du menu actives (« tout » = boutique créée avant les options) */}
+                      {b.options_actives && (
+                        <span className="badge bg-slate-100 text-slate-700" title="Options de la barre latérale actives">
+                          🧭 {b.options_sidebar ? `${Object.values(b.options_actives).filter(Boolean).length}/${Object.keys(b.options_actives).length} options` : "Menu complet"}
+                        </span>
+                      )}
                       <span className="badge bg-blue-50 text-blue-800">{b.nb_utilisateurs} utilisateur(s)</span>
                     </div>
                   </div>
@@ -213,8 +246,8 @@ export default function Plateforme() {
                 {/* Envoi des identifiants au DG (boutiques créées par le webhook) */}
                 {b.identifiants_envoi && (
                   <p className="text-xs text-gray-500">
-                    Envoi des identifiants au DG le {date(b.identifiants_envoi.date)} — e-mail : {LIBELLES_ENVOI[b.identifiants_envoi.email]},
-                    SMS : {LIBELLES_ENVOI[b.identifiants_envoi.sms]}
+                    Envoi des identifiants au DG le {date(b.identifiants_envoi.date)} — WhatsApp : {LIBELLES_ENVOI[b.identifiants_envoi.whatsapp]},
+                    SMS : {LIBELLES_ENVOI[b.identifiants_envoi.sms]}, e-mail : {LIBELLES_ENVOI[b.identifiants_envoi.email]}
                   </p>
                 )}
 
@@ -232,6 +265,12 @@ export default function Plateforme() {
                   <a href={`/b/${b.slug}`} target="_blank" rel="noreferrer" className="btn-outline btn-sm">Vitrine ↗</a>
                   <button type="button" className="btn-outline btn-sm" onClick={() => setQr(b)}>QR code</button>
                   <button type="button" className="btn-outline btn-sm" onClick={() => setEdition({ ...b, ordre: b.ordre ?? 0 })}>✏️ Modifier</button>
+                  {b.dg_compte && (
+                    <button type="button" className="btn-outline btn-sm"
+                      onClick={() => setIdentifiantsDg({ boutique: b, email: b.dg_compte.email || "", telephone: b.dg_compte.telephone || "" })}>
+                      👤 Connexion du DG
+                    </button>
+                  )}
                   <button type="button" className={`btn-outline btn-sm ${b.mise_en_avant ? "text-amber-700" : ""}`}
                     onClick={() => modifier(b, { mise_en_avant: !b.mise_en_avant }, b.mise_en_avant ? "Retirée du carrousel" : "Mise en avant dans le carrousel")}>
                     {b.mise_en_avant ? "☆ Retirer" : "⭐ Mettre en avant"}
@@ -242,11 +281,11 @@ export default function Plateforme() {
                     {telechargement === b.id ? "Préparation…" : "💾 Sauvegarde"}
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
-                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>✉️ Renvoyer les identifiants au DG</button>
-                  {/* Fonction « Maintenance des équipements » (menu et écran de la boutique) */}
-                  <button type="button" className="btn-outline btn-sm col-span-2"
-                    onClick={() => modifier(b, { maintenance_equipements: !b.maintenance_equipements }, b.maintenance_equipements ? "Maintenance des équipements désactivée" : "Maintenance des équipements activée")}>
-                    {b.maintenance_equipements ? "🛠️ Désactiver la maintenance des équipements" : "🛠️ Activer la maintenance des équipements"}
+                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>📲 Renvoyer les identifiants au DG</button>
+                  {/* Options du menu de la boutique (Activer / Désactiver la barre latérale, dont la
+                      maintenance des équipements) + jeton et journal de la caisse Aizenta */}
+                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => setOptionsId(b.id)}>
+                    🧭 Barre latérale & Caisse Aizenta
                   </button>
                   {/* Boutique de démonstration ou réelle (repère connu du seul super-admin) */}
                   <button type="button" className="btn-outline btn-sm col-span-2"
@@ -274,10 +313,29 @@ export default function Plateforme() {
       {/* Fenêtre « Dossier de la boutique » (identification + KYC) */}
       <DossierBoutique boutique={dossier} onFermer={() => setDossierId(null)} onMaj={remplacer} />
 
+      {/* Fenêtre « Barre latérale & Caisse Aizenta » */}
+      <OptionsBoutique boutique={boutiques.find((b) => b.id === optionsId) || null} onFermer={() => setOptionsId(null)} onMaj={charger} />
+
       {/* Fenêtre de restauration d'une sauvegarde */}
       <Restauration boutique={restauration} onFermer={() => setRestauration(null)} onRestauree={charger} />
 
       {/* Fenêtre de modification (nom, code marchand, ordre d'affichage) */}
+      {/* Identifiants de connexion du DG (e-mail / téléphone) */}
+      <Modal ouvert={!!identifiantsDg} titre={`Connexion du DG — ${identifiantsDg?.boutique.nom || ""}`} onFermer={() => setIdentifiantsDg(null)}>
+        {identifiantsDg && (
+          <form onSubmit={enregistrerIdentifiantsDg} className="space-y-3">
+            <Champ label="Téléphone (WhatsApp)" aide="Vide = retirer. Il doit rester au moins un identifiant.">
+              <input className="input" type="tel" placeholder="70 12 34 56" value={identifiantsDg.telephone} onChange={(e) => setIdentifiantsDg({ ...identifiantsDg, telephone: e.target.value })} />
+            </Champ>
+            <Champ label="E-mail" aide="Vide = retirer.">
+              <input className="input" type="email" value={identifiantsDg.email} onChange={(e) => setIdentifiantsDg({ ...identifiantsDg, email: e.target.value })} />
+            </Champ>
+            <p className="text-xs text-gray-500">Sans code : vous en êtes responsable. Le DG est prévenu sur son ancien et son nouveau contact. Pour un nouveau mot de passe, utilisez « Renvoyer les identifiants ».</p>
+            <button className="btn-primary w-full">Enregistrer</button>
+          </form>
+        )}
+      </Modal>
+
       <Modal ouvert={!!edition} titre="Modifier la boutique" onFermer={() => setEdition(null)}>
         {edition && (
           <form onSubmit={enregistrerEdition} className="space-y-3">

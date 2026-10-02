@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Changement de mot de passe : OBLIGATOIRE après un mot de passe provisoire
 // (reçu par e-mail/SMS ou donné par le DG), et possible à tout moment.
@@ -39,7 +40,7 @@ export default function ChangerMotDePasse() {
 
   const champ = (cle, libelle, autoComplete) => (
     <div><label className="label" htmlFor={cle}>{libelle}</label>
-      <input id={cle} className="input" type="password" required autoComplete={autoComplete}
+      <ChampMotDePasse id={cle} required autoComplete={autoComplete}
         value={form[cle]} onChange={(e) => setForm({ ...form, [cle]: e.target.value })} /></div>
   );
 
@@ -51,7 +52,7 @@ export default function ChangerMotDePasse() {
           <h1 className="mt-1 text-xl font-extrabold">{oblige ? "Choisissez votre mot de passe" : "Changer mon mot de passe"}</h1>
           <p className="text-sm text-gray-500">
             {oblige ? "Vous utilisez un mot de passe provisoire : remplacez-le par un mot de passe personnel pour continuer."
-              : `${user.nom} · ${user.email}`}
+              : `${user.nom} · ${user.email || user.telephone || ""}`}
           </p>
         </div>
         {champ("ancien", oblige ? "Mot de passe provisoire reçu" : "Mot de passe actuel", "current-password")}
