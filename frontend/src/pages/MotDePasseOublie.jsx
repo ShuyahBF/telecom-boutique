@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { LogoAdlyn } from "@/components/Marque";
 import { apiClient, idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import { AvisMaintenance } from "@/components/MaintenancePlateforme";
 
 // « Mot de passe oublié ? » (personnel des boutiques), en 2 étapes :
 //   1. ID boutique + e-mail ou téléphone -> un code à 6 chiffres est envoyé
@@ -71,6 +72,8 @@ export default function MotDePasseOublie() {
             {etape === "termine" && "C'est fait ! Toutes vos anciennes sessions ont été fermées."}
           </p>
         </div>
+        {/* Maintenance de la plateforme : demande de code refusée pendant la maintenance */}
+        <AvisMaintenance />
 
         {etape === "demande" && (
           <form onSubmit={demander} className="space-y-4">

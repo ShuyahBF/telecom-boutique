@@ -65,6 +65,8 @@ import ParametresPlateforme from "@/pages/plateforme/Parametres";
 import Referentiel from "@/pages/plateforme/Referentiel";
 import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
 import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
+// Déconnexion programmée de tous les utilisateurs (maintenance de la plateforme)
+import SurveillanceMaintenance from "@/components/MaintenancePlateforme";
 
 // Une facture imprimable s'ouvre aussi depuis une commande ou un dossier de maintenance
 const OPTIONS_FACTURE = ["documents", "commandes", "maintenance", "maintenance_equipements"];
@@ -74,6 +76,7 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <BrowserRouter>
+          <SurveillanceMaintenance />
           <Routes>
             {/* Portail public : annuaire des boutiques, puis espace de chaque boutique */}
             <Route path="/" element={<Accueil />} />

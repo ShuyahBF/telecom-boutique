@@ -5,6 +5,7 @@ import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
 
 // Valeurs proposées quand rien n'est encore réglé (exemple : messagerie sawalismartsystems.com)
 const VIDE = {
@@ -91,6 +92,9 @@ export default function Parametres() {
           <h1 className="text-2xl font-extrabold">⚙️ Paramètres de la plateforme</h1>
           <p className="text-sm text-gray-500">Réglages généraux d'adLyn, modifiables sans redéploiement.</p>
         </div>
+
+        {/* Maintenance : déconnexion programmée de tous les utilisateurs */}
+        <DeconnexionGenerale />
 
         {!form ? <Chargement /> : (
           <>

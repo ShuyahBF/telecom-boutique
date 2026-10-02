@@ -20,6 +20,7 @@ choisir la boutique sur laquelle il agit (en-tête X-Boutique-Id).
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -28,6 +29,7 @@ from fastapi import Depends, Header, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 
+import maintenance_plateforme
 from config import get_settings
 from db import SANS_ID, TenantDB, db
 
@@ -76,7 +78,9 @@ def create_access_token(user_id: str, version: int = 0) -> str:
     tous les jetons déjà distribués."""
     s = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=s.jwt_expires_minutes)
-    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at}, s.jwt_secret, algorithm=s.jwt_algorithm)
+    # « ouv » = heure d'ouverture de la session (invalidation après une maintenance)
+    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at, "ouv": time.time()},
+                      s.jwt_secret, algorithm=s.jwt_algorithm)
 
 
 def decode_access_token(token: str) -> Optional[dict]:
@@ -151,6 +155,8 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Compte introuvable ou désactivé")
     if int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
+    # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
+    await maintenance_plateforme.controler_session(user, contenu)
     return user
 
 
@@ -166,6 +172,8 @@ async def utilisateur_optionnel(request: Request) -> Optional[dict]:
     user = await db.users.find_one({"id": contenu["sub"]}, SANS_ID)
     if not user or not user.get("actif", True) or int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
         return None
+    if not await maintenance_plateforme.session_admise(user, contenu):
+        return None  # maintenance : simple visiteur
     return user
 
 

@@ -6,6 +6,7 @@ import { LiensLegaux } from "@/components/PageLegale";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import { AvisMaintenance } from "@/components/MaintenancePlateforme";
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
 // boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
@@ -62,6 +63,8 @@ export default function Connexion() {
           <h1 className="mt-3 text-xl font-bold">{administrateur ? "Administration de la plateforme" : "Connexion à votre boutique"}</h1>
           <p className="text-sm text-gray-500">Connectez-vous pour gérer votre boutique</p>
         </div>
+        {/* Maintenance de la plateforme : message de l'administrateur */}
+        <AvisMaintenance />
 
         {/* ID boutique : raccourci unique de 6 caractères (pas de nom à taper, pas d'erreur de frappe) */}
         {!administrateur && (

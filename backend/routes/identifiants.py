@@ -24,6 +24,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 import identifiants as service
+import maintenance_plateforme
 from acces import ip_client
 from auth import get_current_user, hash_password, user_public, verify_password
 from db import SANS_ID, db
@@ -64,6 +65,7 @@ class DemandeCode(BaseModel):
 
 @router.post("/mot-de-passe-oublie")
 async def demander_code(payload: DemandeCode, request: Request, taches: BackgroundTasks):
+    await maintenance_plateforme.refuser_si_maintenance()  # personnel bloqué pendant la maintenance
     code_b = _code_boutique(payload.code_boutique)
     user, boutique, valeur = await _compte_de_la_boutique(code_b, payload.identifiant)
     ip = ip_client(request)
@@ -109,6 +111,7 @@ class ConfirmationCode(DemandeCode):
 
 @router.post("/mot-de-passe-oublie/confirmer")
 async def confirmer_code(payload: ConfirmationCode, request: Request):
+    await maintenance_plateforme.refuser_si_maintenance()
     code_b = _code_boutique(payload.code_boutique)
     user, _, valeur = await _compte_de_la_boutique(code_b, payload.identifiant)
     cle = f"reinit-essais|{user['id']}" if user else f"reinit-essais|{code_b}|{valeur}"
