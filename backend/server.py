@@ -28,6 +28,7 @@ from routes import inactivite  # déconnexion après inactivité (réglages)
 from routes import abonnement_grace  # période de grâce des abonnements, puis coupure automatique
 from routes import sessions_actives  # sessions simultanées limitées par compte
 from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Job Render -> R2)
+from routes import cycle_vie  # cycle de vie du non-renouvellement (J+110 / J+113) et KYC des DG
 
 settings = get_settings()
 
@@ -69,6 +70,9 @@ api.include_router(sessions_actives.admin)
 api.include_router(sauvegarde_auto.cron)
 api.include_router(sauvegarde_auto.admin)
 api.include_router(sauvegarde_auto.compte)
+# Cycle de vie du non-renouvellement (Cron Job + administration) et écran « KYC des DG »
+api.include_router(cycle_vie.cron)
+api.include_router(cycle_vie.admin)
 # Paramètres de la plateforme (serveur d'envoi des e-mails)
 api.include_router(parametres_plateforme.router)
 api.include_router(transfert_donnees.router)  # export / import complet de la base (super-admin)

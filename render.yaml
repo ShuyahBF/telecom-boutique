@@ -136,6 +136,9 @@ services:
       # Bucket R2 dédié (facultatif : à défaut R2_BUCKET_PRIVE) ; identifiants R2 ci-dessus réutilisés
       - key: ADLYN_SAUVEGARDES_BUCKET
         sync: false
+      # Dossier des archives des boutiques supprimées après non-renouvellement (cycle de vie)
+      - key: ADLYN_ARCHIVES_PREFIXE
+        value: archives-locataires/
 
       # --- Rapport de la nuit (sauvegardes + catalogue) ---
       - key: RAPPORT_EMAIL
@@ -228,9 +231,15 @@ services:
   #   name: adlyn-sauvegarde-generale
   #   runtime: docker | python
   #   schedule: "30 1 * * *"   # 01h30 UTC chaque nuit
+  #   # Puis, avec le même jeton, la tâche quotidienne du cycle de vie des abonnements non
+  #   # renouvelés (J+103 / J+110 / J+112 / J+113, backend/cycle_vie.py ; idempotente aussi).
+  #   # Le « sleep » laisse la sauvegarde générale du jour se faire AVANT tout archivage.
   #   startCommand: >-
   #     curl -fsS -X POST -H "X-Sauvegarde-Jeton: $SAUVEGARDE_AUTO_JETON"
   #     https://<adresse-du-backend>/api/sauvegarde-auto/declencher
+  #     && sleep 900 &&
+  #     curl -fsS -X POST -H "X-Sauvegarde-Jeton: $SAUVEGARDE_AUTO_JETON"
+  #     https://<adresse-du-backend>/api/cycle-vie/declencher
   #   envVars:
   #     - key: SAUVEGARDE_AUTO_JETON
   #       sync: false
