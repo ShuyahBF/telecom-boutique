@@ -32,6 +32,7 @@ from passlib.context import CryptContext
 
 import inactivite
 import maintenance_plateforme
+import sessions_actives
 from config import get_settings
 from db import SANS_ID, TenantDB, db
 
@@ -167,6 +168,8 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
     await maintenance_plateforme.controler_session(user, contenu)
+    # Session fermée (nombre maximal d'appareils, fermée depuis Mon compte ou par l'administrateur)
+    await sessions_actives.controler(user, contenu, request)
     # Déconnexion après inactivité (durée réglée par l'administrateur et le DG)
     await inactivite.controler(user, contenu, request)
     return user
@@ -236,6 +239,10 @@ async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_susp
         if (boutique.get("suspension") or {}).get("motif") == "IMPAYE":
             raise HTTPException(403, "Accès suspendu : abonnement adLyn non renouvelé. Le DG peut le régler depuis la page Abonnement.")
         raise HTTPException(403, "Cette boutique est suspendue. Contactez l'administrateur de la plateforme.")
+    if not meme_suspendue:
+        # Abonnement expiré et période de grâce terminée : coupure automatique (abonnement_grace.py)
+        import abonnement_grace
+        abonnement_grace.controler(boutique, user)
     if request is not None and user.get("role") != "super_admin":
         # Règles d'accès de la boutique (IP / appareils), vérifiées à CHAQUE requête :
         # une interdiction ajoutée par le DG coupe aussi les sessions déjà ouvertes

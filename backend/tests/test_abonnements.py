@@ -47,13 +47,14 @@ def test_retard_suspension_et_paiement(client, super_admin, nouvelle_boutique, c
         "mot_de_passe": "motdepasse-123", "role": "commercial"})
     hc, _ = connecter_membre(b["code_marchand"], f"vendeur-{b['code_marchand'].lower()}@test.bf")
 
-    # Échéance dépassée de 5 jours : la boutique apparaît dans les retards, sans être bloquée
-    fixer_echeance(client, super_admin, b, -5)
+    # Échéance dépassée de 2 jours : la boutique apparaît dans les retards, sans être bloquée
+    # (période de grâce de 3 jours, voir test_abonnement_grace.py pour la coupure automatique)
+    fixer_echeance(client, super_admin, b, -2)
     retards = client.get("/api/plateforme/abonnements/retards", headers=super_admin).json()
     ligne = next(x for x in retards["boutiques"] if x["id"] == b["id"])
-    assert ligne["abonnement"]["jours_retard"] == 5 and ligne["abonnement"]["statut"] == "EN_RETARD"
+    assert ligne["abonnement"]["jours_retard"] == 2 and ligne["abonnement"]["statut"] == "EN_RETARD"
     assert ligne["abonnement"]["montant_attendu"] == 5000  # formule mensuelle par défaut
-    assert client.get("/api/produits", headers=hc).status_code == 200  # pas de blocage automatique
+    assert client.get("/api/produits", headers=hc).status_code == 200  # pas encore de blocage
 
     # Le super-admin sélectionne la boutique et suspend son accès
     r = client.post("/api/plateforme/abonnements/suspendre", headers=super_admin, json={"boutique_ids": [b["id"]]})
