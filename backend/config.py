@@ -116,6 +116,17 @@ class Settings(BaseSettings):
     gdrive_refresh_token: Optional[str] = None
     gdrive_nom_dossier: str = "adLyn - Sauvegardes"
 
+    # --- Sauvegarde GÉNÉRALE automatique (toute la base, format .adlexport) vers R2 ---
+    # Déclenchée chaque nuit par un Cron Job Render : POST /api/sauvegarde-auto/declencher
+    # avec l'en-tête X-Sauvegarde-Jeton = SAUVEGARDE_AUTO_JETON. Sans phrase de chiffrement
+    # (12 caractères minimum), la sauvegarde générale est DÉSACTIVÉE (alerte dans l'admin).
+    sauvegarde_auto_phrase: Optional[str] = None
+    sauvegarde_auto_jeton: Optional[str] = None
+    # Identifiants R2 : ceux du stockage existant (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
+    # R2_SECRET_ACCESS_KEY). Bucket dédié conseillé ; à défaut, le bucket PRIVÉ (R2_BUCKET_PRIVE).
+    adlyn_sauvegardes_bucket: Optional[str] = None
+    adlyn_sauvegardes_prefixe: str = "sauvegardes-generales/"
+
     # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
     rapport_email: Optional[str] = None
     # Serveur d'envoi de la PLATEFORME (distinct de celui de chaque boutique)
