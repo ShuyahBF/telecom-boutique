@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
+import ReglageInactivite from "@/components/ReglageInactivite";
 
 // Valeurs proposées quand rien n'est encore réglé (exemple : messagerie sawalismartsystems.com)
 const VIDE = {
@@ -95,6 +96,12 @@ export default function Parametres() {
 
         {/* Maintenance : déconnexion programmée de tous les utilisateurs */}
         <DeconnexionGenerale />
+
+        {/* Déconnexion après inactivité : valeur par défaut de toutes les boutiques */}
+        <div className="card space-y-2">
+          <h2 className="text-lg font-bold">⏳ Déconnexion après inactivité</h2>
+          <ReglageInactivite mode="plateforme" />
+        </div>
 
         {!form ? <Chargement /> : (
           <>

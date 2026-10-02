@@ -4,6 +4,7 @@ import { dateHeure } from "@/lib/format";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { Champ } from "./communs";
+import ReglageInactivite from "@/components/ReglageInactivite";
 
 // Libellés et couleurs des résultats de connexion
 const RESULTATS = {
@@ -94,6 +95,11 @@ export default function ParamSecurite() {
 
   return (
     <div className="space-y-5">
+      {/* Déconnexion après inactivité : le DG peut seulement réduire la durée de l'administrateur */}
+      <div className="card">
+        <h2 className="mb-2 font-bold">⏳ Déconnexion après inactivité</h2>
+        <ReglageInactivite mode="dg" />
+      </div>
       {/* Connexion actuelle : utile pour autoriser sa propre adresse avant une liste blanche */}
       <div className="rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">
         Votre connexion actuelle : adresse IP <b className="font-mono">{moi.ip}</b> · appareil <b>{moi.appareil}</b>

@@ -41,6 +41,21 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Requêtes automatiques (rafraîchissements périodiques) : elles ne comptent pas comme
+// une activité pour la déconnexion après inactivité (voir backend/inactivite.py)
+export const EN_ARRIERE_PLAN = { headers: { "X-Adlyn-Fond": "1" } };
+
+// Session refusée par le serveur (401) en cours d'utilisation : fermée par un
+// administrateur, expirée après inactivité… AuthContext renvoie vers la connexion.
+export const EVENEMENT_SESSION_PERDUE = "adlyn:session-perdue";
+apiClient.interceptors.response.use(undefined, (err) => {
+  const url = err?.config?.url || "";
+  if (err?.response?.status === 401 && !url.startsWith("/auth/login") && !url.startsWith("/auth/logout")) {
+    window.dispatchEvent(new CustomEvent(EVENEMENT_SESSION_PERDUE, { detail: err.response.data?.detail }));
+  }
+  return Promise.reject(err);
+});
+
 // Messages génériques du framework (toujours en anglais) : jamais affichés tels quels
 const MESSAGES_GENERIQUES = new Set([
   "not found", "method not allowed", "internal server error", "unauthorized",

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
-import { apiClient } from "@/lib/api";
+import { apiClient, EN_ARRIERE_PLAN } from "@/lib/api";
 import { optionActive } from "@/lib/options";
 import { ROLES } from "@/lib/statuts";
 import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
@@ -77,10 +77,10 @@ export default function GestionLayout() {
       const suivants = { conversations: 0, nouveautes: 0 };
       // Pas d'appel vers une option désactivée (le serveur la refuserait)
       if (peut(user, "messagerie") && optionActive(boutique, "messagerie")) {
-        suivants.conversations = (await apiClient.get("/conversations/non-lues").catch(() => ({ data: {} }))).data.non_lues || 0;
+        suivants.conversations = (await apiClient.get("/conversations/non-lues", EN_ARRIERE_PLAN).catch(() => ({ data: {} }))).data.non_lues || 0;
       }
       if (optionActive(boutique, "produits")) {
-        suivants.nouveautes = (await apiClient.get("/produits", { params: { nouveau: true } }).catch(() => ({ data: [] }))).data.length || 0;
+        suivants.nouveautes = (await apiClient.get("/produits", { ...EN_ARRIERE_PLAN, params: { nouveau: true } }).catch(() => ({ data: [] }))).data.length || 0;
       }
       setCompteurs(suivants);
     };

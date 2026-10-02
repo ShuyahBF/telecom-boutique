@@ -7,6 +7,7 @@ import { dateHeure } from "@/lib/format";
 import { ROLES } from "@/lib/statuts";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import ReglageInactivite from "@/components/ReglageInactivite";
 
 // Actions de fermeture des sessions notées dans le journal des identifiants
 const ACTIONS_SESSIONS = ["SESSIONS_FERMEES", "SESSIONS_BOUTIQUE_FERMEES", "SESSIONS_AUTRES_FERMEES"];
@@ -76,6 +77,12 @@ export default function SessionsBoutique({ boutique, onFermer }) {
             {!comptes.length && <li className="p-3 text-gray-500">Aucun compte.</li>}
           </ul>
         )}
+
+        {/* Déconnexion après inactivité propre à cette boutique */}
+        <section>
+          <h3 className="mb-2 font-bold">⏳ Déconnexion après inactivité</h3>
+          <ReglageInactivite mode="boutique" boutiqueId={boutique.id} />
+        </section>
 
         {/* Historique des fermetures de sessions (journal des identifiants) */}
         <section>

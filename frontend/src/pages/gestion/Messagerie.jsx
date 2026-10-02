@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
-import { apiClient, messageErreur } from "@/lib/api";
+import { apiClient, EN_ARRIERE_PLAN, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
 import { STATUTS_CONVERSATION } from "@/lib/statuts";
 import Badge from "@/components/Badge";
@@ -31,7 +31,8 @@ export default function Messagerie() {
 
   // Chargement de la liste des conversations (selon le filtre)
   const chargerListe = useCallback(() => {
-    return apiClient.get("/conversations", { params: { statut: filtre } })
+    // Rafraîchi chaque minute : pas une activité de l'utilisateur (déconnexion après inactivité)
+    return apiClient.get("/conversations", { ...EN_ARRIERE_PLAN, params: { statut: filtre } })
       .then(({ data }) => setConversations(data))
       .catch((err) => { setConversations([]); toast.erreur(messageErreur(err, "Impossible de charger la messagerie")); });
     // toast est recréé à chaque affichage : on ne le met pas en dépendance
