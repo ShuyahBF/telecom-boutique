@@ -99,6 +99,8 @@ def decode_access_token(token: str) -> Optional[dict]:
 # En-tête exigé sur les requêtes d'écriture authentifiées par cookie : un site
 # tiers ne peut pas l'ajouter sans l'accord CORS du serveur (protection CSRF).
 ENTETE_CSRF = "x-adlyn"
+# Message affiché quand le DG ou l'administrateur a fermé les sessions du compte
+MESSAGE_SESSION_FERMEE = "Votre session a été fermée par un administrateur. Reconnectez-vous."
 
 
 def _cookie_securise() -> bool:
@@ -128,7 +130,8 @@ def effacer_cookie_session(response: Response) -> None:
 def user_public(user: dict) -> dict:
     """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe),
     avec la liste de ses permissions."""
-    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session")}
+    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session",
+                                                     "sessions_fermees_par_admin_le")}
     public["permissions"] = permissions_de(user.get("role", ""))
     return public
 
@@ -154,6 +157,9 @@ async def get_current_user(
     if not user or not user.get("actif", True):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Compte introuvable ou désactivé")
     if int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
+        # Session ouverte AVANT une fermeture par le DG ou l'administrateur (routes/sessions.py)
+        if float(contenu.get("ouv", 0)) < float(user.get("sessions_fermees_par_admin_le") or 0):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, MESSAGE_SESSION_FERMEE)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
     await maintenance_plateforme.controler_session(user, contenu)

@@ -23,6 +23,7 @@ from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta,
 from seed import creer_demo, ensure_super_admin
 from routes import transfert_donnees  # export / import complet de la base (changement de cluster)
 from routes import maintenance_plateforme  # déconnexion programmée de tous les utilisateurs
+from routes import sessions  # fermeture des sessions d'un compte (sans changer le mot de passe)
 
 settings = get_settings()
 
@@ -45,6 +46,10 @@ api.include_router(maintenance_plateforme.admin)
 for module in (auth, identifiants, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)
+# Fermeture des sessions : DG (équipe), chacun (ses autres appareils), super-admin
+api.include_router(sessions.boutique)
+api.include_router(sessions.compte)
+api.include_router(sessions.admin)
 # Abonnements : page du DG et administration (super-admin)
 api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
