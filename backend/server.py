@@ -21,6 +21,7 @@ from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta,
                     maintenance, maintenance_equipements, paiements, parametres_plateforme, parrainage, plateforme, public, referentiel, reversements, sauvegardes, sms, stock,
                     tableau_de_bord, tiers, tiktok, webhooks)
 from seed import creer_demo, ensure_super_admin
+from routes import transfert_donnees  # export / import complet de la base (changement de cluster)
 
 settings = get_settings()
 
@@ -45,6 +46,7 @@ api.include_router(abonnements.boutique)
 api.include_router(abonnements.admin)
 # Paramètres de la plateforme (serveur d'envoi des e-mails)
 api.include_router(parametres_plateforme.router)
+api.include_router(transfert_donnees.router)  # export / import complet de la base (super-admin)
 # Règles d'accès (IP / appareils) et journal des connexions de chaque boutique
 api.include_router(acces_boutique.router)
 # Reversements aux boutiques de l'argent encaissé par PawaPay
