@@ -56,6 +56,7 @@ import Paiements from "@/pages/gestion/Paiements";
 import Parrainage from "@/pages/gestion/Parrainage";
 import MaintenanceEquipements from "@/pages/gestion/MaintenanceEquipements";
 import FicheMaintenanceImprimable from "@/pages/gestion/FicheMaintenanceImprimable";
+import CaisseAizenta from "@/pages/gestion/CaisseAizenta";
 // --- Plateforme (super-administrateur) ---
 import Plateforme from "@/pages/plateforme/Plateforme";
 import CatalogueAdmin from "@/pages/plateforme/CatalogueAdmin";
@@ -65,6 +66,8 @@ import Referentiel from "@/pages/plateforme/Referentiel";
 import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
 import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
 
+// Une facture imprimable s'ouvre aussi depuis une commande ou un dossier de maintenance
+const OPTIONS_FACTURE = ["documents", "commandes", "maintenance", "maintenance_equipements"];
 
 export default function App() {
   return (
@@ -106,44 +109,47 @@ export default function App() {
             <Route path="/paiement/maintenance/:jeton" element={<PaiementMaintenance />} />
 
             {/* Documents imprimables : pleine page, sans menu */}
-            <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation"><DocumentImprimable /></RouteProtegee>} />
-            <Route path="/gestion/maintenance/:id/bon-de-depot" element={<RouteProtegee permission="maintenance"><BonDepot /></RouteProtegee>} />
-            <Route path="/gestion/maintenance-equipements/:id/imprimer" element={<RouteProtegee permission="maintenance"><FicheMaintenanceImprimable espace="boutique" /></RouteProtegee>} />
+            <Route path="/gestion/documents/:id/imprimer" element={<RouteProtegee permission="facturation" option={OPTIONS_FACTURE}><DocumentImprimable /></RouteProtegee>} />
+            <Route path="/gestion/maintenance/:id/bon-de-depot" element={<RouteProtegee permission="maintenance" option="maintenance"><BonDepot /></RouteProtegee>} />
+            <Route path="/gestion/maintenance-equipements/:id/imprimer" element={<RouteProtegee permission="maintenance" option="maintenance_equipements"><FicheMaintenanceImprimable espace="boutique" /></RouteProtegee>} />
             <Route path="/plateforme/maintenance-equipements/:id/imprimer" element={<RouteProtegee roles={["super_admin"]}><FicheMaintenanceImprimable espace="plateforme" /></RouteProtegee>} />
 
             {/* Back-office des boutiques */}
             <Route path="/gestion" element={<RouteProtegee><GestionLayout /></RouteProtegee>}>
               <Route index element={<TableauDeBord />} />
-              <Route path="documents" element={<RouteProtegee permission="facturation"><Documents /></RouteProtegee>} />
-              <Route path="documents/nouveau" element={<RouteProtegee permission="facturation"><DocumentEditeur /></RouteProtegee>} />
-              <Route path="documents/:id" element={<RouteProtegee permission="facturation"><DocumentEditeur /></RouteProtegee>} />
-              <Route path="commandes" element={<RouteProtegee permission="commandes"><Commandes /></RouteProtegee>} />
-              <Route path="commandes/:id" element={<RouteProtegee permission="commandes"><CommandeFiche /></RouteProtegee>} />
-              <Route path="clients" element={<Clients />} />
-              <Route path="clients/:id" element={<ClientFiche />} />
-              <Route path="messagerie" element={<RouteProtegee permission="messagerie"><Messagerie /></RouteProtegee>} />
-              <Route path="produits" element={<Produits />} />
-              <Route path="catalogue-public" element={<CataloguePublic />} />
-              <Route path="paiements" element={<RouteProtegee permission="paiements.historique"><Paiements /></RouteProtegee>} />
-              <Route path="produits/nouveau" element={<RouteProtegee permission="catalogue.edition"><ProduitForm /></RouteProtegee>} />
-              <Route path="produits/:id" element={<ProduitForm />} />
-              <Route path="stock" element={<RouteProtegee permission="stock"><Stock /></RouteProtegee>} />
-              <Route path="stock/bons" element={<RouteProtegee permission="stock"><BonsEntree /></RouteProtegee>} />
-              <Route path="stock/bons/nouveau" element={<RouteProtegee permission="stock"><BonEntreeForm /></RouteProtegee>} />
-              <Route path="stock/bons/:id" element={<RouteProtegee permission="stock"><BonEntreeForm /></RouteProtegee>} />
-              <Route path="fournisseurs" element={<RouteProtegee permission="fournisseurs"><Fournisseurs /></RouteProtegee>} />
-              <Route path="maintenance" element={<RouteProtegee permission="maintenance"><Maintenance /></RouteProtegee>} />
-              <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
-              <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance"><DossierFiche /></RouteProtegee>} />
+              {/* Caisse Aizenta : toujours active (données reçues de Loois) */}
+              <Route path="caisse-aizenta" element={<RouteProtegee permission="caisse_aizenta"><CaisseAizenta /></RouteProtegee>} />
+              <Route path="documents" element={<RouteProtegee permission="facturation" option="documents"><Documents /></RouteProtegee>} />
+              <Route path="documents/nouveau" element={<RouteProtegee permission="facturation" option="documents"><DocumentEditeur /></RouteProtegee>} />
+              <Route path="documents/:id" element={<RouteProtegee permission="facturation" option="documents"><DocumentEditeur /></RouteProtegee>} />
+              <Route path="commandes" element={<RouteProtegee permission="commandes" option="commandes"><Commandes /></RouteProtegee>} />
+              <Route path="commandes/:id" element={<RouteProtegee permission="commandes" option="commandes"><CommandeFiche /></RouteProtegee>} />
+              <Route path="clients" element={<RouteProtegee option="clients"><Clients /></RouteProtegee>} />
+              <Route path="clients/:id" element={<RouteProtegee option="clients"><ClientFiche /></RouteProtegee>} />
+              <Route path="messagerie" element={<RouteProtegee permission="messagerie" option="messagerie"><Messagerie /></RouteProtegee>} />
+              <Route path="produits" element={<RouteProtegee option="produits"><Produits /></RouteProtegee>} />
+              <Route path="catalogue-public" element={<RouteProtegee option="catalogue_public"><CataloguePublic /></RouteProtegee>} />
+              <Route path="paiements" element={<RouteProtegee permission="paiements.historique" option="paiements"><Paiements /></RouteProtegee>} />
+              <Route path="produits/nouveau" element={<RouteProtegee permission="catalogue.edition" option="produits"><ProduitForm /></RouteProtegee>} />
+              <Route path="produits/:id" element={<RouteProtegee option="produits"><ProduitForm /></RouteProtegee>} />
+              <Route path="stock" element={<RouteProtegee permission="stock" option="stock"><Stock /></RouteProtegee>} />
+              <Route path="stock/bons" element={<RouteProtegee permission="stock" option="stock"><BonsEntree /></RouteProtegee>} />
+              <Route path="stock/bons/nouveau" element={<RouteProtegee permission="stock" option="stock"><BonEntreeForm /></RouteProtegee>} />
+              <Route path="stock/bons/:id" element={<RouteProtegee permission="stock" option="stock"><BonEntreeForm /></RouteProtegee>} />
+              <Route path="fournisseurs" element={<RouteProtegee permission="fournisseurs" option="fournisseurs"><Fournisseurs /></RouteProtegee>} />
+              <Route path="maintenance" element={<RouteProtegee permission="maintenance" option="maintenance"><Maintenance /></RouteProtegee>} />
+              <Route path="maintenance/nouveau" element={<RouteProtegee permission="maintenance" option="maintenance"><DossierFiche /></RouteProtegee>} />
+              <Route path="maintenance/:id" element={<RouteProtegee permission="maintenance" option="maintenance"><DossierFiche /></RouteProtegee>} />
               {/* Maintenance des équipements confiés (fonction activée par l'administrateur) */}
-              <Route path="maintenance-equipements" element={<RouteProtegee permission="maintenance"><MaintenanceEquipements espace="boutique" /></RouteProtegee>} />
-              <Route path="parametres" element={<RouteProtegee permission="parametres"><Parametres /></RouteProtegee>} />
-              <Route path="reversements" element={<RouteProtegee permission="paiements.historique"><Reversements /></RouteProtegee>} />
-              <Route path="sms" element={<RouteProtegee permission="messagerie"><Sms /></RouteProtegee>} />
+              <Route path="maintenance-equipements" element={<RouteProtegee permission="maintenance" option="maintenance_equipements"><MaintenanceEquipements espace="boutique" /></RouteProtegee>} />
+              <Route path="parametres" element={<RouteProtegee permission="parametres" option="parametres"><Parametres /></RouteProtegee>} />
+              <Route path="reversements" element={<RouteProtegee permission="paiements.historique" option="reversements"><Reversements /></RouteProtegee>} />
+              <Route path="sms" element={<RouteProtegee permission="messagerie" option="sms"><Sms /></RouteProtegee>} />
               {/* Envoi de produits en carrousel photo par WhatsApp */}
-              <Route path="carrousel" element={<RouteProtegee permission="messagerie"><Carrousel /></RouteProtegee>} />
+              <Route path="carrousel" element={<RouteProtegee permission="messagerie" option="carrousel"><Carrousel /></RouteProtegee>} />
+              {/* Abonnement : jamais bloqué par les options (la boutique doit toujours pouvoir payer) */}
               <Route path="abonnement" element={<RouteProtegee permission="parametres"><Abonnement /></RouteProtegee>} />
-              <Route path="parrainage" element={<RouteProtegee permission="parametres"><Parrainage /></RouteProtegee>} />
+              <Route path="parrainage" element={<RouteProtegee permission="parametres" option="parrainage"><Parrainage /></RouteProtegee>} />
             </Route>
 
             {/* Administration de la plateforme */}

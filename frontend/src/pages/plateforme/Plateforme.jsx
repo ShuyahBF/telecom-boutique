@@ -11,6 +11,7 @@ import { BadgeKyc, Champ, EnTetePlateforme } from "./_plateforme/composants";
 import CreationBoutique from "./_plateforme/CreationBoutique";
 import DossierBoutique from "./_plateforme/DossierBoutique";
 import JournalWebhook, { LIBELLES_ENVOI } from "./_plateforme/JournalWebhook";
+import OptionsBoutique from "./_plateforme/OptionsBoutique";
 import Restauration from "./_plateforme/Restauration";
 import { horodatage, messageErreurFichier, STATUTS_KYC, telechargerFichier } from "./_plateforme/outils";
 
@@ -32,6 +33,7 @@ export default function Plateforme() {
   const [edition, setEdition] = useState(null); // boutique en cours de modification (nom, code, ordre)
   const [qr, setQr] = useState(null); // boutique dont on affiche le QR code
   const [dossierId, setDossierId] = useState(null); // boutique dont le « Dossier » est ouvert
+  const [optionsId, setOptionsId] = useState(null); // boutique dont on règle la barre latérale / la caisse Aizenta
   const [restauration, setRestauration] = useState(null); // boutique à restaurer
   const [telechargement, setTelechargement] = useState(null); // id de la boutique en cours de sauvegarde
   const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
@@ -230,6 +232,12 @@ export default function Plateforme() {
                       <BadgeKyc statut={b.kyc?.statut} />
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
                       {b.maintenance_equipements && <span className="badge bg-teal-50 text-teal-800">🛠️ Maintenance</span>}
+                      {/* Nombre d'options du menu actives (« tout » = boutique créée avant les options) */}
+                      {b.options_actives && (
+                        <span className="badge bg-slate-100 text-slate-700" title="Options de la barre latérale actives">
+                          🧭 {b.options_sidebar ? `${Object.values(b.options_actives).filter(Boolean).length}/${Object.keys(b.options_actives).length} options` : "Menu complet"}
+                        </span>
+                      )}
                       <span className="badge bg-blue-50 text-blue-800">{b.nb_utilisateurs} utilisateur(s)</span>
                     </div>
                   </div>
@@ -274,10 +282,10 @@ export default function Plateforme() {
                   </button>
                   <button type="button" className="btn-outline btn-sm text-red-700" onClick={() => setRestauration(b)}>♻️ Restaurer…</button>
                   <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => renvoyerIdentifiants(b)}>📲 Renvoyer les identifiants au DG</button>
-                  {/* Fonction « Maintenance des équipements » (menu et écran de la boutique) */}
-                  <button type="button" className="btn-outline btn-sm col-span-2"
-                    onClick={() => modifier(b, { maintenance_equipements: !b.maintenance_equipements }, b.maintenance_equipements ? "Maintenance des équipements désactivée" : "Maintenance des équipements activée")}>
-                    {b.maintenance_equipements ? "🛠️ Désactiver la maintenance des équipements" : "🛠️ Activer la maintenance des équipements"}
+                  {/* Options du menu de la boutique (Activer / Désactiver la barre latérale, dont la
+                      maintenance des équipements) + jeton et journal de la caisse Aizenta */}
+                  <button type="button" className="btn-outline btn-sm col-span-2" onClick={() => setOptionsId(b.id)}>
+                    🧭 Barre latérale & Caisse Aizenta
                   </button>
                   {/* Boutique de démonstration ou réelle (repère connu du seul super-admin) */}
                   <button type="button" className="btn-outline btn-sm col-span-2"
@@ -304,6 +312,9 @@ export default function Plateforme() {
 
       {/* Fenêtre « Dossier de la boutique » (identification + KYC) */}
       <DossierBoutique boutique={dossier} onFermer={() => setDossierId(null)} onMaj={remplacer} />
+
+      {/* Fenêtre « Barre latérale & Caisse Aizenta » */}
+      <OptionsBoutique boutique={boutiques.find((b) => b.id === optionsId) || null} onFermer={() => setOptionsId(null)} onMaj={charger} />
 
       {/* Fenêtre de restauration d'une sauvegarde */}
       <Restauration boutique={restauration} onFermer={() => setRestauration(null)} onRestauree={charger} />

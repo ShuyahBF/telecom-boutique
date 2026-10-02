@@ -80,6 +80,7 @@ async def creer_demo() -> None:
     """Boutique « Démo Télécom » (DG : demo@demo-telecom.bf / demo-2026!)."""
     from catalogue_public import copier_catalogue_dans_boutique
     from kyc import kyc_vide
+    import options_sidebar
     from routes.plateforme import boutique_par_defaut
     from services import entree_stock
 
@@ -93,7 +94,9 @@ async def creer_demo() -> None:
                 "slogan": "Téléphones, accessoires et réparation", "pays": "Burkina Faso", "ville": "Ouagadougou",
                 "adresse": "Avenue Kwame Nkrumah, Ouagadougou", "latitude": 12.3686, "longitude": -1.5275,
                 "dg_nom": "DG Démo", "ifu": "00012345A", "cnss": "123456", "rccm": "BF-OUA-2026-B-0001",
-                "kyc": kyc_vide()}
+                "kyc": kyc_vide(),
+                # Boutique de démonstration : toutes les options du menu sont actives
+                "options_sidebar": {cle: True for cle in options_sidebar.CLES}}
     await db.boutiques.insert_one(boutique.copy())
     await db.users.insert_one({"id": new_id(), "email": "demo@demo-telecom.bf", "nom": "DG Démo",
                                "password_hash": hash_password("demo-2026!"), "role": "dg",

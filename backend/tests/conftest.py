@@ -44,8 +44,11 @@ def super_admin(client):
 
 @pytest.fixture
 def nouvelle_boutique(client, super_admin):
-    """Crée une boutique + son gérant ; renvoie (boutique, en-têtes du gérant)."""
-    def _creer(nom=None, **extra):
+    """Crée une boutique + son gérant ; renvoie (boutique, en-têtes du gérant).
+    Une boutique neuve n'a que « Tableau de bord » et « Caisse Aizenta » dans son menu :
+    pour les tests des autres écrans, toutes les options sont activées, sauf si
+    options_par_defaut=True (tests des options de la barre latérale)."""
+    def _creer(nom=None, options_par_defaut=False, **extra):
         _compteur["n"] += 1
         n = _compteur["n"]
         r = client.post("/api/plateforme/boutiques", headers=super_admin, json={
@@ -54,6 +57,11 @@ def nouvelle_boutique(client, super_admin):
             "dg_mot_de_passe": "motdepasse-123", **extra})
         assert r.status_code == 201, r.text
         boutique = r.json()["boutique"]
+        if not options_par_defaut:
+            import options_sidebar
+            r = client.put(f"/api/plateforme/boutiques/{boutique['id']}/options-sidebar", headers=super_admin,
+                           json={"options": {c: True for c in options_sidebar.CLES if c != "maintenance_equipements"}})
+            assert r.status_code == 200, r.text
         login = client.post("/api/auth/login", json={"code_boutique": boutique["code_marchand"],
                                                      "email": f"gerant{n}@test.bf", "password": "motdepasse-123"})
         assert login.status_code == 200, login.text

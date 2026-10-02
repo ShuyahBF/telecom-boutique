@@ -104,14 +104,17 @@ def test_webhook_creation_validation_et_connexion(client, super_admin, envois):
     client.cookies.clear()
     h = {"Authorization": f"Bearer {session['access_token']}"}
     assert session["user"]["doit_changer_mot_de_passe"] is True
-    assert client.get("/api/produits", headers=h).status_code == 403
+    # (tableau de bord : toujours actif, même pour une boutique neuve sans autre option)
+    assert client.get("/api/tableau-de-bord", headers=h).status_code == 403
     r = client.post("/api/auth/mot-de-passe", headers=h, json={"ancien": mdp, "nouveau": "mon-nouveau-mdp"})
     assert r.status_code == 200
     client.cookies.clear()
     # L'ancien jeton est révoqué, le nouveau fonctionne
     assert client.get("/api/auth/me", headers=h).status_code == 401
     h = {"Authorization": f"Bearer {r.json()['access_token']}"}
-    assert client.get("/api/produits", headers=h).status_code == 200
+    assert client.get("/api/tableau-de-bord", headers=h).status_code == 200
+    # Boutique créée par le webhook : seules les options obligatoires sont actives
+    assert client.get("/api/produits", headers=h).status_code == 403
 
     # Validation par le super-admin : la boutique devient publique
     assert client.post(f"/api/plateforme/boutiques/{boutique['id']}/valider", headers=super_admin).status_code == 200
