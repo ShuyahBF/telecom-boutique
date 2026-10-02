@@ -162,6 +162,16 @@ class Settings(BaseSettings):
     # Deux modèles possibles : sans en-tête, et avec en-tête IMAGE (1re photo de la fiche).
     whatsapp_maintenance_template: Optional[str] = None
     whatsapp_maintenance_template_image: Optional[str] = None
+    # Codes de vérification (mot de passe oublié, changement d'identifiant) et mots de
+    # passe provisoires : modèle de catégorie « Authentication » approuvé par Meta
+    # (1 variable : le code, + bouton « Copier le code »). Sans lui, seul un message
+    # texte est tenté (il ne passe que si la personne a écrit au numéro depuis < 24 h),
+    # puis le SMS prend le relais.
+    whatsapp_code_template: Optional[str] = None
+    # Facultatif : modèle « Utility » envoyé AVANT le mot de passe provisoire pour dire
+    # où se connecter, 4 variables : {{1}} nom de la personne, {{2}} nom de la boutique,
+    # {{3}} ID boutique, {{4}} identifiant de connexion (e-mail ou téléphone)
+    whatsapp_identifiants_template: Optional[str] = None
 
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique

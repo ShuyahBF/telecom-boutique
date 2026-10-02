@@ -5,9 +5,10 @@ import PoweredBySawali from "@/components/PoweredBySawali";
 import { LiensLegaux } from "@/components/PageLegale";
 import { useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
-// boutique) + e-mail + mot de passe personnel. L'ID boutique est retenu pour
+// boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
 // les fois suivantes ; la session reste ouverte 30 jours (cookie sécurisé).
 // L'administrateur de la plateforme se connecte sans ID boutique.
 export default function Connexion() {
@@ -16,7 +17,7 @@ export default function Connexion() {
   const location = useLocation();
   const [codeBoutique, setCodeBoutique] = useState(idBoutiqueMemorise);
   const [administrateur, setAdministrateur] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifiant, setIdentifiant] = useState(""); // e-mail ou téléphone
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
@@ -33,7 +34,7 @@ export default function Connexion() {
     }
     setEnvoi(true);
     try {
-      const user = await connexion(administrateur ? "" : codeBoutique, email, motDePasse);
+      const user = await connexion(administrateur ? "" : codeBoutique, identifiant.trim(), motDePasse);
       // Mot de passe provisoire : changement obligatoire avant tout
       if (user.doit_changer_mot_de_passe) {
         navigate("/mot-de-passe", { replace: true, state: { depuis: location.state?.depuis } });
@@ -72,10 +73,18 @@ export default function Connexion() {
             <p className="mt-1 text-xs text-gray-500">6 lettres ou chiffres, reçus à la création de votre boutique.</p>
           </div>
         )}
-        <div><label className="label" htmlFor="email">E-mail</label>
-          <input id="email" className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-        <div><label className="label" htmlFor="mdp">Mot de passe</label>
-          <input id="mdp" className="input" type="password" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
+        {/* Un seul champ : l'e-mail OU le numéro de téléphone (beaucoup n'ont pas d'e-mail) */}
+        <div><label className="label" htmlFor="identifiant">{administrateur ? "E-mail" : "E-mail ou téléphone"}</label>
+          <input id="identifiant" className="input" type={administrateur ? "email" : "text"} autoComplete="username" required
+            placeholder={administrateur ? "" : "vous@exemple.com ou 70 12 34 56"}
+            value={identifiant} onChange={(e) => setIdentifiant(e.target.value)} /></div>
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="label" htmlFor="mdp">Mot de passe</label>
+            {/* Réinitialisation par code reçu sur WhatsApp, SMS ou e-mail */}
+            {!administrateur && <Link to="/mot-de-passe-oublie" className="text-xs font-semibold text-primary">Mot de passe oublié ?</Link>}
+          </div>
+          <ChampMotDePasse id="mdp" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
         <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter →"}</button>
         <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>

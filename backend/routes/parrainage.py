@@ -111,7 +111,7 @@ async def demander_ouverture(code: str, data: DemandeOuverture, request: Request
                        f"À valider dans l'administration : {s.public_site_url}/plateforme"]),
             s.rapport_email)
     return {"resultat": "creee", "code_boutique": filleul["code_marchand"], "statut": "EN_ATTENTE_VALIDATION",
-            "identifiants_envoyes": {"email": envoi["email"], "sms": envoi["sms"]}}
+            "identifiants_envoyes": {"email": envoi["email"], "sms": envoi["sms"], "whatsapp": envoi.get("whatsapp")}}
 
 
 # ---------------------------------------------------------------------------

@@ -257,11 +257,15 @@ def whatsapp_configure() -> bool:
     return bool(s.whatsapp_access_token and s.whatsapp_phone_number_id)
 
 
-async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str) -> tuple[str, str]:
+async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str, *, modele: Optional[str] = None,
+                           composants: Optional[list] = None) -> tuple[str, str]:
     """Message WhatsApp -> (statut, erreur).
-    1) MODÈLE approuvé (WHATSAPP_RAPPEL_TEMPLATE) avec ses variables : seul moyen
-       d'écrire à quelqu'un qui n'a pas écrit au numéro dans les dernières 24 h ;
-    2) en repli, message texte libre (ne passe que dans cette fenêtre de 24 h)."""
+    1) MODÈLE approuvé avec ses variables : seul moyen d'écrire à quelqu'un qui
+       n'a pas écrit au numéro dans les dernières 24 h. Par défaut le modèle des
+       rappels (WHATSAPP_RAPPEL_TEMPLATE) ; `modele` en désigne un autre ("" = aucun)
+       et `composants` remplace les variables du corps (ex. bouton « Copier le code ») ;
+    2) en repli, message texte libre `texte` (ne passe que dans cette fenêtre de 24 h ;
+       texte vide = pas de repli)."""
     s = get_settings()
     numero = msisdn(telephone)
     if not numero:
@@ -271,11 +275,16 @@ async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str) -> 
     url = WA_GRAPH_URL.format(phone_number_id=s.whatsapp_phone_number_id)
     entetes = {"Authorization": f"Bearer {s.whatsapp_access_token}"}
     essais = []
-    if (s.whatsapp_rappel_template or "").strip():
+    nom_modele = (s.whatsapp_rappel_template if modele is None else modele) or ""
+    if nom_modele.strip():
+        if composants is None:
+            composants = [{"type": "body", "parameters": [{"type": "text", "text": v[:200]} for v in variables]}]
         essais.append({"messaging_product": "whatsapp", "to": numero, "type": "template", "template": {
-            "name": s.whatsapp_rappel_template.strip(), "language": {"code": s.whatsapp_template_langue},
-            "components": [{"type": "body", "parameters": [{"type": "text", "text": v[:200]} for v in variables]}]}})
-    essais.append({"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texte[:4000]}})
+            "name": nom_modele.strip(), "language": {"code": s.whatsapp_template_langue}, "components": composants}})
+    if texte:
+        essais.append({"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texte[:4000]}})
+    if not essais:
+        return "NON_CONFIGURE", "Aucun modèle WhatsApp utilisable"
     erreurs = []
     try:
         async with httpx.AsyncClient(timeout=15) as client:

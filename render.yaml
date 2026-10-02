@@ -181,6 +181,15 @@ services:
         sync: false
       - key: WHATSAPP_MAINTENANCE_TEMPLATE_IMAGE
         sync: false
+      # Codes de vérification (mot de passe oublié, changement d'identifiant) et mots de
+      # passe provisoires : modèle de catégorie « Authentication » (1 variable = le code,
+      # bouton « Copier le code »). Sans lui : message texte (fenêtre de 24 h) puis SMS.
+      - key: WHATSAPP_CODE_TEMPLATE
+        sync: false
+      # Facultatif : modèle « Utility » envoyé avant le mot de passe provisoire, 4 variables :
+      # nom de la personne, nom de la boutique, ID boutique, identifiant de connexion
+      - key: WHATSAPP_IDENTIFIANTS_TEMPLATE
+        sync: false
 
       # --- Maintenance des équipements : prix du diagnostic proposé (FCFA) ---
       - key: MAINTENANCE_PRIX_DIAGNOSTIC
