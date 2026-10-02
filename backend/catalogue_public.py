@@ -121,7 +121,8 @@ async def publier(declencheur: str = "planification") -> dict:
     a_publier = await db.catalogue_modeles.find(
         {"statut": "PRET", "supprime": {"$ne": True}, "$or": [{"publie": {"$ne": True}}, {"modifie_apres_publication": True}]},
         SANS_ID).to_list(10000)
-    boutiques = [b["id"] async for b in db.boutiques.find({}, {"_id": 0, "id": 1})]
+    # Boutiques archivées par le cycle de vie (cycle_vie.py) : plus de données, rien à ajouter
+    boutiques = [b["id"] async for b in db.boutiques.find({"cycle_vie.statut": {"$ne": "ARCHIVE"}}, {"_id": 0, "id": 1})]
     nouveaux, mises_a_jour = 0, 0
     # Les téléphones d'abord : les pièces y font référence (« compatible avec »)
     a_publier.sort(key=lambda m: 0 if m["type_produit"] == "TEL" else 1)

@@ -235,6 +235,10 @@ async def _resoudre_contexte(user: dict, x_boutique_id: Optional[str], meme_susp
     boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID) if boutique_id else None
     if not boutique:
         raise HTTPException(403, "Aucune boutique associée à ce compte")
+    # Suspendue (J+110) ou archivée (J+113) par le cycle de vie : aucun accès, même à la
+    # page Abonnement, sauf pour le super-administrateur (cycle_vie.py)
+    import cycle_vie
+    cycle_vie.controler(boutique, user)
     if not boutique.get("actif", True) and user.get("role") != "super_admin" and not meme_suspendue:
         if (boutique.get("suspension") or {}).get("motif") == "IMPAYE":
             raise HTTPException(403, "Accès suspendu : abonnement adLyn non renouvelé. Le DG peut le régler depuis la page Abonnement.")

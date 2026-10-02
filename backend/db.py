@@ -153,6 +153,10 @@ async def ensure_indexes() -> None:
     await db.sessions_activite.create_index([("user_id", 1), ("fermee", 1)])
     await db.sessions_activite.create_index("id_public")
     await db.abonnement_grace_journal.create_index([("boutique_id", 1), ("date", -1)])
+    # Cycle de vie du non-renouvellement et rappels KYC des DG
+    await db.cycle_vie_journal.create_index([("boutique_id", 1), ("date", -1)])
+    await db.cycle_vie_archives.create_index([("efface_le", 1), ("jour", 1)])
+    await db.kyc_rappels_journal.create_index([("dg_id", 1), ("statut", 1), ("date", -1)])
     # Connexion (anti force brute) et webhook (anti-rejeu : nonces effacés après 7 jours)
     await db.echecs_connexion.create_index([("cle", 1), ("date", 1)])
     await db.echecs_connexion.create_index("expire_le", expireAfterSeconds=0)

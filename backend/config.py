@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     # R2_SECRET_ACCESS_KEY). Bucket dédié conseillé ; à défaut, le bucket PRIVÉ (R2_BUCKET_PRIVE).
     adlyn_sauvegardes_bucket: Optional[str] = None
     adlyn_sauvegardes_prefixe: str = "sauvegardes-generales/"
+    # Cycle de vie du non-renouvellement (cycle_vie.py) : archives des boutiques supprimées,
+    # même bucket que la sauvegarde générale, dans ce dossier
+    adlyn_archives_prefixe: str = "archives-locataires/"
 
     # --- Rapport nocturne (sauvegardes + catalogue) envoyé au super-admin ---
     rapport_email: Optional[str] = None
@@ -183,6 +186,12 @@ class Settings(BaseSettings):
     # où se connecter, 4 variables : {{1}} nom de la personne, {{2}} nom de la boutique,
     # {{3}} ID boutique, {{4}} identifiant de connexion (e-mail ou téléphone)
     whatsapp_identifiants_template: Optional[str] = None
+    # Facultatifs : modèles « Utility » des avertissements du cycle de vie (2 variables :
+    # {{1}} nom de la boutique, {{2}} message) et des rappels KYC aux DG (3 variables :
+    # {{1}} nom du DG, {{2}} nom de la boutique, {{3}} état du KYC). Sans modèle : message
+    # texte (fenêtre de 24 h), puis SMS en repli pour le cycle de vie.
+    whatsapp_cycle_vie_template: Optional[str] = None
+    whatsapp_kyc_template: Optional[str] = None
 
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique

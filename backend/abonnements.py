@@ -171,7 +171,10 @@ async def enregistrer_paiement(boutique_id: str, code_formule: str, montant: int
 
     ab = boutique.get("abonnement") or abonnement_initial(boutique.get("created_at"))
     ancienne = date.fromisoformat(ab["echeance"])
-    suspendue_impaye = boutique.get("actif") is False and (boutique.get("suspension") or {}).get("motif") == "IMPAYE"
+    # Suspendue pour impayé, ou par le cycle de vie du non-renouvellement (cycle_vie.py) :
+    # le paiement lui rend l'accès
+    suspendue_impaye = boutique.get("actif") is False \
+        and (boutique.get("suspension") or {}).get("motif") in ("IMPAYE", "NON_RENOUVELE")
     # Point de départ : l'ancienne échéance (jours déjà consommés dus, essai conservé)...
     # ... sauf pour une boutique suspendue pour impayé : elle repart du jour du paiement
     depart = aujourd_hui() - timedelta(days=1) if suspendue_impaye else ancienne
