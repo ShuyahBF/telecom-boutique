@@ -1,10 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { apiClient, BOUTIQUE_ACTIVE_KEY, memoriserIdBoutique } from "@/lib/api";
+import { apiClient, BOUTIQUE_ACTIVE_KEY, EVENEMENT_SESSION_PERDUE, memoriserIdBoutique } from "@/lib/api";
 
 // Session du personnel : utilisateur connecté + sa boutique.
 // La session vit dans un cookie HttpOnly (30 jours) : à l'ouverture du site,
 // /auth/me suffit à retrouver l'utilisateur, sans rien retaper.
 const AuthContext = createContext(null);
+// Motif d'une déconnexion imposée (lu puis effacé par la page de connexion)
+export const MOTIF_DECONNEXION_KEY = "adlyn_motif_deconnexion";
+
+// Motifs montrés à la connexion : session fermée par un administrateur ou après inactivité
+function noterMotif(detail) {
+  try {
+    if (typeof detail === "string" && /fermée par un administrateur|après inactivité/.test(detail)) {
+      sessionStorage.setItem(MOTIF_DECONNEXION_KEY, detail);
+    }
+  } catch { /* stockage indisponible */ }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -23,8 +34,10 @@ export function AuthProvider({ children }) {
       } else {
         setBoutique(data.boutique);
       }
-    } catch {
-      // Pas de session (ou session expirée) : il faudra se connecter
+    } catch (err) {
+      // Pas de session (ou session expirée) : il faudra se connecter.
+      // Session fermée par le DG ou l'administrateur : le motif est montré à la connexion.
+      noterMotif(err?.response?.status === 401 ? err.response.data?.detail : "");
       setUser(null);
       setBoutique(null);
     } finally {
@@ -35,6 +48,17 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     rafraichir();
   }, [rafraichir]);
+
+  // Session refusée en cours d'utilisation (401) : retour à la connexion, avec le motif
+  useEffect(() => {
+    const surPerte = (e) => {
+      noterMotif(e.detail);
+      setUser(null);
+      setBoutique(null);
+    };
+    window.addEventListener(EVENEMENT_SESSION_PERDUE, surPerte);
+    return () => window.removeEventListener(EVENEMENT_SESSION_PERDUE, surPerte);
+  }, []);
 
   /** Connexion : ID boutique (vide pour le super-admin) + e-mail OU téléphone + mot de passe.
    *  Le serveur pose le cookie de session ; on retient seulement l'ID boutique. */

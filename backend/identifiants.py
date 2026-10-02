@@ -61,6 +61,10 @@ ACTIONS = {
     "MDP_PROVISOIRE_ENVOYE": "Nouveau mot de passe provisoire envoyé",
     "MDP_MODIFIE_PAR_DG": "Mot de passe provisoire saisi par le DG",
     "COMPTE_CREE": "Compte créé",
+    # Fermeture des sessions sans changer le mot de passe (routes/sessions.py)
+    "SESSIONS_FERMEES": "Sessions fermées sur tous les appareils",
+    "SESSIONS_AUTRES_FERMEES": "Autres appareils déconnectés",
+    "SESSIONS_BOUTIQUE_FERMEES": "Toutes les sessions de la boutique fermées",
 }
 
 _MOTIF_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")

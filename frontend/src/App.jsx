@@ -67,6 +67,7 @@ import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEqui
 import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
 // Déconnexion programmée de tous les utilisateurs (maintenance de la plateforme)
 import SurveillanceMaintenance from "@/components/MaintenancePlateforme";
+import DeconnexionInactivite from "@/components/DeconnexionInactivite";
 
 // Une facture imprimable s'ouvre aussi depuis une commande ou un dossier de maintenance
 const OPTIONS_FACTURE = ["documents", "commandes", "maintenance", "maintenance_equipements"];
@@ -77,6 +78,8 @@ export default function App() {
       <ToastProvider>
         <BrowserRouter>
           <SurveillanceMaintenance />
+          {/* Déconnexion après inactivité (durée réglée par l'administrateur et le DG) */}
+          <DeconnexionInactivite />
           <Routes>
             {/* Portail public : annuaire des boutiques, puis espace de chaque boutique */}
             <Route path="/" element={<Accueil />} />

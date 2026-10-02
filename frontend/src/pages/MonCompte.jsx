@@ -82,6 +82,19 @@ export default function MonCompte() {
     });
   };
 
+  // Déconnecter mes autres appareils : cet appareil reçoit une nouvelle session
+  async function fermerAutresSessions() {
+    if (!window.confirm("Déconnecter tous vos autres appareils ? Cet appareil reste connecté.")) return;
+    setErreur("");
+    setSucces("");
+    try {
+      const { data } = await apiClient.post("/auth/sessions/fermer-autres");
+      setSucces(data.message);
+    } catch (err) {
+      setErreur(messageErreur(err, "Opération impossible"));
+    }
+  }
+
   // Une carte par identifiant
   const carte = (type) => {
     const t = TYPES[type];
@@ -131,8 +144,11 @@ export default function MonCompte() {
           </>
         )}
         {succes && <p className="rounded-lg bg-green-50 p-2 text-sm text-green-800">{succes}</p>}
+        {!fenetre && erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
 
         <Link to="/mot-de-passe" className="btn-outline block w-full text-center">🔑 Changer mon mot de passe</Link>
+        {/* Téléphone perdu, poste partagé… : sans changer le mot de passe */}
+        <button type="button" className="btn-outline block w-full text-center" onClick={fermerAutresSessions}>🚪 Déconnecter mes autres appareils</button>
         <div className="text-center text-sm">
           <button type="button" className="text-primary" onClick={() => navigate(accueil)}>← Retour</button>
         </div>

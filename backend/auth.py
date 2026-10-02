@@ -20,6 +20,7 @@ choisir la boutique sur laquelle il agit (en-tête X-Boutique-Id).
 """
 from __future__ import annotations
 
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -29,6 +30,7 @@ from fastapi import Depends, Header, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 
+import inactivite
 import maintenance_plateforme
 from config import get_settings
 from db import SANS_ID, TenantDB, db
@@ -78,8 +80,10 @@ def create_access_token(user_id: str, version: int = 0) -> str:
     tous les jetons déjà distribués."""
     s = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=s.jwt_expires_minutes)
-    # « ouv » = heure d'ouverture de la session (invalidation après une maintenance)
-    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at, "ouv": time.time()},
+    # « ouv » = heure d'ouverture de la session (invalidation après une maintenance) ;
+    # « sid » = identifiant de la session (suivi de l'inactivité, voir inactivite.py)
+    return jwt.encode({"sub": user_id, "v": version, "exp": expires_at, "ouv": time.time(),
+                       "sid": secrets.token_urlsafe(12)},
                       s.jwt_secret, algorithm=s.jwt_algorithm)
 
 
@@ -99,6 +103,8 @@ def decode_access_token(token: str) -> Optional[dict]:
 # En-tête exigé sur les requêtes d'écriture authentifiées par cookie : un site
 # tiers ne peut pas l'ajouter sans l'accord CORS du serveur (protection CSRF).
 ENTETE_CSRF = "x-adlyn"
+# Message affiché quand le DG ou l'administrateur a fermé les sessions du compte
+MESSAGE_SESSION_FERMEE = "Votre session a été fermée par un administrateur. Reconnectez-vous."
 
 
 def _cookie_securise() -> bool:
@@ -128,7 +134,8 @@ def effacer_cookie_session(response: Response) -> None:
 def user_public(user: dict) -> dict:
     """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe),
     avec la liste de ses permissions."""
-    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session")}
+    public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session",
+                                                     "sessions_fermees_par_admin_le")}
     public["permissions"] = permissions_de(user.get("role", ""))
     return public
 
@@ -154,9 +161,14 @@ async def get_current_user(
     if not user or not user.get("actif", True):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Compte introuvable ou désactivé")
     if int(contenu.get("v", 0)) != int(user.get("version_session", 0)):
+        # Session ouverte AVANT une fermeture par le DG ou l'administrateur (routes/sessions.py)
+        if float(contenu.get("ouv", 0)) < float(user.get("sessions_fermees_par_admin_le") or 0):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, MESSAGE_SESSION_FERMEE)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
     await maintenance_plateforme.controler_session(user, contenu)
+    # Déconnexion après inactivité (durée réglée par l'administrateur et le DG)
+    await inactivite.controler(user, contenu, request)
     return user
 
 
