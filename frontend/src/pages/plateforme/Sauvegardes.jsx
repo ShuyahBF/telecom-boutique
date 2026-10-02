@@ -249,10 +249,10 @@ function CarteConfiguration({ config }) {
       aide: <>Renseignez <code>RAPPORT_EMAIL</code> dans Render (adresse qui reçoit le rapport chaque nuit).</>,
     },
     {
-      titre: "Envoi d'e-mails (SMTP plateforme)",
+      titre: "Envoi d'e-mails de la plateforme",
       ok: config.smtp_plateforme,
       valeur: config.smtp_plateforme ? "Configuré" : "Non configuré",
-      aide: <>Renseignez <code>PLATEFORME_SMTP_HOTE</code>, <code>PLATEFORME_SMTP_PORT</code>, <code>PLATEFORME_SMTP_UTILISATEUR</code>, <code>PLATEFORME_SMTP_MOT_DE_PASSE</code> (et éventuellement <code>PLATEFORME_EXPEDITEUR</code>) dans Render. Sans cela, le rapport est seulement conservé ici.</>,
+      aide: <>Choisissez le service d'envoi (Resend, ZeptoMail, Brevo ou SMTP) dans Plateforme &gt; Paramètres. Sans cela, le rapport est seulement conservé ici.</>,
     },
     {
       titre: "Prochaine exécution automatique",
