@@ -22,6 +22,7 @@ from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta,
                     tableau_de_bord, tiers, tiktok, webhooks)
 from seed import creer_demo, ensure_super_admin
 from routes import transfert_donnees  # export / import complet de la base (changement de cluster)
+from routes import maintenance_plateforme  # déconnexion programmée de tous les utilisateurs
 
 settings = get_settings()
 
@@ -38,6 +39,9 @@ app.add_middleware(
 )
 
 api = APIRouter(prefix="/api")
+# Maintenance de la plateforme : /maintenance/etat déclaré AVANT le SAV (/maintenance/{dossier_id})
+api.include_router(maintenance_plateforme.public)
+api.include_router(maintenance_plateforme.admin)
 for module in (auth, identifiants, plateforme, boutique, catalogue, tiers, stock, documents, commandes, maintenance,
                conversations, tableau_de_bord, public, paiements, journal, sauvegardes):
     api.include_router(module.router)

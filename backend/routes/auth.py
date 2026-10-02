@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 import acces
+import maintenance_plateforme
 from pydantic import BaseModel, Field
 
 from auth import (create_access_token, effacer_cookie_session, get_current_user, hash_password,
@@ -86,6 +87,8 @@ async def login(payload: Connexion, request: Request, response: Response):
     email = valeur or saisie.lower()[:200]
     code = re.sub(r"[^A-Za-z0-9]", "", payload.code_boutique or "").upper()
     cle_echecs = f"{code}|{email}"
+    if code:  # personnel d'une boutique : pas de connexion pendant la maintenance de la plateforme
+        await maintenance_plateforme.refuser_si_maintenance()
     depuis = (datetime.now(timezone.utc) - FENETRE_ECHECS).isoformat()
     if await db.echecs_connexion.count_documents({"cle": cle_echecs, "date": {"$gte": depuis}}) >= MAX_ECHECS:
         raise HTTPException(429, "Trop de tentatives. Réessayez dans 15 minutes.")
@@ -113,6 +116,7 @@ async def login(payload: Connexion, request: Request, response: Response):
         raise HTTPException(403, "Ce compte est désactivé")
 
     if user.get("role") != "super_admin":
+        await maintenance_plateforme.refuser_si_maintenance()
         # Adresse IP / appareil : règles d'accès de la boutique (listes blanche et noire)
         appareil = acces.poser_cookie_appareil(request, response)
         autorise, raison = acces.verdict(acces.regles(boutique), acces.ip_client(request), appareil)
