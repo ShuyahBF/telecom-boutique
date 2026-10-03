@@ -141,7 +141,7 @@ export default function Reversements() {
                 <thead><tr><th /><th>Date</th><th>Commande / fiche</th><th>Client</th><th className="text-right">Montant</th></tr></thead>
                 <tbody>
                   {saisie.paiements.map((p) => (
-                    <tr key={p.id}>
+                    <tr key={p.id} /* ligne cochée = sélectionnée (index.css) */ aria-selected={saisie.choisis.includes(p.id)}>
                       <td><input type="checkbox" className="h-4 w-4 accent-primary" checked={saisie.choisis.includes(p.id)} onChange={() => basculer(p.id)} aria-label={`Inclure ${p.commande_numero || p.fiche_numero}`} /></td>
                       <td className="whitespace-nowrap">{dateHeure(p.updated_at || p.created_at)}</td>
                       <td className="font-mono text-xs">{p.commande_numero || p.fiche_numero}</td>

@@ -8,6 +8,7 @@ import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
 import { BandeauGrace, useCoupureProgrammee } from "@/components/AbonnementGrace";
 import DernieresSauvegardes from "@/components/DernieresSauvegardes";
+import VersionApp from "@/components/VersionApp";
 
 // Menu du back-office : chaque entrée indique
 //  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
@@ -122,6 +123,8 @@ export default function GestionLayout() {
               </p>
             </div>
           )}
+          {/* Version et lot, même sur l'écran de suspension */}
+          <VersionApp className="mt-6 text-center text-gray-400" />
         </main>
       </div>
     );
@@ -167,8 +170,11 @@ export default function GestionLayout() {
             </div>
           </div>
           {menu}
-          {/* Signature de la plateforme en bas du menu */}
-          <div className="mt-auto border-t border-white/5 pt-4"><LogoAdlyn clair className="h-6 opacity-70" /></div>
+          {/* Signature de la plateforme en bas du menu, avec la version et le lot déployés */}
+          <div className="mt-auto space-y-2 border-t border-white/5 pt-4">
+            <LogoAdlyn clair className="h-6 opacity-70" />
+            <VersionApp className="px-1 text-gray-400" />
+          </div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -191,6 +197,8 @@ export default function GestionLayout() {
             <Outlet />
             {/* Dates des dernières sauvegardes, en pied de page discret */}
             <DernieresSauvegardes compact />
+            {/* Version et lot en pied de page sur petit écran (barre latérale masquée) */}
+            <VersionApp className="no-print mt-4 text-center text-gray-400 lg:hidden" />
           </main>
         </div>
       </div>
