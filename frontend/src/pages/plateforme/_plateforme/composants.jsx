@@ -10,7 +10,7 @@ import VersionApp from "@/components/VersionApp";
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
 // Boutiques / Référentiel mondial / Catalogue public / Abonnements / Reversements /
-// Maintenance des équipements / KYC des DG / Cycle de vie / Sauvegardes / Paramètres.
+// Maintenance des équipements / KYC des DG / Cycle de vie / Usage / Sauvegardes / Paramètres.
 // ---------------------------------------------------------------------------
 const MENU_PLATEFORME = [
   { to: "/plateforme", label: "Boutiques", court: "Boutiques", icone: "🏪", end: true },
@@ -21,6 +21,8 @@ const MENU_PLATEFORME = [
   { to: "/plateforme/maintenance-equipements", label: "Maintenance", court: "Maintenance", icone: "🛠️" },
   { to: "/plateforme/kyc-dg", label: "KYC des DG", court: "KYC", icone: "🪪" },
   { to: "/plateforme/cycle-vie", label: "Cycle de vie", court: "Cycle", icone: "♻️" },
+  // Lot 25 : historique des connexions, présence en ligne, blocage d'IP / de comptes
+  { to: "/plateforme/usage", label: "Usage", court: "Usage", icone: "📈" },
   { to: "/plateforme/sauvegardes", label: "Sauvegardes", court: "Sauvegardes", icone: "💾" },
   { to: "/plateforme/parametres", label: "Paramètres", court: "Paramètres", icone: "⚙️" },
 ];

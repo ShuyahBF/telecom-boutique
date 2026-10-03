@@ -29,6 +29,7 @@ from routes import abonnement_grace  # période de grâce des abonnements, puis 
 from routes import sessions_actives  # sessions simultanées limitées par compte
 from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Job Render -> R2)
 from routes import cycle_vie  # cycle de vie du non-renouvellement (J+110 / J+113) et KYC des DG
+from routes import usage_connexions  # onglet « Usage » : connexions, présence, blocages (lot 25)
 
 settings = get_settings()
 
@@ -109,6 +110,10 @@ api.include_router(maintenance_equipements.public)
 api.include_router(caisse_aizenta.webhook)
 api.include_router(caisse_aizenta.boutique)
 api.include_router(caisse_aizenta.admin)
+# Lot 25 — onglet « Usage » de la plateforme : historique des connexions, présence,
+# blocage d'IP / de comptes ; contact public de la page « Accès momentanément suspendu »
+api.include_router(usage_connexions.admin)
+api.include_router(usage_connexions.public)
 
 
 @api.get("/health")

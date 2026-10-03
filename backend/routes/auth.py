@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 
 import acces
+import blocages_acces
 import maintenance_plateforme
 import sessions_actives
 from config import get_settings
@@ -126,6 +127,10 @@ async def login(payload: Connexion, request: Request, response: Response):
         raise HTTPException(401, erreur)
     if not user.get("actif", True):
         raise HTTPException(403, "Ce compte est désactivé")
+    # Lot 25 — compte ou adresse IP bloqué par le super-administrateur (onglet « Usage ») :
+    # 403 « acces_suspendu », tentative notée « refusée » dans l'historique des connexions.
+    # Jamais pour le super-administrateur lui-même.
+    await blocages_acces.controler_connexion(user, request, type_identifiant or "email", identifiant=email)
 
     if user.get("role") != "super_admin":
         await maintenance_plateforme.refuser_si_maintenance()
@@ -143,7 +148,8 @@ async def login(payload: Connexion, request: Request, response: Response):
     await db.echecs_connexion.delete_many({"cle": cle_echecs})
     session = await _reponse_session(user)
     # Sessions simultanées limitées : les plus anciennes au-delà du maximum sont fermées
-    session["sessions_fermees"] = await sessions_actives.ouvrir(user, session["access_token"], request)
+    session["sessions_fermees"] = await sessions_actives.ouvrir(user, session["access_token"], request,
+                                                                methode=type_identifiant or "email")
     poser_cookie_session(response, session["access_token"])
     return session
 

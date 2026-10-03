@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import PoweredBySawali from "@/components/PoweredBySawali";
 
+// Contact officiel de SAWALI SMART SYSTEMS (e-mail et téléphone) : source unique,
+// reprise par les pages légales et par la page « Accès momentanément suspendu » (lot 25)
+export const CONTACT_EMAIL = "contact@sawalismartsystems.com";
+export const CONTACT_TELEPHONE = "+226 25 65 81 65";
+
 // Mise en page commune des pages légales publiques d'adLyn
 // (Politique de confidentialité, Conditions d'utilisation).
 // - titreOnglet : titre de l'onglet du navigateur. Il reprend EXACTEMENT le nom

@@ -52,8 +52,31 @@ export const EVENEMENT_SESSION_PERDUE = "adlyn:session-perdue";
 // backend/abonnement_grace.py) : AuthContext relit la session et le site bascule
 // sur l'écran « Abonnement expiré — renouveler »
 export const EVENEMENT_ABONNEMENT_EXPIRE = "adlyn:abonnement-expire";
+
+// Lot 25 — accès bloqué par le super-administrateur (adresse IP ou compte, onglet
+// « Usage » de la plateforme) : le serveur répond 403 avec { code: "acces_suspendu" }.
+// Le site efface la session (cookie effacé par /auth/logout, boutique consultée
+// oubliée) puis envoie le visiteur sur la page courtoise « Accès momentanément suspendu ».
+export const PAGE_ACCES_SUSPENDU = "/acces-suspendu";
+let redirectionEnCours = false; // plusieurs requêtes refusées en même temps : une seule redirection
+function versAccesSuspendu() {
+  if (redirectionEnCours) return;
+  redirectionEnCours = true;
+  try { localStorage.removeItem(BOUTIQUE_ACTIVE_KEY); } catch { /* stockage indisponible */ }
+  // Déconnexion (efface le cookie de session), puis la page dédiée, même en cas d'échec
+  apiClient.post("/auth/logout").catch(() => {}).finally(() => {
+    if (window.location.pathname !== PAGE_ACCES_SUSPENDU) window.location.assign(PAGE_ACCES_SUSPENDU);
+    else redirectionEnCours = false;
+  });
+}
+
 apiClient.interceptors.response.use(undefined, (err) => {
   const url = err?.config?.url || "";
+  const detailBrut = err?.response?.data?.detail;
+  if (err?.response?.status === 403 && detailBrut && typeof detailBrut === "object" && detailBrut.code === "acces_suspendu") {
+    versAccesSuspendu();
+    return Promise.reject(err);
+  }
   if (err?.response?.status === 401 && !url.startsWith("/auth/login") && !url.startsWith("/auth/logout")) {
     window.dispatchEvent(new CustomEvent(EVENEMENT_SESSION_PERDUE, { detail: err.response.data?.detail }));
   }
@@ -81,6 +104,8 @@ export function messageErreur(err, repli = "Une erreur est survenue") {
   if (typeof detail === "string") {
     return MESSAGES_GENERIQUES.has(detail.trim().toLowerCase()) ? repli : detail;
   }
+  // Réponse structurée { code, message } (ex. accès momentanément suspendu, lot 25)
+  if (detail && typeof detail === "object" && typeof detail.message === "string") return detail.message;
   if (!err?.response) return "Serveur injoignable. Vérifiez votre connexion.";
   return repli;
 }

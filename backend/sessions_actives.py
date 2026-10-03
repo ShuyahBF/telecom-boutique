@@ -43,7 +43,11 @@ MESSAGE_LIMITE = "Session fermée : nombre maximal d'appareils atteint pour ce c
 MESSAGE_UTILISATEUR = "Session fermée depuis un autre appareil de ce compte. Reconnectez-vous."
 MESSAGE_ADMIN = "Votre session a été fermée par un administrateur. Reconnectez-vous."
 MESSAGES = {"LIMITE": MESSAGE_LIMITE, "UTILISATEUR": MESSAGE_UTILISATEUR, "ADMIN": MESSAGE_ADMIN,
-            "DECONNEXION": "Session terminée : reconnectez-vous."}
+            "DECONNEXION": "Session terminée : reconnectez-vous.",
+            # Lot 25 : session fermée par un blocage du super-administrateur (onglet « Usage »).
+            # Tant que le blocage dure, l'appareil reçoit le 403 « Accès momentanément
+            # suspendu » ; une fois le blocage levé, il doit simplement se reconnecter.
+            "BLOCAGE": "Session fermée : reconnectez-vous."}
 
 _cache_reglage: dict = {"lu_a": 0.0, "valeur": LIMITE_DEFAUT}
 _cache_sessions: dict[str, tuple[float, dict]] = {}
@@ -128,15 +132,20 @@ def _filtre_ouvertes(user: dict) -> dict:
             "expire_ts": {"$gt": _maintenant()}}
 
 
-async def ouvrir(user: dict, jeton: str, request: Optional[Request]) -> int:
+async def ouvrir(user: dict, jeton: str, request: Optional[Request], methode: str = "email") -> int:
     """Nouvelle connexion : enregistre la session puis ferme les plus anciennes au-delà
-    de la limite. Renvoie le nombre de sessions fermées."""
+    de la limite. Renvoie le nombre de sessions fermées.
+    `methode` (lot 25) : « email » ou « telephone » (identifiant tapé à la connexion),
+    noté dans l'historique des connexions de l'onglet « Usage »."""
+    import blocages_acces
     import inactivite
     from auth import decode_access_token
 
     contenu = decode_access_token(jeton) or {}
     sid = inactivite.id_session(contenu)
     await db.sessions_activite.update_one({"_id": sid}, {"$set": _champs_session(user, contenu, request)}, upsert=True)
+    # Lot 25 : une ligne « réussie » dans l'historique des connexions (IP réelle, appareil, session)
+    await blocages_acces.journaliser_connexion(user, request, methode, "reussie", sid=sid)
     ouvertes = await db.sessions_activite.find(_filtre_ouvertes(user)).to_list(500)
     en_trop = len(ouvertes) - await limite()
     if en_trop <= 0:

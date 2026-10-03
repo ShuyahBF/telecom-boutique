@@ -168,6 +168,11 @@ async def get_current_user(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expirée : reconnectez-vous")
     # Maintenance de la plateforme : 503 pendant la maintenance, 401 pour les sessions d'avant
     await maintenance_plateforme.controler_session(user, contenu)
+    # Lot 25 — onglet « Usage » : compte ou adresse IP bloqué par le super-administrateur.
+    # La session est fermée et la requête refusée (403 « acces_suspendu ») ; le site
+    # affiche alors la page « Accès momentanément suspendu » (voir blocages_acces.py).
+    import blocages_acces
+    await blocages_acces.controler_requete(user, contenu, request)
     # Session fermée (nombre maximal d'appareils, fermée depuis Mon compte ou par l'administrateur)
     await sessions_actives.controler(user, contenu, request)
     # Déconnexion après inactivité (durée réglée par l'administrateur et le DG)
