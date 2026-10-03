@@ -54,9 +54,9 @@
    Hors des règles @layer : elles passent après les classes Tailwind.
    --------------------------------------------------------------------------- */
 :root {
-  --tableau-survol: rgba(56, 189, 248, 0.15);   /* bleu clair transparent */
-  --tableau-selection: #f97316;                 /* orange clair (assez soutenu pour un texte blanc lisible) */
-  --tableau-selection-survol: #fb8a3c;          /* orange sélectionné, un peu plus clair au survol */
+  --tableau-survol: rgba(56, 189, 248, 0.16);   /* bleu clair transparent */
+  --tableau-selection: #f6a35b;                 /* orange clair de la règle permanente (CLAUDE.md), lot 24 */
+  --tableau-selection-survol: #f4964a;          /* orange sélectionné, un peu plus clair au survol */
 }
 
 /* Survol : bleu clair transparent */
