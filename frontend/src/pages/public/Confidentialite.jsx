@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import PageLegale, { Section } from "@/components/PageLegale";
+import PageLegale, { CONTACT_EMAIL, CONTACT_TELEPHONE, Section } from "@/components/PageLegale";
 
-// Contact officiel de SAWALI SMART SYSTEMS (e-mail et téléphone)
-const CONTACT = "contact@sawalismartsystems.com";
-const TELEPHONE = "+226 25 65 81 65";
+// Contact officiel de SAWALI SMART SYSTEMS (e-mail et téléphone), défini dans PageLegale.jsx
+const CONTACT = CONTACT_EMAIL;
+const TELEPHONE = CONTACT_TELEPHONE;
 
 // Politique de confidentialité d'adLyn (adresses /confidentialite, /privacy, /privacy-policy).
 // Elle décrit ce que la plateforme fait réellement des données : à mettre à jour

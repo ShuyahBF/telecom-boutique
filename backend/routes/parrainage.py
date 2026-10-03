@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
+import blocages_acces
 import envois_plateforme as envois
 import parrainage as service
 from auth import Contexte, get_super_admin, permission
@@ -61,6 +62,9 @@ class DemandeOuverture(BaseModel):
 @public.post("/{code}/demande", status_code=201)
 async def demander_ouverture(code: str, data: DemandeOuverture, request: Request):
     s = get_settings()
+    # Lot 25 : adresse IP bloquée pour tous les comptes par le super-administrateur
+    # (onglet « Usage ») -> demande refusée (403 « acces_suspendu ») et notée « refusée »
+    await blocages_acces.controler_creation(request, identifiant=str(data.dg_email))
     parrain = await _parrain(code)
     if not data.accepte_invitation:
         raise HTTPException(400, f"Acceptez l'invitation de {parrain['nom']} pour continuer")

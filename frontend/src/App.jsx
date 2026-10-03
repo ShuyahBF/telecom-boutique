@@ -66,6 +66,9 @@ import CycleVie from "@/pages/plateforme/CycleVie";
 import KycDg from "@/pages/plateforme/KycDg";
 import Referentiel from "@/pages/plateforme/Referentiel";
 import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
+// Lot 25 — onglet « Usage » (connexions, présence, blocages) et page de l'accès suspendu
+import Usage from "@/pages/plateforme/Usage";
+import AccesSuspendu from "@/pages/AccesSuspendu";
 import PaiementMaintenance from "@/pages/public/PaiementMaintenance";
 // Déconnexion programmée de tous les utilisateurs (maintenance de la plateforme)
 import SurveillanceMaintenance from "@/components/MaintenancePlateforme";
@@ -106,6 +109,8 @@ export default function App() {
             </Route>
 
             <Route path="/connexion" element={<Connexion />} />
+            {/* Lot 25 — compte ou adresse IP bloqué par le super-administrateur (onglet « Usage ») */}
+            <Route path="/acces-suspendu" element={<AccesSuspendu />} />
             <Route path="/mot-de-passe" element={<ChangerMotDePasse />} />
             {/* Mot de passe oublié : code reçu par WhatsApp, SMS ou e-mail */}
             <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
@@ -174,6 +179,8 @@ export default function App() {
             {/* Cycle de vie des abonnements non renouvelés, KYC des DG */}
             <Route path="/plateforme/cycle-vie" element={<RouteProtegee roles={["super_admin"]}><CycleVie /></RouteProtegee>} />
             <Route path="/plateforme/kyc-dg" element={<RouteProtegee roles={["super_admin"]}><KycDg /></RouteProtegee>} />
+            {/* Lot 25 — Usage : historique des connexions, présence, blocage d'IP / de comptes */}
+            <Route path="/plateforme/usage" element={<RouteProtegee roles={["super_admin"]}><Usage /></RouteProtegee>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

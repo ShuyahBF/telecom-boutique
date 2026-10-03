@@ -187,6 +187,16 @@ async def ensure_indexes() -> None:
     await db.abonnement_rappels_journal.create_index("date")
     # Journal des connexions au back-office des boutiques
     await db.connexions_journal.create_index([("boutique_id", 1), ("date", -1)])
+    # Lot 25 — onglet « Usage » (plateforme) : historique de toutes les connexions (tri
+    # chronologique, recherche par compte / IP / boutique, purge automatique après 180 jours),
+    # blocages d'IP / de comptes et journal des actions du super-administrateur
+    await db.usage_connexions.create_index([("date", -1)])
+    await db.usage_connexions.create_index("user_id")
+    await db.usage_connexions.create_index("ip")
+    await db.usage_connexions.create_index("boutique_id")
+    await db.usage_connexions.create_index("date_dt", expireAfterSeconds=180 * 24 * 3600)
+    await db.usage_blocages.create_index([("actif", 1), ("type", 1)])
+    await db.usage_blocages_journal.create_index([("date", -1)])
     # Reversements PawaPay aux boutiques
     await db.paiements.create_index([("boutique_id", 1), ("statut", 1), ("reversement_id", 1)])
     await db.reversements.create_index([("boutique_id", 1), ("created_at", -1)])
