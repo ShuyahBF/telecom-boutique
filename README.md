@@ -211,6 +211,16 @@ Pages utiles :
    - **WhatsApp, codes et mots de passe provisoires** : `WHATSAPP_CODE_TEMPLATE` = nom d'un modèle de catégorie **Authentication** (langue : français), par exemple `adlyn_code_connexion`. Meta impose son texte (« *{{1}}* est votre code de vérification. ») : cochez la recommandation de sécurité, le pied « Ce code expire dans 10 minutes » et le bouton « Copier le code ». Facultatif : `WHATSAPP_IDENTIFIANTS_TEMPLATE`, modèle **Utility** à 4 variables envoyé avant un mot de passe provisoire, par exemple `adlyn_identifiants` : « Bonjour {{1}}, voici vos accès à l'espace de la boutique {{2}} sur adLyn : ID boutique {{3}}, identifiant {{4}}. Votre mot de passe provisoire suit dans un message séparé ; changez-le dès votre première connexion. ». Sans ces modèles, un code n'arrive par WhatsApp que si la personne a écrit au numéro adLyn dans les dernières 24 h : le SMS prend alors le relais.
 3. Noms de domaine : décommenter les blocs `domains` de `render.yaml` et créer les CNAME chez Cloudflare, comme pour beauthentik. **Important pour la connexion** : donnez au site et à l'API deux sous-domaines du **même** domaine (ex. `adlyn.com` et `api.adlyn.com`). Sinon, avec les deux adresses `onrender.com`, Safari (iPhone, Mac) refuse le cookie de session et le personnel devrait se reconnecter à chaque ouverture.
 
+### Version et lot (à mettre à jour à CHAQUE déploiement)
+
+La mention « Version X · Lot N · commit » est affichée sur la page de connexion et dans tous les espaces connectés (barre latérale ou pied de page de l'espace boutique, en-tête de l'espace plateforme, Mon compte). Source unique : `frontend/src/version.js`.
+
+- `VERSION` : ajouter 1 à chaque déploiement ;
+- `LOT` : numéro de la Pull Request GitHub fusionnée pour ce déploiement ;
+- le commit (7 caractères) est calculé automatiquement à la compilation (`RENDER_GIT_COMMIT` sur Render, sinon git) : rien à saisir.
+
+Ce fichier est dans `frontend/` exprès : le site (rootDir `frontend`) n'est reconstruit par Render que si un fichier de ce dossier change ; en modifiant `version.js` à chaque déploiement, l'affichage est toujours à jour, même quand seul le serveur a changé.
+
 ### Webhook de création des boutiques
 Un système externe (formulaire d'inscription, CRM…) peut créer une boutique :
 

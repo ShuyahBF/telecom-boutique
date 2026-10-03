@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import SessionsCompte from "@/components/SessionsCompte";
 import DernieresSauvegardes from "@/components/DernieresSauvegardes";
+import VersionApp from "@/components/VersionApp";
 
 // Page « Mon compte » (tout membre du personnel connecté) : ses identifiants
 // de connexion (e-mail et/ou téléphone) et son mot de passe.
@@ -159,6 +160,8 @@ export default function MonCompte() {
         <div className="text-center text-sm">
           <button type="button" className="text-primary" onClick={() => navigate(accueil)}>← Retour</button>
         </div>
+        {/* Version et lot déployés */}
+        <VersionApp className="text-center text-gray-400" />
       </div>
 
       {/* Fenêtre : ajouter / changer / vérifier, puis code */}

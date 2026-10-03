@@ -7,6 +7,7 @@ import { MOTIF_DECONNEXION_KEY, useAuth } from "@/context/AuthContext";
 import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import { AvisMaintenance } from "@/components/MaintenancePlateforme";
+import VersionApp from "@/components/VersionApp";
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
 // boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
@@ -58,7 +59,7 @@ export default function Connexion() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4 pb-14">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4 pb-20">
       {/* Décor : halos de couleur et quadrillage discret (style Sawali) */}
       <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
@@ -105,10 +106,11 @@ export default function Connexion() {
           </button>
         </div>
       </form>
-      {/* Liens légaux + mention obligatoire, en bas de l'écran */}
+      {/* Liens légaux + mention obligatoire + version/lot déployés, en bas de l'écran */}
       <div className="absolute bottom-4 left-0 right-0 space-y-1 text-center">
         <LiensLegaux className="justify-center" />
         <PoweredBySawali />
+        <VersionApp className="text-gray-400" />
       </div>
     </div>
   );

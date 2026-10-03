@@ -68,7 +68,7 @@ export default function Fournisseurs() {
             <thead><tr><th>Nom</th><th>Contact</th><th>Téléphone</th><th>E-mail</th><th>Pays</th><th>État</th></tr></thead>
             <tbody>
               {fournisseurs.map((f) => (
-                <tr key={f.id} className={`cursor-pointer hover:bg-gray-50 ${f.actif === false ? "opacity-50" : ""}`} onClick={() => setEdition({ ...FOURNISSEUR_VIDE, ...f })}>
+                <tr key={f.id} /* fiche ouverte = ligne sélectionnée (fond orange, index.css) */ aria-selected={edition?.id === f.id} className={`cursor-pointer hover:bg-gray-50 ${f.actif === false ? "opacity-50" : ""}`} onClick={() => setEdition({ ...FOURNISSEUR_VIDE, ...f })}>
                   <td className="font-semibold">{f.nom}</td>
                   <td>{f.contact || "—"}</td>
                   <td className="whitespace-nowrap">{f.telephone ? <a href={`tel:${f.telephone}`} className="text-primary" onClick={(e) => e.stopPropagation()}>{f.telephone}</a> : "—"}</td>

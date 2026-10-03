@@ -40,6 +40,65 @@
   .table td { @apply border-b border-gray-100 px-3 py-2 align-top; }
 }
 
+/* ---------------------------------------------------------------------------
+   RÈGLE PERMANENTE DES TABLEAUX (s'applique à TOUS les tableaux du site)
+   - ligne survolée par la souris : fond bleu clair transparent ;
+   - ligne sélectionnée : fond orange clair et texte blanc.
+   Une ligne est « sélectionnée » si elle porte l'un de ces marqueurs :
+     <tr aria-selected="true">, <tr data-selected="true">,
+     <tr class="ligne-selectionnee">, ou une case cochée dans sa 1re colonne.
+   La couleur est posée sur les CELLULES (td/th) : elle passe ainsi par-dessus
+   les fonds posés sur la ligne (hover:bg-gray-50, bg-red-50, zébrures even:…).
+   Les sélecteurs commencent par « tbody > tr » : leur priorité (spécificité)
+   dépasse celle des classes Tailwind (ex. .bg-red-50), sans « !important ».
+   Hors des règles @layer : elles passent après les classes Tailwind.
+   --------------------------------------------------------------------------- */
+:root {
+  --tableau-survol: rgba(56, 189, 248, 0.15);   /* bleu clair transparent */
+  --tableau-selection: #f97316;                 /* orange clair (assez soutenu pour un texte blanc lisible) */
+  --tableau-selection-survol: #fb8a3c;          /* orange sélectionné, un peu plus clair au survol */
+}
+
+/* Survol : bleu clair transparent */
+tbody > tr:hover > td,
+tbody > tr:hover > th {
+  background-color: var(--tableau-survol);
+}
+
+/* Sélection : fond orange clair sur toutes les cellules de la ligne */
+tbody > tr[aria-selected="true"] > td,
+tbody > tr[aria-selected="true"] > th,
+tbody > tr[data-selected="true"] > td,
+tbody > tr[data-selected="true"] > th,
+tbody > tr.ligne-selectionnee > td,
+tbody > tr.ligne-selectionnee > th,
+tbody > tr:has(> td:first-child input[type="checkbox"]:checked) > td,
+tbody > tr:has(> td:first-child input[type="checkbox"]:checked) > th {
+  background-color: var(--tableau-selection);
+  color: #fff;
+}
+
+/* Ligne sélectionnée ET survolée : garder l'orange (un ton plus clair) */
+tbody > tr[aria-selected="true"]:hover > td,
+tbody > tr[data-selected="true"]:hover > td,
+tbody > tr.ligne-selectionnee:hover > td,
+tbody > tr:has(> td:first-child input[type="checkbox"]:checked):hover > td {
+  background-color: var(--tableau-selection-survol);
+}
+
+/* Texte blanc aussi pour les liens et textes à l'intérieur des cellules
+   (ils ont souvent leur propre couleur : text-gray-500, text-primary…).
+   Exceptions : champs de saisie, boutons (balise button ou classe btn-…) et
+   pastilles (.badge), qui gardent leur propre fond et doivent rester lisibles.
+   (On écrit [class*="btn"] et non .btn : Tailwind recopierait sinon cette
+   règle dans chaque .btn-primary, .btn-outline… qui utilisent « @apply btn ».) */
+tbody > tr[aria-selected="true"] > td :not(input, select, textarea, button, button *, [class*="btn"], [class*="btn"] *, .badge, .badge *),
+tbody > tr[data-selected="true"] > td :not(input, select, textarea, button, button *, [class*="btn"], [class*="btn"] *, .badge, .badge *),
+tbody > tr.ligne-selectionnee > td :not(input, select, textarea, button, button *, [class*="btn"], [class*="btn"] *, .badge, .badge *),
+tbody > tr:has(> td:first-child input[type="checkbox"]:checked) > td :not(input, select, textarea, button, button *, [class*="btn"], [class*="btn"] *, .badge, .badge *) {
+  color: #fff;
+}
+
 /* Impression (factures, bons de dépôt, QR codes) : on masque tout ce qui
    porte la classe "no-print" (menus, boutons). */
 @media print {

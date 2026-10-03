@@ -276,7 +276,7 @@ export default function MaintenanceEquipements({ espace = "boutique" }) {
                 {!donnees && <tr><td colSpan={9}><Chargement /></td></tr>}
                 {donnees?.fiches.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-gray-500">Aucune fiche.</td></tr>}
                 {(donnees?.fiches || []).map((f) => (
-                  <tr key={f.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setEdition(f)}>
+                  <tr key={f.id} /* fiche ouverte = ligne sélectionnée (fond orange, index.css) */ aria-selected={edition?.id === f.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setEdition(f)}>
                     <td className="font-mono text-xs">{f.numero}</td>
                     <td>{f.client_nom}<span className="block text-xs text-gray-500">{f.client_telephone}</span></td>
                     <td>{f.type_materiel}<span className="block text-xs text-gray-500">{f.marque_modele}</span></td>

@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { messageErreur } from "@/lib/api";
 import Chargement from "@/components/Chargement";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import VersionApp from "@/components/VersionApp";
 
 // Changement de mot de passe : OBLIGATOIRE après un mot de passe provisoire
 // (reçu par e-mail/SMS ou donné par le DG), et possible à tout moment.
@@ -67,6 +68,8 @@ export default function ChangerMotDePasse() {
             <button type="button" className="text-primary" onClick={() => navigate(-1)}>← Retour</button>
           )}
         </div>
+        {/* Version et lot déployés */}
+        <VersionApp className="text-center text-gray-400" />
       </form>
     </div>
   );

@@ -91,7 +91,7 @@ export default function KycDg() {
                     </tr></thead>
                     <tbody>
                       {dg.map((d) => (
-                        <tr key={d.boutique_id} className="border-t border-gray-100">
+                        <tr key={d.boutique_id} className="border-t border-gray-100" /* ligne cochée = sélectionnée (index.css) */ aria-selected={selection.includes(d.boutique_id)}>
                           <td className="py-2 pr-2">
                             <input type="checkbox" aria-label={`Sélectionner ${d.dg_nom}`} disabled={!selectionnables.includes(d.boutique_id)}
                               checked={selection.includes(d.boutique_id)} onChange={() => basculer(d.boutique_id)} />

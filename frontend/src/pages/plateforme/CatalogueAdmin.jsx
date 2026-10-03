@@ -146,7 +146,7 @@ export default function CatalogueAdmin() {
                 {fiches.map((f) => {
                   const etat = etatFiche(f);
                   return (
-                    <tr key={f.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setEdition(versFormulaire(f))}>
+                    <tr key={f.id} /* fiche ouverte = ligne sélectionnée (fond orange, index.css) */ aria-selected={edition?.id === f.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setEdition(versFormulaire(f))}>
                       <td className="w-14">
                         {f.photo_url ? <img src={f.photo_url} alt="" className="h-10 w-10 rounded-lg object-contain" /> : <span className="text-2xl">📱</span>}
                       </td>

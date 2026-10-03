@@ -5,6 +5,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATUTS_KYC } from "./outils";
 import { LogoAdlyn } from "@/components/Marque";
+import VersionApp from "@/components/VersionApp";
 
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
@@ -30,8 +31,11 @@ export function EnTetePlateforme() {
   return (
     <header className="sticky top-0 z-30 border-b border-gray-200 bg-ink text-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-        {/* Logo + nom de l'administrateur connecté */}
-        <Link to="/plateforme" className="shrink-0" aria-label="adLyn, administration"><LogoAdlyn clair className="h-8" /></Link>
+        {/* Logo (+ version et lot déployés juste dessous) et nom de l'administrateur connecté */}
+        <div className="shrink-0">
+          <Link to="/plateforme" aria-label="adLyn, administration"><LogoAdlyn clair className="h-8" /></Link>
+          <VersionApp className="mt-0.5 text-gray-400" />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="hidden border-l border-white/15 pl-3 2xl:block">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-clair">Plateforme</p>
