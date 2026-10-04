@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { EnTetePlateforme } from "./_plateforme/composants";
+import VersionApp from "@/components/VersionApp";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
 import ReglageInactivite from "@/components/ReglageInactivite";
@@ -126,6 +127,8 @@ export default function Parametres() {
         <div>
           <h1 className="text-2xl font-extrabold">⚙️ Paramètres de la plateforme</h1>
           <p className="text-sm text-gray-500">Réglages généraux d'adLyn, modifiables sans redéploiement.</p>
+          {/* Page d'administration : libellé de version DÉTAILLÉ (version, lot, commit, date de déploiement) */}
+          <VersionApp detaille className="mt-1 text-gray-500" />
         </div>
 
         {/* Maintenance : déconnexion programmée de tous les utilisateurs */}
