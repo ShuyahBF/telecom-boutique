@@ -100,7 +100,9 @@ function EnvoiWhatsApp({ fiche, base, services, onFermer, onEnvoye }) {
       });
       if (data.non_envoye) toast.info(data.erreurs.join(" · "));
       else {
-        toast.succes(`Fiche envoyée (${data.mode === "texte" ? "message libre" : "modèle Meta"}) — ${data.photos_envoyees} photo(s)`
+        // Canal réellement utilisé : WhatsApp de la plateforme, Liluvine, ou repli Liluvine
+        const parLiluvine = data.canal === "liluvine" || data.canal === "liluvine_repli";
+        toast.succes(`Fiche envoyée (${parLiluvine ? "Transmission WA Universelle" : data.mode === "texte" ? "message libre" : "modèle Meta"}) — ${data.photos_envoyees} photo(s)`
           + (data.photos_non_envoyees ? `, ${data.photos_non_envoyees} à renvoyer quand le client aura répondu` : ""));
         if (data.erreurs?.length) toast.erreur(data.erreurs.join(" · "));
       }
@@ -113,6 +115,13 @@ function EnvoiWhatsApp({ fiche, base, services, onFermer, onEnvoye }) {
   return (
     <Modal ouvert titre={`Envoyer la fiche ${fiche.numero} par WhatsApp`} onFermer={onFermer}>
       <div className="space-y-3 text-sm">
+        {/* Sans WhatsApp Business : envoi par la Transmission WA Universelle (une image par message) */}
+        {services.canal_whatsapp === "liluvine" && (
+          <p className="rounded-lg bg-sky-50 p-2 text-xs text-sky-900">
+            Envoi par la Transmission WA Universelle (Liluvine) : le texte de la fiche, puis une photo par message
+            (la 1re porte le texte en légende). Elle parvient aussi hors de la fenêtre de 24 h.
+          </p>
+        )}
         <p className="text-gray-600">À : <b>{fiche.client_nom}</b> · {fiche.client_telephone || <span className="text-red-600">numéro manquant</span>}</p>
         <label className="flex items-center gap-2"><input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} /> Joindre les photos ({nbPhotos})</label>
         {fiche.lien_paiement && !fiche.lien_paiement.paye && (

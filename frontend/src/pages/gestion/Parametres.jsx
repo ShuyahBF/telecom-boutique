@@ -6,6 +6,7 @@ import ParamBoutique from "./_atelier/ParamBoutique";
 import ParamKyc from "./_atelier/ParamKyc";
 import ParamQr from "./_atelier/ParamQr";
 import ParamMessagerie from "./_atelier/ParamMessagerie";
+import ParamWhatsApp from "./_atelier/ParamWhatsApp";
 import ParamModeles from "./_atelier/ParamModeles";
 import ParamJournal from "./_atelier/ParamJournal";
 import ParamEquipe from "./_atelier/ParamEquipe";
@@ -18,6 +19,7 @@ const ONGLETS = [
   { code: "kyc", libelle: "🪪 Identité & KYC" },
   { code: "qr", libelle: "📲 QR code & partage" },
   { code: "messagerie", libelle: "✉️ Messagerie" },
+  { code: "whatsapp", libelle: "💬 WhatsApp" },
   { code: "modeles", libelle: "📝 Modèles de messages" },
   { code: "journal", libelle: "📜 Journal des envois" },
   { code: "equipe", libelle: "👥 Équipe" },
@@ -38,7 +40,7 @@ export default function Parametres() {
     <div>
       {/* L'en-tête n'est pas imprimé (seule l'affiche QR l'est, depuis son onglet) */}
       <div className="no-print">
-        <EnTetePage titre="Paramètres" sousTitre="Réglages de votre boutique, dossier KYC, messagerie et équipe" />
+        <EnTetePage titre="Paramètres" sousTitre="Réglages de votre boutique, dossier KYC, messagerie, WhatsApp et équipe" />
         {/* Page de paramétrage : libellé de version DÉTAILLÉ (version, lot, commit, date de déploiement) */}
         <VersionApp detaille className="-mt-4 mb-4 text-gray-500" />
       </div>
@@ -48,6 +50,8 @@ export default function Parametres() {
       {onglet === "kyc" && <ParamKyc allerA={allerA} />}
       {onglet === "qr" && <ParamQr />}
       {onglet === "messagerie" && <ParamMessagerie />}
+      {/* Compte WhatsApp Business propre à la boutique (jeton masqué, bouton « Tester ») */}
+      {onglet === "whatsapp" && <ParamWhatsApp />}
       {onglet === "modeles" && <ParamModeles />}
       {onglet === "journal" && <ParamJournal />}
       {onglet === "equipe" && <ParamEquipe />}

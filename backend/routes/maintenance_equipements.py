@@ -365,8 +365,11 @@ def _enregistrer_routes(router: APIRouter, dependance) -> None:
         from routes.paiements import paiement_disponible
 
         modeles = modeles_configures()
-        return {"whatsapp": envois.whatsapp_configure(), "modele_texte": bool(modeles["texte"]),
-                "modele_image": bool(modeles["image"]),
+        canal = canal_whatsapp()
+        # Modèles Meta : seulement avec le WABA de la plateforme (Liluvine gère elle-même la fenêtre de 24 h)
+        return {"whatsapp": canal is not None, "canal_whatsapp": canal,
+                "modele_texte": canal == "waba" and bool(modeles["texte"]),
+                "modele_image": canal == "waba" and bool(modeles["image"]),
                 "paiement": paiement_disponible() and (espace.plateforme or encaissement_possible(espace.boutique)),
                 "facturation": espace.plateforme or espace.ctx.peut("facturation"),
                 "suppression": espace.user.get("role") in ("dg", "super_admin")}
@@ -501,8 +504,19 @@ def _enregistrer_routes(router: APIRouter, dependance) -> None:
 
 
 # ---------------------------------------------------------------------------
-# WhatsApp (API Cloud de Meta, numéro de la plateforme)
+# WhatsApp : API Cloud de Meta (numéro de la plateforme) ou, à défaut,
+# Transmission WA Universelle Liluvine (SAWALI)
 # ---------------------------------------------------------------------------
+def canal_whatsapp() -> Optional[str]:
+    """Canal d'envoi de la fiche : « waba » (numéro WhatsApp de la plateforme),
+    sinon « liluvine » (transmission universelle), sinon None (rien de branché)."""
+    import transmission_wa
+
+    if envois.whatsapp_configure():
+        return "waba"
+    return "liluvine" if transmission_wa.liluvine_configure() else None
+
+
 async def _poster_whatsapp(corps: dict) -> tuple[bool, str]:
     s = get_settings()
     url = envois.WA_GRAPH_URL.format(phone_number_id=s.whatsapp_phone_number_id)
@@ -528,22 +542,30 @@ async def _envoyer_whatsapp(espace: Espace, f: dict, data: EnvoiWhatsAppIn) -> d
     adLyn ne reçoit pas les messages WhatsApp entrants : il ne peut donc pas savoir si le
     client a écrit dans les dernières 24 h. « auto » choisit le MODÈLE Meta s'il est
     configuré (seul moyen fiable hors fenêtre de 24 h), sinon le message libre (texte +
-    photos, qui ne passe que si le client a écrit au numéro adLyn dans les 24 h)."""
-    if not envois.whatsapp_configure():
+    photos, qui ne passe que si le client a écrit au numéro adLyn dans les 24 h).
+    Sans WABA de la plateforme, la fiche part par la Transmission WA Universelle Liluvine
+    (texte + une image par message) ; si le WABA échoue (hors numéro invalide), repli Liluvine."""
+    canal = canal_whatsapp()
+    if canal is None:
         raise HTTPException(503, "WhatsApp n'est pas encore branché sur la plateforme adLyn")
     numero = envois.msisdn(f.get("client_telephone") or "")
     if not numero:
         raise HTTPException(400, "Numéro WhatsApp du client manquant ou invalide sur la fiche")
     modeles = modeles_configures()
     mode = data.mode
-    if mode == "auto":
+    if canal == "liluvine":
+        # Sans WABA : la transmission universelle envoie le texte et les photos ; c'est SAWALI
+        # qui choisit message direct ou modèle selon la fenêtre de 24 h (pas de modèle Meta ici)
+        mode = "texte"
+    elif mode == "auto":
         mode = "modele" if modeles[data.modele] else "texte"
     # Lien de paiement joint seulement s'il reste à payer
     lien_paiement = f.get("lien_paiement") or {}
     lien = lien_paiement.get("url") if data.inclure_lien_paiement and not lien_paiement.get("paye") else None
     # Photos envoyables : adresse publique https (WhatsApp va les chercher lui-même)
     photos = [p for p in (f.get("photos") or []) if (p.get("url") or "").startswith("https://")] if data.photos else []
-    rapport: dict = {"mode": mode, "texte": False, "photos_envoyees": 0, "photos_non_envoyees": 0, "erreurs": []}
+    rapport: dict = {"mode": mode, "canal": canal, "texte": False, "photos_envoyees": 0, "photos_non_envoyees": 0,
+                     "erreurs": []}
 
     if mode == "modele":
         nom = modeles[data.modele]
@@ -562,12 +584,19 @@ async def _envoyer_whatsapp(espace: Espace, f: dict, data: EnvoiWhatsAppIn) -> d
         rapport.update({"non_envoye": True, "erreurs": ["Envoi désactivé pour cette boutique"]})
         return rapport
 
-    if mode == "texte":
+    if canal == "liluvine":
+        # Pas de WABA : tout part par la Transmission WA Universelle Liluvine
+        corps_texte = (data.message or "").strip() or texte_fiche(f, espace.emetteur, espace.devise, lien)
+        await _envoyer_par_liluvine(espace, f, numero, corps_texte, photos, rapport, "liluvine")
+    elif mode == "texte":
         corps_texte = (data.message or "").strip() or texte_fiche(f, espace.emetteur, espace.devise, lien)
         ok, erreur = await _poster_whatsapp({"messaging_product": "whatsapp", "to": numero, "type": "text",
                                              "text": {"body": corps_texte[:4000]}})
         if not ok:
-            raise HTTPException(502, f"Envoi refusé par WhatsApp : {erreur}")
+            # WABA en échec (fenêtre de 24 h…) : repli par Liluvine si possible (protocole v3, section 4)
+            if not await _repli_liluvine(espace, f, numero, corps_texte, photos, rapport, erreur):
+                raise HTTPException(502, f"Envoi refusé par WhatsApp : {erreur}")
+            return await _tracer_envoi(espace, f, rapport, numero, modeles, data)
         rapport["texte"] = True
         for i, p in enumerate(photos, 1):
             ok, erreur = await _poster_whatsapp({"messaging_product": "whatsapp", "to": numero, "type": "image",
@@ -589,17 +618,88 @@ async def _envoyer_whatsapp(espace: Espace, f: dict, data: EnvoiWhatsAppIn) -> d
             "template": {"name": modeles[data.modele], "language": {"code": get_settings().whatsapp_template_langue},
                          "components": composants}})
         if not ok:
-            raise HTTPException(502, f"Envoi refusé par WhatsApp : {erreur}")
+            # Modèle refusé (non approuvé, panne…) : repli par Liluvine avec le texte complet de la fiche
+            corps_texte = texte_fiche(f, espace.emetteur, espace.devise, lien)
+            if not await _repli_liluvine(espace, f, numero, corps_texte, photos, rapport, erreur):
+                raise HTTPException(502, f"Envoi refusé par WhatsApp : {erreur}")
+            return await _tracer_envoi(espace, f, rapport, numero, modeles, data)
         rapport["texte"] = True
         rapport["photos_envoyees"] = 1 if data.modele == "image" else 0
         # Hors fenêtre de 24 h, WhatsApp refuse les images libres : les autres photos partiront
         # par un envoi « message libre » quand le client aura répondu
         rapport["photos_non_envoyees"] = len(photos) - rapport["photos_envoyees"]
 
-    trace = {"le": now_iso(), "par": espace.auteur, "mode": mode, "telephone": numero,
+    return await _tracer_envoi(espace, f, rapport, numero, modeles, data)
+
+
+async def _tracer_envoi(espace: Espace, f: dict, rapport: dict, numero: str, modeles: dict,
+                        data: EnvoiWhatsAppIn) -> dict:
+    """Trace de l'envoi sur la fiche (30 dernières), puis rapport renvoyé à l'écran."""
+    mode = rapport["mode"]
+    trace = {"le": now_iso(), "par": espace.auteur, "mode": mode, "canal": rapport.get("canal"), "telephone": numero,
              "photos": rapport["photos_envoyees"], "modele": modeles[data.modele] if mode == "modele" else None}
     await espace.tdb.maintenance_fiches.update_one({"id": f["id"]}, {"$push": {"envois_whatsapp": {"$each": [trace], "$slice": -30}}})
     return rapport
+
+
+async def _repli_liluvine(espace: Espace, f: dict, numero: str, corps_texte: str, photos: list, rapport: dict,
+                          erreur: str) -> bool:
+    """Repli quand le WABA de la plateforme échoue (protocole v3, section 4) : seulement si
+    Liluvine est configurée et que l'erreur ne vient pas d'un numéro invalide.
+    Renvoie False si le repli n'est pas permis (l'appelant garde alors l'erreur WABA)."""
+    import transmission_wa
+
+    if not transmission_wa.liluvine_configure() or not transmission_wa.repli_autorise(erreur):
+        return False
+    rapport.update({"mode": "texte", "erreur_waba": (erreur or "")[:300]})
+    await _envoyer_par_liluvine(espace, f, numero, corps_texte, photos, rapport, "liluvine_repli")
+    return True
+
+
+async def _envoyer_par_liluvine(espace: Espace, f: dict, numero: str, corps_texte: str, photos: list,
+                                rapport: dict, canal: str) -> None:
+    """Fiche envoyée par la Transmission WA Universelle Liluvine :
+      - sans photo : un seul message texte ;
+      - avec photos : UN MESSAGE PAR IMAGE ; la 1re porte le texte de la fiche en légende
+        (si le texte dépasse la limite d'une légende WhatsApp, 1 024 caractères, il part
+        d'abord seul, puis chaque photo avec une légende courte).
+    Le 1er message en échec arrête l'envoi (409 si le client s'est désinscrit, sinon 502)."""
+    import transmission_wa
+
+    rapport["canal"] = canal
+    source = transmission_wa.source_par_defaut(espace.boutique)
+    boutique_id = (espace.boutique or {}).get("id")
+
+    async def _un_envoi(texte: str, photo: Optional[dict] = None, legende: Optional[str] = None) -> dict:
+        media = {"type": "image", "url": photo["url"], "legende": legende} if photo else None
+        return await transmission_wa.envoyer_liluvine(numero, texte, source=source, media=media, canal=canal,
+                                                      boutique_id=boutique_id)
+
+    def _echec(res: dict) -> None:
+        if res.get("desinscrit"):
+            raise HTTPException(409, "Le client s'est désinscrit des messages WhatsApp (il a répondu STOP)")
+        raise HTTPException(502, f"Envoi refusé par la transmission WhatsApp : {res.get('erreur')}")
+
+    texte_en_legende = bool(photos) and len(corps_texte) <= transmission_wa.LEGENDE_MAX
+    # 1) Texte seul (pas de photo, ou texte trop long pour une légende)
+    if not texte_en_legende:
+        res = await _un_envoi(corps_texte[:transmission_wa.LONGUEUR_MAX])
+        if not res["ok"]:
+            _echec(res)
+        rapport["texte"] = True
+    # 2) Une image par message (la 1re porte le texte de la fiche si elle tient en légende)
+    for i, p in enumerate(photos, 1):
+        courte = f"{f['numero']} — photo {i}/{len(photos)}"
+        legende = corps_texte if (texte_en_legende and i == 1) else courte
+        res = await _un_envoi(legende, p, legende)
+        if res["ok"]:
+            rapport["photos_envoyees"] += 1
+            if texte_en_legende and i == 1:
+                rapport["texte"] = True
+        elif texte_en_legende and i == 1:
+            _echec(res)  # le message qui porte le texte de la fiche n'est pas parti
+        else:
+            rapport["erreurs"].append(f"Photo {i} : {res.get('erreur')}")
 
 
 # ---------------------------------------------------------------------------

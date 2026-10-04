@@ -197,6 +197,11 @@ async def ensure_indexes() -> None:
     await db.usage_connexions.create_index("date_dt", expireAfterSeconds=180 * 24 * 3600)
     await db.usage_blocages.create_index([("actif", 1), ("type", 1)])
     await db.usage_blocages_journal.create_index([("date", -1)])
+    # Transmission WA (protocole Liluvine v3) : journal des envois par Liluvine et
+    # retours de SAWALI (clé d'idempotence unique : un même retour reçu deux fois = une ligne)
+    await db.transmissions_wa.create_index("id")
+    await db.liluvine_retours.create_index("cle", unique=True)
+    await db.liluvine_retours.create_index([("recu_le", -1)])
     # Reversements PawaPay aux boutiques
     await db.paiements.create_index([("boutique_id", 1), ("statut", 1), ("reversement_id", 1)])
     await db.reversements.create_index([("boutique_id", 1), ("created_at", -1)])
