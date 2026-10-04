@@ -212,6 +212,14 @@ class Settings(BaseSettings):
     whatsapp_cycle_vie_template: Optional[str] = None
     whatsapp_kyc_template: Optional[str] = None
 
+    # --- Transmission WA Universelle Liluvine (SAWALI) : repli quand adLyn n'a pas ---
+    # de paramètres WABA utilisables (ni pour la boutique, ni pour la plateforme).
+    # URL du webhook SAWALI, clé HMAC propre à adLyn (secrète, saisie dans Render) et
+    # code émetteur. Sans URL ou sans clé : transmission universelle désactivée.
+    liluvine_wa_url: Optional[str] = None
+    liluvine_wa_hmac: Optional[str] = None
+    liluvine_wa_emetteur: str = "adlyn"
+
     # --- Abonnements des boutiques ---
     abonnement_essai_jours: int = 14  # démo complète offerte à chaque nouvelle boutique
     abonnement_rappel_jours_avant: int = 3  # premier rappel N jours avant l'échéance, puis chaque jour
