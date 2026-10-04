@@ -1,16 +1,16 @@
-import { DATE_COMPILATION, TEXTE_VERSION } from "@/version";
+import { libelleVersion } from "@/version";
 
-// Petite mention « Version X · Lot N · commit » affichée sur la page de
-// connexion et dans les espaces connectés. Les valeurs viennent de la source
-// unique src/version.js. Au survol, une bulle donne la date de compilation.
+// Mention de version affichée en petits caractères. Les valeurs viennent de la
+// source unique src/version.js.
+//  - detaille = false (par défaut) : « Version X · déployée le JJ/MM/AAAA HH:MM »
+//    → page de connexion et espaces connectés (barre latérale, en-tête, pied).
+//  - detaille = true : « Version X · Lot N · commit · déployée le JJ/MM/AAAA HH:MM »
+//    → pages de paramétrage / administration (Paramètres).
 //  - className : classes Tailwind pour adapter la couleur au fond (clair/sombre).
-export default function VersionApp({ className = "" }) {
-  const infobulle = DATE_COMPILATION
-    ? `Compilé le ${new Date(DATE_COMPILATION).toLocaleString("fr-FR")}`
-    : "Version de la plateforme adLyn";
+export default function VersionApp({ className = "", detaille = false }) {
   return (
-    <p className={`font-mono text-[11px] tracking-wide ${className}`} title={infobulle}>
-      {TEXTE_VERSION}
+    <p className={`font-mono text-[11px] tracking-wide ${className}`} title="Version de la plateforme adLyn">
+      {libelleVersion(detaille)}
     </p>
   );
 }

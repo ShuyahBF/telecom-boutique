@@ -7,7 +7,7 @@ import { execSync } from 'node:child_process'
 //  1. sur Render, la variable RENDER_GIT_COMMIT contient le commit complet ;
 //  2. sinon (poste de développement), on le demande à git ;
 //  3. à défaut (pas de git), on affiche « local ».
-// Il est affiché à côté de la version et du lot (voir src/version.js).
+// Il est affiché dans le libellé détaillé des pages Paramètres (voir src/version.js).
 function commitCourt() {
   const render = process.env.RENDER_GIT_COMMIT
   if (render) return render.slice(0, 7)
@@ -22,7 +22,8 @@ function commitCourt() {
 export default defineConfig({
   plugins: [react()],
   // Constantes remplacées dans le code au moment de la compilation
-  // (lues par src/version.js) : commit court et date/heure UTC de compilation.
+  // (lues par src/version.js) : commit court et date/heure UTC de compilation
+  // (= date de déploiement affichée « déployée le JJ/MM/AAAA HH:MM »).
   define: {
     __ADLYN_COMMIT__: JSON.stringify(commitCourt()),
     __ADLYN_DATE_COMPILATION__: JSON.stringify(new Date().toISOString()),

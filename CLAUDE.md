@@ -20,9 +20,16 @@ méthode de travail par défaut, sans qu'il soit nécessaire de les redemander.
 ## Version et lot (règles 1 et 2)
 1. À chaque déploiement, le numéro de version ET le numéro de lot sont mis à
    jour (jamais une constante figée qui n'est plus incrémentée).
-2. Version et lot sont toujours affichés sur les pages de connexion et dans
-   le portail (barre latérale, en-tête ou pied de page de toutes les pages
-   connectées), au format « Version X · Lot N (commit) ».
+2. La version est toujours affichée sur les pages de connexion et dans le
+   portail (barre latérale, en-tête ou pied de page de toutes les pages
+   connectées), au format court « Version X · déployée le JJ/MM/AAAA HH:MM »
+   (ex. « Version 12 · déployée le 04/10/2026 21:10 »), sans lot ni commit.
+   Les pages d'administration / paramétrage affichent le libellé complet
+   « Version X · Lot N · <commit court> · déployée le JJ/MM/AAAA HH:MM ».
+   Date/heure au format français court
+   (`toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })`),
+   fournie de façon fiable (date de démarrage côté serveur ou date de
+   compilation injectée au build du frontend).
 - Une seule source par plateforme :
   - SAWALI : `backend/lot.py` (LOT, LOT_LIBELLE), exposé par `/api/version` ;
     version = compteur de déploiements `1.N`. Modifier `lot.py` à chaque
@@ -31,6 +38,9 @@ méthode de travail par défaut, sans qu'il soit nécessaire de les redemander.
   - Ster : `frontend/src/version.js` (VERSION +1 à chaque déploiement,
     LOT = numéro de la PR fusionnée).
   - adLyn, beAuthentik : même principe (lot = numéro de la PR fusionnée).
+    adLyn : `libelleVersion(detaille)` dans `frontend/src/version.js`, date
+    de déploiement = date de compilation (Vite `define`), libellé détaillé
+    sur les pages Paramètres (boutique et plateforme).
 - Nouveau projet : prévoir dès le départ cette source unique et l'affichage.
 
 ## Tableaux (règle 3)

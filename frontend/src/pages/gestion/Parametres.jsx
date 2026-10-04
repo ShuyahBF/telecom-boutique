@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import EnTetePage from "@/components/EnTetePage";
+import VersionApp from "@/components/VersionApp";
 import { Onglets } from "./_atelier/communs";
 import ParamBoutique from "./_atelier/ParamBoutique";
 import ParamKyc from "./_atelier/ParamKyc";
@@ -38,6 +39,8 @@ export default function Parametres() {
       {/* L'en-tête n'est pas imprimé (seule l'affiche QR l'est, depuis son onglet) */}
       <div className="no-print">
         <EnTetePage titre="Paramètres" sousTitre="Réglages de votre boutique, dossier KYC, messagerie et équipe" />
+        {/* Page de paramétrage : libellé de version DÉTAILLÉ (version, lot, commit, date de déploiement) */}
+        <VersionApp detaille className="-mt-4 mb-4 text-gray-500" />
       </div>
       <Onglets onglets={ONGLETS} actif={onglet} onChange={allerA} />
 
