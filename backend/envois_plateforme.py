@@ -481,13 +481,33 @@ async def envoyer_sms(telephone: str, texte: str) -> tuple[str, str]:
 # WhatsApp Cloud API (Meta), même compte que beauthentik.net
 # ---------------------------------------------------------------------------
 def whatsapp_configure() -> bool:
+    """Vrai si les paramètres WABA de la PLATEFORME adLyn sont saisis (variables d'environnement)."""
     s = get_settings()
     return bool(s.whatsapp_access_token and s.whatsapp_phone_number_id)
 
 
 async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str, *, modele: Optional[str] = None,
-                           composants: Optional[list] = None) -> tuple[str, str]:
-    """Message WhatsApp -> (statut, erreur).
+                           composants: Optional[list] = None, boutique=None,
+                           source: Optional[str] = None) -> tuple[str, str]:
+    """Message WhatsApp -> (statut, erreur), statut = "ENVOYE", "ECHEC" ou "NON_CONFIGURE".
+    Point d'entrée historique, conservé tel quel pour les appelants : il passe désormais
+    par la « Transmission WA » (transmission_wa.py), qui choisit le canal dans l'ordre
+    paramètres WABA de la boutique -> paramètres WABA de la plateforme -> à défaut,
+    Transmission WA Universelle Liluvine (SAWALI, message texte uniquement)."""
+    import transmission_wa  # import local : transmission_wa importe aussi ce module
+
+    resultat = await transmission_wa.envoyer_whatsapp(
+        telephone, texte, boutique=boutique, source=source, variables=variables, modele=modele,
+        composants=composants)
+    return resultat["statut"], resultat["erreur"] or ""
+
+
+async def envoyer_whatsapp_waba(telephone: str, variables: list[str], texte: str, *, modele: Optional[str] = None,
+                                composants: Optional[list] = None,
+                                identifiants: Optional[tuple[str, str]] = None) -> tuple[str, str, Optional[str]]:
+    """Envoi DIRECT par l'API WhatsApp Cloud de Meta -> (statut, erreur, message_id).
+    `identifiants` = (phone_number_id, access_token) d'un autre compte WABA (ex. celui
+    d'une boutique) ; par défaut, ceux de la plateforme (WHATSAPP_*).
     1) MODÈLE approuvé avec ses variables : seul moyen d'écrire à quelqu'un qui
        n'a pas écrit au numéro dans les dernières 24 h. Par défaut le modèle des
        rappels (WHATSAPP_RAPPEL_TEMPLATE) ; `modele` en désigne un autre ("" = aucun)
@@ -497,11 +517,15 @@ async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str, *, 
     s = get_settings()
     numero = msisdn(telephone)
     if not numero:
-        return "NON_CONFIGURE", "Numéro de téléphone absent ou invalide"
-    if not whatsapp_configure():
-        return "NON_CONFIGURE", "WhatsApp non configuré (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)"
-    url = WA_GRAPH_URL.format(phone_number_id=s.whatsapp_phone_number_id)
-    entetes = {"Authorization": f"Bearer {s.whatsapp_access_token}"}
+        return "NON_CONFIGURE", "Numéro de téléphone absent ou invalide", None
+    # Compte WABA utilisé : celui fourni (boutique), sinon celui de la plateforme
+    if identifiants is None:
+        if not whatsapp_configure():
+            return "NON_CONFIGURE", "WhatsApp non configuré (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)", None
+        identifiants = (s.whatsapp_phone_number_id, s.whatsapp_access_token)
+    phone_number_id, jeton = identifiants
+    url = WA_GRAPH_URL.format(phone_number_id=phone_number_id)
+    entetes = {"Authorization": f"Bearer {jeton}"}
     essais = []
     nom_modele = (s.whatsapp_rappel_template if modele is None else modele) or ""
     if nom_modele.strip():
@@ -512,16 +536,21 @@ async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str, *, 
     if texte:
         essais.append({"messaging_product": "whatsapp", "to": numero, "type": "text", "text": {"body": texte[:4000]}})
     if not essais:
-        return "NON_CONFIGURE", "Aucun modèle WhatsApp utilisable"
+        return "NON_CONFIGURE", "Aucun modèle WhatsApp utilisable", None
     erreurs = []
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             for corps in essais:
                 r = await client.post(url, json=corps, headers=entetes)
                 if r.status_code == 200:
-                    return "ENVOYE", ""
+                    # Identifiant du message chez Meta (pour le suivi), s'il est fourni
+                    try:
+                        message_id = (r.json().get("messages") or [{}])[0].get("id")
+                    except (ValueError, AttributeError, IndexError):
+                        message_id = None
+                    return "ENVOYE", "", message_id
                 erreurs.append(f"{corps['type']} : HTTP {r.status_code} {r.text[:150]}")
     except httpx.HTTPError as exc:
         erreurs.append(repr(exc))
     logger.warning("WhatsApp vers %s… en échec : %s", numero[:5], " | ".join(erreurs))
-    return "ECHEC", " | ".join(erreurs)[:300]
+    return "ECHEC", " | ".join(erreurs)[:300], None

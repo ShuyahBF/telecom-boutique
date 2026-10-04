@@ -225,6 +225,20 @@ services:
       - key: WHATSAPP_IDENTIFIANTS_TEMPLATE
         sync: false
 
+      # --- Transmission WA Universelle Liluvine (SAWALI) ---
+      # Repli quand adLyn n'a pas de paramètres WABA (ni pour la boutique concernée,
+      # ni pour la plateforme) : le message texte est transmis à SAWALI, qui l'envoie.
+      # Sans URL ou sans clé, la transmission universelle est simplement désactivée.
+      # URL du webhook SAWALI : https://<domaine SAWALI>/api/webhook/liluvine-send
+      - key: LILUVINE_WA_URL
+        sync: false
+      # Clé HMAC propre à adLyn, générée dans SAWALI (secrète : saisie dans Render)
+      - key: LILUVINE_WA_HMAC
+        sync: false
+      # Code émetteur d'adLyn chez SAWALI (pas secret)
+      - key: LILUVINE_WA_EMETTEUR
+        value: "adlyn"
+
       # --- Maintenance des équipements : prix du diagnostic proposé (FCFA) ---
       - key: MAINTENANCE_PRIX_DIAGNOSTIC
         value: "10000"

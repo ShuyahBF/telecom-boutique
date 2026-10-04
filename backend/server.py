@@ -30,6 +30,7 @@ from routes import sessions_actives  # sessions simultanées limitées par compt
 from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Job Render -> R2)
 from routes import cycle_vie  # cycle de vie du non-renouvellement (J+110 / J+113) et KYC des DG
 from routes import usage_connexions  # onglet « Usage » : connexions, présence, blocages (lot 25)
+from routes import transmission_wa  # Transmission WA : WABA boutique / plateforme, sinon Liluvine
 
 settings = get_settings()
 
@@ -86,6 +87,7 @@ api.include_router(reversements.admin)
 api.include_router(sms.boutique)
 api.include_router(carrousel.router)  # carrousel de produits par WhatsApp
 api.include_router(sms.admin)
+api.include_router(transmission_wa.router)  # test et état de la Transmission WA (super-admin)
 # Parrainage entre boutiques : page d'invitation publique, parrain (DG), suivi admin
 api.include_router(parrainage.public)
 api.include_router(parrainage.boutique)
