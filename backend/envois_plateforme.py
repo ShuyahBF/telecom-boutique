@@ -488,17 +488,19 @@ def whatsapp_configure() -> bool:
 
 async def envoyer_whatsapp(telephone: str, variables: list[str], texte: str, *, modele: Optional[str] = None,
                            composants: Optional[list] = None, boutique=None,
-                           source: Optional[str] = None) -> tuple[str, str]:
+                           source: Optional[str] = None, media: Optional[dict] = None) -> tuple[str, str]:
     """Message WhatsApp -> (statut, erreur), statut = "ENVOYE", "ECHEC" ou "NON_CONFIGURE".
     Point d'entrée historique, conservé tel quel pour les appelants : il passe désormais
     par la « Transmission WA » (transmission_wa.py), qui choisit le canal dans l'ordre
     paramètres WABA de la boutique -> paramètres WABA de la plateforme -> à défaut,
-    Transmission WA Universelle Liluvine (SAWALI, message texte uniquement)."""
+    Transmission WA Universelle Liluvine (SAWALI).
+    `media` (facultatif) : pièce jointe {"type": document|image|video|audio,
+    "url" OU "contenu" (octets), "nom_fichier", "mime", "legende"} — 10 Mo au plus."""
     import transmission_wa  # import local : transmission_wa importe aussi ce module
 
     resultat = await transmission_wa.envoyer_whatsapp(
         telephone, texte, boutique=boutique, source=source, variables=variables, modele=modele,
-        composants=composants)
+        composants=composants, media=media)
     return resultat["statut"], resultat["erreur"] or ""
 
 
@@ -554,3 +556,86 @@ async def envoyer_whatsapp_waba(telephone: str, variables: list[str], texte: str
         erreurs.append(repr(exc))
     logger.warning("WhatsApp vers %s… en échec : %s", numero[:5], " | ".join(erreurs))
     return "ECHEC", " | ".join(erreurs)[:300], None
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp Cloud API : envoi d'un MÉDIA (image, document, vidéo, son)
+# ---------------------------------------------------------------------------
+WA_GRAPH_MEDIA_URL = "https://graph.facebook.com/v21.0/{phone_number_id}/media"
+WA_GRAPH_NUMERO_URL = "https://graph.facebook.com/v21.0/{phone_number_id}"
+
+
+async def envoyer_media_waba(telephone: str, media: dict, legende: str = "", *,
+                             identifiants: Optional[tuple[str, str]] = None) -> tuple[str, str, Optional[str]]:
+    """Envoie UN média par l'API WhatsApp Cloud -> (statut, erreur, message_id).
+    `media` déjà contrôlé par transmission_wa.normaliser_media : {"type", "url" OU "contenu"
+    (octets), "nom_fichier", "mime"}. Un fichier en octets est d'abord déposé chez Meta
+    (route /media), puis envoyé par son identifiant ; une adresse https est envoyée telle quelle.
+    Comme tout message libre, il ne passe que dans la fenêtre de 24 h (sinon erreur 131047,
+    qui déclenche le repli Liluvine dans transmission_wa)."""
+    s = get_settings()
+    numero = msisdn(telephone)
+    if not numero:
+        return "NON_CONFIGURE", "Numéro de téléphone absent ou invalide", None
+    # Compte WABA utilisé : celui fourni (boutique), sinon celui de la plateforme
+    if identifiants is None:
+        if not whatsapp_configure():
+            return "NON_CONFIGURE", "WhatsApp non configuré (WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID)", None
+        identifiants = (s.whatsapp_phone_number_id, s.whatsapp_access_token)
+    phone_number_id, jeton = identifiants
+    entetes = {"Authorization": f"Bearer {jeton}"}
+    type_media = media["type"]
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            # 1) Fichier en octets : dépôt chez Meta pour obtenir un identifiant de média
+            if media.get("contenu") is not None:
+                r = await client.post(
+                    WA_GRAPH_MEDIA_URL.format(phone_number_id=phone_number_id), headers=entetes,
+                    data={"messaging_product": "whatsapp", "type": media.get("mime") or "application/octet-stream"},
+                    files={"file": (media.get("nom_fichier") or "fichier", media["contenu"],
+                                    media.get("mime") or "application/octet-stream")})
+                if r.status_code != 200:
+                    erreur = f"media : HTTP {r.status_code} {r.text[:150]}"
+                    logger.warning("WhatsApp (dépôt du média) vers %s… en échec : %s", numero[:5], erreur)
+                    return "ECHEC", erreur, None
+                objet: dict = {"id": r.json().get("id")}
+            else:
+                objet = {"link": media["url"]}
+            # 2) Légende (sauf pour un son) et nom du fichier (document)
+            if legende and type_media != "audio":
+                objet["caption"] = legende[:1024]
+            if type_media == "document" and media.get("nom_fichier"):
+                objet["filename"] = media["nom_fichier"]
+            r = await client.post(WA_GRAPH_URL.format(phone_number_id=phone_number_id), headers=entetes,
+                                  json={"messaging_product": "whatsapp", "to": numero, "type": type_media,
+                                        type_media: objet})
+    except httpx.HTTPError as exc:
+        return "ECHEC", repr(exc)[:300], None
+    if r.status_code == 200:
+        try:
+            message_id = (r.json().get("messages") or [{}])[0].get("id")
+        except (ValueError, AttributeError, IndexError):
+            message_id = None
+        return "ENVOYE", "", message_id
+    erreur = f"{type_media} : HTTP {r.status_code} {r.text[:150]}"
+    logger.warning("WhatsApp (média) vers %s… en échec : %s", numero[:5], erreur)
+    return "ECHEC", erreur[:300], None
+
+
+async def verifier_waba(identifiants: tuple[str, str]) -> dict:
+    """Vérifie un compte WABA SANS envoyer de message : lecture du numéro chez Meta
+    (numéro affiché, nom vérifié). -> {"ok", "numero_affiche", "nom_verifie", "erreur"}.
+    Le jeton n'apparaît jamais dans le résultat."""
+    phone_number_id, jeton = identifiants
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(WA_GRAPH_NUMERO_URL.format(phone_number_id=phone_number_id),
+                                 params={"fields": "display_phone_number,verified_name"},
+                                 headers={"Authorization": f"Bearer {jeton}"})
+    except httpx.HTTPError as exc:
+        return {"ok": False, "erreur": f"Connexion à Meta impossible ({type(exc).__name__})"}
+    if r.status_code != 200:
+        return {"ok": False, "erreur": f"Meta HTTP {r.status_code} : {r.text[:200]}".replace(jeton, "***")}
+    doc = r.json() if r.content else {}
+    return {"ok": True, "numero_affiche": doc.get("display_phone_number"), "nom_verifie": doc.get("verified_name"),
+            "erreur": None}

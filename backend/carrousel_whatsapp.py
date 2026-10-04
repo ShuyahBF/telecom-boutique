@@ -11,6 +11,9 @@ qui ouvre la fiche sur la vitrine adLyn, où se font la commande et le paiement)
 - Chaque envoi est une « campagne » enregistrée dans la base de la boutique,
   avec le résultat par destinataire (pour le suivi et la facturation future).
 - Boutiques de démonstration : rien ne part, les envois sont notés NON_ENVOYE.
+- Le carrousel reste RÉSERVÉ au WABA (numéro WhatsApp de la plateforme) : la
+  Transmission WA Universelle Liluvine ne sait pas envoyer de modèle carrousel
+  (cartes + boutons), il n'y a donc ni envoi ni repli par Liluvine pour ce service.
 """
 from __future__ import annotations
 

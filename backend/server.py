@@ -88,6 +88,8 @@ api.include_router(sms.boutique)
 api.include_router(carrousel.router)  # carrousel de produits par WhatsApp
 api.include_router(sms.admin)
 api.include_router(transmission_wa.router)  # test et état de la Transmission WA (super-admin)
+api.include_router(transmission_wa.public)  # retours signés de SAWALI : POST /api/webhooks/liluvine-retour
+api.include_router(transmission_wa.boutique)  # WABA propre à la boutique (Paramètres > WhatsApp)
 # Parrainage entre boutiques : page d'invitation publique, parrain (DG), suivi admin
 api.include_router(parrainage.public)
 api.include_router(parrainage.boutique)

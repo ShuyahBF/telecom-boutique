@@ -89,6 +89,11 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
         m["cles"] = {f: bool(cles.get(f)) for f in ("resend", "zeptomail", "brevo")}
         m["a_cle"] = m["cles"].get(m["fournisseur"], False)
         b["messagerie"] = m
+    if b.get("whatsapp_waba"):
+        # WABA propre à la boutique : jamais le jeton (même chiffré), seulement sa présence
+        w = b["whatsapp_waba"] or {}
+        b["whatsapp_waba"] = {"phone_number_id": w.get("phone_number_id") or "", "a_jeton": bool(w.get("access_token")),
+                              "actif": w.get("actif", True) is not False}
     return b
 
 

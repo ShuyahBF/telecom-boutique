@@ -7,6 +7,7 @@ import { EnTetePlateforme } from "./_plateforme/composants";
 import VersionApp from "@/components/VersionApp";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
+import TransmissionWa from "./_plateforme/TransmissionWa";
 import ReglageInactivite from "@/components/ReglageInactivite";
 import ReglageSessionsMax from "@/components/ReglageSessionsMax";
 import { AideService, AvertissementSmtp, HOTES_ZEPTOMAIL, SERVICES_EMAIL, nomService } from "@/components/ServicesEmail";
@@ -139,6 +140,9 @@ export default function Parametres() {
           <h2 className="text-lg font-bold">⏳ Déconnexion après inactivité</h2>
           <ReglageInactivite mode="plateforme" />
         </div>
+
+        {/* Transmission WA : canaux WhatsApp, adresse de retour SAWALI et derniers retours */}
+        <TransmissionWa />
 
         {/* Sessions simultanées : nombre maximal par compte */}
         <div className="card space-y-2">

@@ -314,3 +314,84 @@ def test_lien_de_paiement_plateforme(client, super_admin, nouvelle_boutique, mon
     assert client.get(f"{base}/{f['id']}", headers=super_admin).json()["lien_paiement"]["paye"] is True
     # Jamais reversé à la boutique cliente
     assert client.get("/api/reversements", headers=h).json()["situation"]["encaisse"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Envoi de la fiche par la Transmission WA Universelle Liluvine (sans WABA)
+# ---------------------------------------------------------------------------
+def _brancher_liluvine(monkeypatch, url="https://sawali.test/api/webhook/liluvine-send"):
+    s = get_settings()
+    monkeypatch.setattr(s, "whatsapp_access_token", None)
+    monkeypatch.setattr(s, "whatsapp_phone_number_id", None)
+    monkeypatch.setattr(s, "liluvine_wa_url", url)
+    monkeypatch.setattr(s, "liluvine_wa_hmac", "cle-de-test")
+
+
+def _capturer_tout(monkeypatch, code_meta=200):
+    """Intercepte Meta ET SAWALI : Meta répond `code_meta` (400 = fenêtre de 24 h dépassée)."""
+    import json as _json
+
+    envois = []
+
+    class _R:
+        def __init__(self, code, doc):
+            self.status_code, self._doc, self.text = code, doc, _json.dumps(doc)
+
+        def json(self):
+            return self._doc
+
+    async def faux_post(self, url, json=None, headers=None, content=None, **kw):
+        corps = json if json is not None else _json.loads(content)
+        envois.append({"url": str(url), "json": corps})
+        if "graph.facebook.com" in str(url) and code_meta != 200:
+            return _R(code_meta, {"error": {"message": "Re-engagement message", "code": 131047}})
+        return _R(200, {"ok": True, "message_id": "wamid.L", "media_mode": "direct"})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", faux_post)
+    return envois
+
+
+def test_envoi_whatsapp_par_liluvine_sans_waba(client, atelier, monkeypatch):
+    h = atelier["h"]
+    base = "/api/maintenance-equipements"
+    f = client.post(base, headers=h, json={**FICHE, "client_id": atelier["client"]["id"]}).json()
+    _brancher_liluvine(monkeypatch)
+    envois = _capturer_tout(monkeypatch)
+    # Services : WhatsApp disponible par Liluvine, sans modèle Meta
+    services = client.get(f"{base}/services", headers=h).json()
+    assert services["whatsapp"] is True and services["canal_whatsapp"] == "liluvine" and not services["modele_texte"]
+    # Sans photo : un seul message texte (même si un modèle était demandé)
+    r = client.post(f"{base}/{f['id']}/whatsapp", headers=h, json={"mode": "modele"}).json()
+    assert r["canal"] == "liluvine" and r["mode"] == "texte" and r["texte"] is True and len(envois) == 1
+    assert "sawali.test" in envois[0]["url"] and f["numero"] in envois[0]["json"]["message"]
+    assert "media" not in envois[0]["json"]
+    # Deux photos : un message par image, la 1re porte le texte de la fiche en légende
+    for i in range(2):
+        client.post(f"{base}/{f['id']}/photos", headers=h, files={"fichier": (f"p{i}.png", PNG, "image/png")})
+        client.portal.call(lambda i=i: db.maintenance_fiches.update_one(
+            {"id": f["id"]}, {"$set": {f"photos.{i}.url": f"https://pub-test.r2.dev/p{i}.png"}}))
+    envois.clear()
+    r = client.post(f"{base}/{f['id']}/whatsapp", headers=h, json={}).json()
+    assert r["photos_envoyees"] == 2 and r["texte"] is True and len(envois) == 2
+    premier, second = envois[0]["json"], envois[1]["json"]
+    assert premier["media"]["url"] == "https://pub-test.r2.dev/p0.png" and premier["media"]["type"] == "image"
+    assert premier["media"]["legende"] == premier["message"] and f["numero"] in premier["message"]
+    assert second["media"]["url"] == "https://pub-test.r2.dev/p1.png" and "photo 2/2" in second["message"]
+
+
+def test_envoi_whatsapp_repli_liluvine_si_waba_echoue(client, atelier, monkeypatch):
+    h = atelier["h"]
+    base = "/api/maintenance-equipements"
+    f = client.post(base, headers=h, json={**FICHE, "client_id": atelier["client"]["id"]}).json()
+    _brancher_whatsapp(monkeypatch)
+    s = get_settings()
+    monkeypatch.setattr(s, "liluvine_wa_url", "https://sawali.test/api/webhook/liluvine-send")
+    monkeypatch.setattr(s, "liluvine_wa_hmac", "cle-de-test")
+    envois = _capturer_tout(monkeypatch, code_meta=400)
+    r = client.post(f"{base}/{f['id']}/whatsapp", headers=h, json={"mode": "texte"})
+    assert r.status_code == 200, r.text
+    assert r.json()["canal"] == "liluvine_repli" and "131047" in r.json()["erreur_waba"]
+    assert "graph.facebook.com" in envois[0]["url"] and "sawali.test" in envois[1]["url"]
+    # Sans Liluvine : l'erreur WhatsApp est rendue telle quelle (502)
+    monkeypatch.setattr(s, "liluvine_wa_hmac", None)
+    assert client.post(f"{base}/{f['id']}/whatsapp", headers=h, json={"mode": "texte"}).status_code == 502
