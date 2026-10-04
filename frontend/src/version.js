@@ -11,7 +11,7 @@
 // À CHAQUE DÉPLOIEMENT (chaque Pull Request fusionnée dans « main ») :
 //   1. VERSION : ajouter 1 au nombre ci-dessous (1 → 2 → 3…).
 //   2. LOT     : mettre le numéro de la Pull Request GitHub qui sera fusionnée
-//                pour ce déploiement (ex. PR #22 → LOT = 22).
+//                pour ce déploiement (ex. PR #26 → LOT = 26).
 //
 // Pourquoi ce fichier est dans le dossier « frontend » : sur Render, le site
 // (service adlyn-frontend, rootDir: frontend) ne se reconstruit QUE si un
@@ -28,7 +28,7 @@
 export const VERSION = 4;
 
 // Numéro de la Pull Request GitHub fusionnée pour ce déploiement
-export const LOT = 25;
+export const LOT = 26;
 
 // Valeurs injectées par Vite au moment de « npm run build » (vite.config.js).
 // Le « typeof » évite une erreur si le fichier est lu hors de Vite (tests, etc.).
