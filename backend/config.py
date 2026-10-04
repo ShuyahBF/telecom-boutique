@@ -240,6 +240,28 @@ class Settings(BaseSettings):
     webhook_quota_jour: int = 20  # boutiques créées au maximum par jour via le webhook
     webhook_max_echecs_ip: int = 10  # appels refusés tolérés par adresse IP et par heure
 
+    # --- QR codes des factures / proformas et « espace client » public ---
+    # Clé de chiffrement des jetons des QR codes (générée par Render, generateValue).
+    # Absente : clé dérivée de JWT_SECRET (voir jetons_qr.py). La changer rend
+    # illisibles les QR codes déjà imprimés.
+    qr_jetons_cle: Optional[str] = None
+    # Session de l'espace client : durée d'inactivité (minutes, glissante)
+    espace_client_session_minutes: int = 30
+    # Code à usage unique envoyé par WhatsApp (ou SMS) : validité, essais, limites
+    espace_client_code_minutes: int = 10
+    espace_client_code_essais: int = 5
+    espace_client_codes_par_numero: int = 3  # codes envoyés au même numéro par quart d'heure
+    espace_client_demandes_par_ip: int = 10  # demandes de code par adresse IP et par heure
+    espace_client_delai_renvoi_secondes: int = 60  # délai minimal entre deux codes au même numéro
+
+    # --- PI-SPI (paiement instantané BCEAO) : connecteur bancaire, FACULTATIF ---
+    # Aujourd'hui seul le connecteur « manuel » est actif (voir pispi_connecteur.py) ;
+    # ces variables sont prévues pour une future API Business (jamais d'URL inventée).
+    pispi_fournisseur: str = "manuel"  # manuel | ecobank | uba | bsic | ibbank
+    pispi_api_url: Optional[str] = None
+    pispi_client_id: Optional[str] = None
+    pispi_client_secret: Optional[str] = None
+
     # Développement : crée la boutique de démonstration au démarrage
     # (pratique avec MONGO_URL=mongomock://, dont les données sont perdues à l'arrêt)
     demo_au_demarrage: bool = False

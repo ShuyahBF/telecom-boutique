@@ -3,7 +3,9 @@
 Cycle de vie :
 - PROFORMA : numérotée dès sa création (PRO-2026-00001), sans effet sur le
   stock, modifiable tant qu'elle est en brouillon. « Convertir en facture »
-  crée une facture brouillon avec les mêmes lignes.
+  crée une facture brouillon avec les mêmes lignes (possible pour une proforma
+  en cours OU acceptée, une seule fois) ; « Convertir et valider » enchaîne la
+  validation de la facture en une seule étape.
 - FACTURE : reste en BROUILLON (modifiable, sans numéro) jusqu'à sa
   VALIDATION, qui contrôle le stock, attribue le numéro définitif
   (FAC-2026-00001, sans trou) et déstocke. Une facture validée ne se modifie
@@ -28,7 +30,10 @@ router = APIRouter(prefix="/documents", tags=["Factures & proformas"])
 facturation = permission("facturation")
 
 MODES_REGLEMENT = {"ESP": "Espèces", "OM": "Orange Money", "MOOV": "Moov Money", "MM": "Mobile Money (PawaPay)",
-                   "CB": "Carte bancaire", "VIR": "Virement", "CHQ": "Chèque"}
+                   "CB": "Carte bancaire", "VIR": "Virement", "CHQ": "Chèque",
+                   # Paiement instantané BCEAO (QR de la banque imprimé sur la facture) : saisi à la
+                   # main avec la référence bancaire, voir pispi_connecteur.py
+                   "PISPI": "PI-SPI (paiement instantané)"}
 
 
 class LigneSaisie(BaseModel):
@@ -143,12 +148,37 @@ async def lister(type_document: str = "", statut: str = "", q: str = "", ctx: Co
                          {"client.telephone": {"$regex": motif, "$options": "i"}},
                          {"objet": {"$regex": motif, "$options": "i"}}]
     docs = await ctx.tdb.documents.find(filtre, {"_id": 0, "lignes": 0}).sort([("date", -1), ("created_at", -1)]).to_list(500)
-    return [{**d, **statut_paiement(d)} for d in docs]
+    # « convertie » : proforma qui a déjà donné une facture (badge « Convertie » dans la liste)
+    # « convertible » : proforma en cours ou acceptée, sans facture (bouton « Convertir en facture »)
+    return [{**d, **statut_paiement(d), "convertie": bool(d.get("facture_generee_id")),
+             "convertible": proforma_convertible(d)} for d in docs]
 
 
 @router.get("/{document_id}")
 async def lire(document_id: str, ctx: Contexte = Depends(facturation)):
-    return enrichir(await _lire(ctx, document_id), ctx.boutique)
+    doc = await _lire(ctx, document_id)
+    resultat = enrichir(doc, ctx.boutique)
+    resultat["convertible"] = proforma_convertible(doc)
+    # Proforma convertie : numéro et statut de la facture générée (lien affiché sur la proforma)
+    if doc.get("facture_generee_id"):
+        fac = await ctx.tdb.documents.find_one({"id": doc["facture_generee_id"]},
+                                               {"_id": 0, "id": 1, "numero": 1, "statut": 1})
+        resultat["facture_generee"] = fac
+    return resultat
+
+
+@router.get("/{document_id}/qr")
+async def qr_document(document_id: str, ctx: Contexte = Depends(facturation)):
+    """Adresse du QR code imprimé sur la facture / proforma : page publique de la
+    boutique + jeton CHIFFRÉ et signé (boutique, client, empreinte du téléphone,
+    n° et date du document). Le numéro de téléphone n'y figure jamais en clair."""
+    import jetons_qr
+
+    doc = await _lire(ctx, document_id)
+    jeton = jetons_qr.creer_jeton_document(ctx.boutique, doc)
+    # Bloc « Payer par PI-SPI » (QR fourni par la banque de la boutique), s'il est actif
+    import pispi_connecteur
+    return {"url": jetons_qr.url_qr(jeton), "pispi": pispi_connecteur.bloc_impression(ctx.boutique)}
 
 
 @router.post("", status_code=201)
@@ -240,32 +270,75 @@ async def annuler(document_id: str, ctx: Contexte = Depends(facturation)):
     return enrichir(await _lire(ctx, document_id), ctx.boutique)
 
 
+def proforma_convertible(doc: dict) -> bool:
+    """Vrai pour une proforma en cours (BROUILLON) ou acceptée (VALIDE) qui n'a pas
+    encore donné de facture."""
+    return (doc.get("type_document") == "PRO" and doc.get("statut") in ("BROUILLON", "VALIDE")
+            and not doc.get("facture_generee_id"))
+
+
+# Marqueur posé pendant la création de la facture : il « réserve » la proforma, pour
+# qu'un double-clic (ou deux postes en même temps) ne crée jamais deux factures
+CONVERSION_EN_COURS = "EN_COURS"
+
+
 @router.post("/{document_id}/convertir")
-async def convertir(document_id: str, ctx: Contexte = Depends(facturation)):
-    """Proforma acceptée -> facture brouillon reprenant toutes ses lignes."""
+async def convertir(document_id: str, valider_facture: bool = False, ctx: Contexte = Depends(facturation)):
+    """Proforma (en cours ou acceptée) -> facture brouillon reprenant toutes ses lignes.
+    Une proforma ne se convertit qu'UNE fois (sinon 409). Avec ?valider_facture=true
+    (« Convertir et valider »), la facture est aussitôt validée (numéro définitif,
+    sortie de stock) ; si la validation est refusée (stock insuffisant...), la facture
+    reste en brouillon et le motif est renvoyé dans « validation_erreur »."""
+    # 1) Réservation atomique : proforma convertible -> statut VALIDE (acceptée) + marqueur
+    filtre = {"id": document_id, "type_document": "PRO", "statut": {"$in": ["BROUILLON", "VALIDE"]},
+              "facture_generee_id": None}  # None = champ absent ou vide
     pro = await ctx.tdb.documents.find_one_and_update(
-        {"id": document_id, "type_document": "PRO", "statut": "BROUILLON"}, {"$set": {"statut": "VALIDE"}})
+        filtre, {"$set": {"statut": "VALIDE", "facture_generee_id": CONVERSION_EN_COURS}}, apres=False)
     if not pro:
-        raise HTTPException(409, "Seule une proforma en cours peut être convertie")
-    client = await ctx.tdb.clients.find_one({"id": pro["client_id"]}) or {"id": pro["client_id"], **pro["client"]}
-    lignes = [{k: l.get(k) for k in ("produit_id", "designation", "quantite", "prix_unitaire", "remise_pct", "taux_tva")}
-              for l in pro["lignes"]]
-    facture = await creer_document(ctx, "FAC", client, lignes, pro.get("objet", ""), pro.get("notes", ""),
-                                   origine={"proforma_origine": {"id": pro["id"], "numero": pro["numero"]}},
-                                   prix_ttc=pro.get("prix_ttc", True))
-    await ctx.tdb.documents.update_one({"id": pro["id"]}, {"$set": {"facture_generee_id": facture["id"]}})
+        existant = await ctx.tdb.documents.find_one({"id": document_id})
+        if not existant:
+            raise HTTPException(404, "Document introuvable")
+        if existant.get("type_document") != "PRO":
+            raise HTTPException(409, "Seule une proforma peut être convertie en facture")
+        if existant.get("facture_generee_id"):
+            raise HTTPException(409, "Cette proforma a déjà été convertie en facture")
+        raise HTTPException(409, "Seule une proforma en cours ou acceptée peut être convertie")
+    # 2) Création de la facture brouillon (en cas d'erreur, la proforma est remise comme avant)
+    try:
+        client = await ctx.tdb.clients.find_one({"id": pro["client_id"]}) or {"id": pro["client_id"], **pro["client"]}
+        lignes = [{k: l.get(k) for k in ("produit_id", "designation", "quantite", "prix_unitaire", "remise_pct", "taux_tva")}
+                  for l in pro["lignes"]]
+        facture = await creer_document(ctx, "FAC", client, lignes, pro.get("objet", ""), pro.get("notes", ""),
+                                       origine={"proforma_origine": {"id": pro["id"], "numero": pro["numero"]}},
+                                       prix_ttc=pro.get("prix_ttc", True))
+    except Exception:
+        await ctx.tdb.documents.update_one({"id": pro["id"]}, {"$set": {"statut": pro["statut"]},
+                                                               "$unset": {"facture_generee_id": ""}})
+        raise
+    await ctx.tdb.documents.update_one({"id": pro["id"]}, {"$set": {"facture_generee_id": facture["id"],
+                                                                    "date_conversion": now_iso()}})
+    # 3) « Convertir et valider » : validation immédiate de la facture créée
+    if valider_facture:
+        try:
+            return await valider(facture["id"], ctx)
+        except HTTPException as exc:
+            # La facture existe (brouillon) : on la renvoie avec le motif du refus
+            return {**enrichir(await _lire(ctx, facture["id"]), ctx.boutique), "validation_erreur": str(exc.detail)}
     return enrichir(facture, ctx.boutique)
 
 
 class ReglementSaisie(BaseModel):
     montant: int = Field(..., gt=0)
-    mode: Literal["ESP", "OM", "MOOV", "MM", "CB", "VIR", "CHQ"] = "ESP"
+    mode: Literal["ESP", "OM", "MOOV", "MM", "CB", "VIR", "CHQ", "PISPI"] = "ESP"
     date: str = Field(default_factory=today_iso, pattern=r"^\d{4}-\d{2}-\d{2}$")
     reference: str = Field("", max_length=60)
 
 
 @router.post("/{document_id}/reglements")
 async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Contexte = Depends(facturation)):
+    # PI-SPI : la référence bancaire du virement est obligatoire (rapprochement avec le relevé)
+    if payload.mode == "PISPI" and not payload.reference.strip():
+        raise HTTPException(400, "Indiquez la référence bancaire du paiement PI-SPI")
     reglement = {"id": new_id(), **payload.model_dump(), "saisi_par": ctx.user.get("nom", ""), "created_at": now_iso()}
     doc = await ctx.tdb.documents.find_one_and_update(
         {"id": document_id, "type_document": "FAC", "statut": {"$ne": "ANNULE"}}, {"$push": {"reglements": reglement}})
@@ -275,6 +348,10 @@ async def ajouter_reglement(document_id: str, payload: ReglementSaisie, ctx: Con
                       montant=payload.montant, statut="SUCCES", objet=f"Facture {doc.get('numero') or '(brouillon)'}",
                       reference=payload.reference, client_nom=doc["client"]["nom"], saisi_par=ctx.user.get("nom", ""),
                       devise=ctx.boutique.get("devise", "FCFA"), liens={"document_id": doc["id"]})
+    if payload.mode == "PISPI":
+        # Trace de l'encaissement PI-SPI (collection pispi_transactions, statut « rapproche »)
+        from routes.pispi import enregistrer_transaction
+        await enregistrer_transaction(ctx, doc, reglement)
     return enrichir(doc, ctx.boutique)
 
 
@@ -290,4 +367,7 @@ async def supprimer_reglement(document_id: str, reglement_id: str, ctx: Contexte
         await journaliser(ctx.boutique["id"], f"reglement-{reglement_id}", canal="CAISSE", mode=retire["mode"],
                           montant=retire["montant"], statut="ANNULE", motif=f"Supprimé par {ctx.user.get('nom', '')}",
                           objet=f"Facture {avant.get('numero') or '(brouillon)'}", client_nom=avant["client"]["nom"])
+        if retire["mode"] == "PISPI":
+            from routes.pispi import rejeter_transaction
+            await rejeter_transaction(ctx, reglement_id, ctx.user.get("nom", ""))
     return enrichir(await _lire(ctx, document_id), ctx.boutique)

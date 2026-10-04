@@ -12,12 +12,14 @@ import ParamJournal from "./_atelier/ParamJournal";
 import ParamEquipe from "./_atelier/ParamEquipe";
 import ParamSecurite from "./_atelier/ParamSecurite";
 import ParamReseaux from "./_atelier/ParamReseaux";
+import ParamPispi from "./_atelier/ParamPispi";
 
 // Liste des onglets de la page (le code apparaît dans l'adresse : ?onglet=equipe)
 const ONGLETS = [
   { code: "boutique", libelle: "🏪 Ma boutique" },
   { code: "kyc", libelle: "🪪 Identité & KYC" },
   { code: "qr", libelle: "📲 QR code & partage" },
+  { code: "pispi", libelle: "🏦 Encaissement PI-SPI" },
   { code: "messagerie", libelle: "✉️ Messagerie" },
   { code: "whatsapp", libelle: "💬 WhatsApp" },
   { code: "modeles", libelle: "📝 Modèles de messages" },
@@ -49,6 +51,7 @@ export default function Parametres() {
       {onglet === "boutique" && <ParamBoutique />}
       {onglet === "kyc" && <ParamKyc allerA={allerA} />}
       {onglet === "qr" && <ParamQr />}
+      {onglet === "pispi" && <ParamPispi />}
       {onglet === "messagerie" && <ParamMessagerie />}
       {/* Compte WhatsApp Business propre à la boutique (jeton masqué, bouton « Tester ») */}
       {onglet === "whatsapp" && <ParamWhatsApp />}

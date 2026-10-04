@@ -8,11 +8,19 @@ import Badge from "@/components/Badge";
 import Chargement from "@/components/Chargement";
 import EnTetePage from "@/components/EnTetePage";
 import { BadgePaiement, libelleType, ListeVide, numeroDocument } from "./_ventes/outils";
+import ConversionProforma from "./_ventes/ConversionProforma";
 
 // Onglets de la liste : [valeur du filtre type_document, libellé]
 const ONGLETS = [["", "Toutes"], ["FAC", "Factures"], ["PRO", "Proformas"]];
 
+// Pastille « Convertie » : proforma qui a déjà donné une facture
+function BadgeConvertie() {
+  return <span className="badge bg-indigo-100 text-indigo-800" title="Cette proforma a été convertie en facture">Convertie</span>;
+}
+
 // Liste des factures et proformas, avec onglets, filtre de statut et recherche.
+// Une proforma en cours ou acceptée, pas encore convertie, a son bouton
+// « Convertir en facture » directement dans la liste.
 // Les filtres sont gardés dans l'adresse (?type=FAC&statut=VALIDE&q=...) :
 // on y revient avec « Précédent », et le tableau de bord peut y envoyer directement.
 export default function Documents() {
@@ -26,6 +34,7 @@ export default function Documents() {
   const [recherche, setRecherche] = useState(q); // texte tapé (appliqué avec un petit délai)
   const [documents, setDocuments] = useState(null);
   const [erreur, setErreur] = useState("");
+  const [aConvertir, setAConvertir] = useState(null); // proforma dont on ouvre la fenêtre de conversion
   const devise = boutique?.devise || "FCFA";
 
   // Modifie un filtre dans l'adresse (valeur vide = filtre retiré)
@@ -96,7 +105,7 @@ export default function Documents() {
           <div className="card hidden overflow-x-auto p-0 md:block">
             <table className="table">
               <thead>
-                <tr><th>N°</th><th>Type</th><th>Date</th><th>Client</th><th className="text-right">Total TTC</th><th>Statut</th><th>Paiement</th></tr>
+                <tr><th>N°</th><th>Type</th><th>Date</th><th>Client</th><th className="text-right">Total TTC</th><th>Statut</th><th>Paiement</th><th className="no-print">Actions</th></tr>
               </thead>
               <tbody>
                 {documents.map((d) => (
@@ -108,8 +117,26 @@ export default function Documents() {
                     <td className="whitespace-nowrap">{date(d.date)}</td>
                     <td><div className="font-medium">{d.client?.nom}</div><div className="text-xs text-gray-500">{d.objet || d.client?.telephone}</div></td>
                     <td className="whitespace-nowrap text-right font-semibold">{prix(d.total_ttc, devise)}</td>
-                    <td><Badge table={STATUTS_DOCUMENT} statut={d.statut} /></td>
+                    <td>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge table={STATUTS_DOCUMENT} statut={d.statut} />
+                        {d.convertie && <BadgeConvertie />}
+                      </div>
+                    </td>
                     <td>{d.type_document === "FAC" && d.statut !== "ANNULE" ? <BadgePaiement libelle={d.statut_paiement} /> : <span className="text-gray-400">—</span>}</td>
+                    {/* Action rapide : conversion d'une proforma (le clic ne doit pas ouvrir la ligne) */}
+                    <td className="no-print whitespace-nowrap">
+                      {d.convertible && (
+                        <button type="button" className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); setAConvertir(d); }}>
+                          → Convertir en facture
+                        </button>
+                      )}
+                      {d.convertie && d.facture_generee_id && d.facture_generee_id !== "EN_COURS" && (
+                        <Link to={`/gestion/documents/${d.facture_generee_id}`} className="text-sm font-semibold text-primary underline" onClick={(e) => e.stopPropagation()}>
+                          Voir la facture
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -119,7 +146,8 @@ export default function Documents() {
           {/* Téléphone : cartes empilées */}
           <div className="space-y-2 md:hidden">
             {documents.map((d) => (
-              <Link key={d.id} to={`/gestion/documents/${d.id}`} className="card block p-4">
+              <div key={d.id} className="card p-4">
+              <Link to={`/gestion/documents/${d.id}`} className="block">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className={`font-bold ${d.numero ? "" : "italic text-gray-500"}`}>{numeroDocument(d)}</p>
@@ -132,12 +160,20 @@ export default function Documents() {
                   <span className="whitespace-nowrap font-bold">{prix(d.total_ttc, devise)}</span>
                 </div>
                 {d.type_document === "FAC" && d.statut !== "ANNULE" && <div className="mt-2"><BadgePaiement libelle={d.statut_paiement} /></div>}
+                {d.convertie && <div className="mt-2"><BadgeConvertie /></div>}
               </Link>
+              {d.convertible && (
+                <button type="button" className="btn-primary btn-sm mt-3 w-full" onClick={() => setAConvertir(d)}>→ Convertir en facture</button>
+              )}
+              </div>
             ))}
           </div>
           <p className="mt-3 text-xs text-gray-500">{documents.length} document(s)</p>
         </>
       )}
+
+      {/* Fenêtre de conversion d'une proforma (ouverte depuis la liste) */}
+      {aConvertir && <ConversionProforma proforma={aConvertir} devise={devise} onFermer={() => setAConvertir(null)} />}
     </div>
   );
 }

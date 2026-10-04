@@ -117,7 +117,7 @@ REGLES: list[tuple[tuple[str, ...], re.Pattern, tuple[str, ...]]] = [(m, re.comp
     (TOUTES, r"^/maintenance-equipements(/|$)", ("maintenance_equipements",)),
     (TOUTES, r"^/maintenance(/|$)", ("maintenance",)),
     # Factures & proformas : une facture créée depuis une commande ou un dépôt SAV reste consultable
-    (LECTURE, r"^/documents/\{[a-z_]+\}$", ("documents", "commandes", "maintenance", "maintenance_equipements")),
+    (LECTURE, r"^/documents/\{[a-z_]+\}(/qr)?$", ("documents", "commandes", "maintenance", "maintenance_equipements")),
     (TOUTES, r"^/documents(/|$)", ("documents",)),
     (TOUTES, r"^/journal-paiements(/|$)", ("paiements",)),
     (TOUTES, r"^/reversements(/|$)", ("reversements",)),
@@ -145,7 +145,7 @@ REGLES: list[tuple[tuple[str, ...], re.Pattern, tuple[str, ...]]] = [(m, re.comp
     (TOUTES, r"^/boutique/parrainage(/|$)", ("parrainage",)),
     # Paramètres : l'équipe (liste des techniciens) sert aussi aux dossiers SAV
     (LECTURE, r"^/boutique/equipe$", ("parametres", "maintenance")),
-    (TOUTES, r"^/boutique/(equipe|kyc|messagerie|acces|logo)(/|$)", ("parametres",)),
+    (TOUTES, r"^/boutique/(equipe|kyc|messagerie|acces|logo|pispi)(/|$)", ("parametres",)),
     (("PATCH",), r"^/boutique$", ("parametres",)),
     # TikTok : connexion du compte dans les Paramètres, publication depuis le Catalogue
     (LECTURE, r"^/tiktok/(etat|createur|publications)(/|$)", ("parametres", "produits")),
