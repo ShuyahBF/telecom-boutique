@@ -15,7 +15,7 @@ from db import TenantDB
 from utils import new_id, now_iso
 
 MODES = {"ESP": "Espèces", "OM": "Orange Money", "MOOV": "Moov Money", "MM": "Mobile Money (PawaPay)",
-         "CB": "Carte bancaire", "VIR": "Virement", "CHQ": "Chèque"}
+         "CB": "Carte bancaire", "VIR": "Virement", "CHQ": "Chèque", "PISPI": "PI-SPI"}
 STATUTS = {"SUCCES": "Réussi", "ECHEC": "Échoué", "EN_ATTENTE": "En attente", "ANNULE": "Annulé"}
 
 

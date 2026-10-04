@@ -31,6 +31,8 @@ from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Jo
 from routes import cycle_vie  # cycle de vie du non-renouvellement (J+110 / J+113) et KYC des DG
 from routes import usage_connexions  # onglet « Usage » : connexions, présence, blocages (lot 25)
 from routes import transmission_wa  # Transmission WA : WABA boutique / plateforme, sinon Liluvine
+from routes import pispi  # paiement PI-SPI (BCEAO) : QR de la banque sur les factures
+from routes import espace_client  # « Mon espace » : espace client public (QR code + code WhatsApp)
 
 settings = get_settings()
 
@@ -90,6 +92,12 @@ api.include_router(sms.admin)
 api.include_router(transmission_wa.router)  # test et état de la Transmission WA (super-admin)
 api.include_router(transmission_wa.public)  # retours signés de SAWALI : POST /api/webhooks/liluvine-retour
 api.include_router(transmission_wa.boutique)  # WABA propre à la boutique (Paramètres > WhatsApp)
+# « Mon espace » : page de la boutique ouverte par le QR code des factures / proformas,
+# connexion du client par son numéro + code à usage unique, lecture de ses documents
+api.include_router(espace_client.router)
+# Encaissement PI-SPI : paramètres de la boutique, notification bancaire (désactivée)
+api.include_router(pispi.boutique)
+api.include_router(pispi.public)
 # Parrainage entre boutiques : page d'invitation publique, parrain (DG), suivi admin
 api.include_router(parrainage.public)
 api.include_router(parrainage.boutique)

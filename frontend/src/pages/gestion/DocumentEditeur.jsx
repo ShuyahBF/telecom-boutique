@@ -10,6 +10,7 @@ import ClientSelect from "@/components/ClientSelect";
 import { useToast } from "@/components/Toast";
 import { arrondi, calculerLignes, nombre } from "./_ventes/calculs";
 import Confirmation from "./_ventes/Confirmation";
+import ConversionProforma from "./_ventes/ConversionProforma";
 import LignesDocument, { nouvelleCle } from "./_ventes/LignesDocument";
 import Reglements from "./_ventes/Reglements";
 import { libelleType } from "./_ventes/outils";
@@ -21,7 +22,7 @@ import { libelleType } from "./_ventes/outils";
 // le serveur recalcule tout à l'enregistrement : ce sont SES montants qui font foi.
 export default function DocumentEditeur() {
   const { id } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
   const { boutique } = useAuth();
@@ -102,6 +103,15 @@ export default function DocumentEditeur() {
     // boutique volontairement absente : seul le réglage prix_ttc est lu, au départ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, typeParam, clientParam]);
+
+  // Facture tout juste créée depuis une proforma (adresse ?valider=1) : on propose
+  // directement « Valider la facture ». Le paramètre est retiré de l'adresse aussitôt,
+  // pour que la fenêtre ne se rouvre pas à chaque rechargement.
+  useEffect(() => {
+    if (params.get("valider") !== "1" || !doc) return;
+    if (doc.type_document === "FAC" && doc.statut === "BROUILLON") setConfirmation("valider");
+    setParams((p) => { const n = new URLSearchParams(p); n.delete("valider"); return n; }, { replace: true });
+  }, [doc, params, setParams]);
 
   // Un document validé, annulé (ou en cours de validation) ne se modifie plus
   const lectureSeule = !!doc && !doc.modifiable;
@@ -191,7 +201,7 @@ export default function DocumentEditeur() {
   // Exécute une action du cycle de vie (après confirmation)
   async function executer(action) {
     // Des modifications non enregistrées ? On les enregistre d'abord.
-    if (modifie && ["valider", "convertir"].includes(action)) {
+    if (modifie && action === "valider") {
       const ok = await enregistrer({ silencieux: true });
       if (!ok) return;
     }
@@ -201,10 +211,6 @@ export default function DocumentEditeur() {
         const { data } = await apiClient.post(`/documents/${doc.id}/valider`);
         remplir(data);
         toast.succes(`Facture validée : n° ${data.numero}`);
-      } else if (action === "convertir") {
-        const { data } = await apiClient.post(`/documents/${doc.id}/convertir`);
-        toast.succes("Facture créée à partir de la proforma");
-        navigate(`/gestion/documents/${data.id}`);
       } else if (action === "annuler") {
         const { data } = await apiClient.post(`/documents/${doc.id}/annuler`);
         remplir(data);
@@ -260,7 +266,8 @@ export default function DocumentEditeur() {
             {type === "FAC" && brouillon && (
               <button type="button" className="btn-primary btn-sm" disabled={!!enCours} onClick={() => setConfirmation("valider")}>✓ Valider la facture</button>
             )}
-            {type === "PRO" && brouillon && (
+            {/* Proforma en cours OU acceptée, pas encore convertie */}
+            {type === "PRO" && doc.convertible && (
               <button type="button" className="btn-primary btn-sm" disabled={!!enCours} onClick={() => setConfirmation("convertir")}>→ Convertir en facture</button>
             )}
             <a href={`/gestion/documents/${doc.id}/imprimer`} target="_blank" rel="noreferrer" className="btn-outline btn-sm"
@@ -283,7 +290,14 @@ export default function DocumentEditeur() {
           {doc.proforma_origine && <span>Issue de la proforma <Link className="font-semibold underline" to={`/gestion/documents/${doc.proforma_origine.id}`}>{doc.proforma_origine.numero}</Link>.</span>}
           {doc.commande_origine && <span>Issue de la commande en ligne <Link className="font-semibold underline" to={`/gestion/commandes/${doc.commande_origine.id}`}>{doc.commande_origine.numero}</Link>.</span>}
           {doc.dossier_origine && <span>Issue du dossier SAV <Link className="font-semibold underline" to={`/gestion/maintenance/${doc.dossier_origine.id}`}>{doc.dossier_origine.numero}</Link>.</span>}
-          {doc.facture_generee_id && <span>Cette proforma a été convertie : <Link className="font-semibold underline" to={`/gestion/documents/${doc.facture_generee_id}`}>voir la facture</Link>.</span>}
+          {doc.facture_generee?.id && (
+            <span>
+              ✓ Proforma convertie en facture :{" "}
+              <Link className="font-semibold underline" to={`/gestion/documents/${doc.facture_generee.id}`}>
+                {doc.facture_generee.numero ? `facture ${doc.facture_generee.numero}` : "facture en brouillon (à valider)"}
+              </Link>.
+            </span>
+          )}
         </div>
       )}
 
@@ -400,10 +414,11 @@ export default function DocumentEditeur() {
         {modifie && <p className="text-amber-700">Vos modifications en cours seront d'abord enregistrées.</p>}
         <p>Montant : <b>{prix(calcul.total_ttc, devise)} TTC</b></p>
       </Confirmation>
-      <Confirmation ouvert={confirmation === "convertir"} titre="Convertir en facture ?" libelleBouton="Créer la facture"
-        enCours={!!enCours} onConfirmer={() => executer("convertir")} onFermer={() => setConfirmation(null)}>
-        <p>Une <b>facture brouillon</b> va être créée avec les mêmes lignes. La proforma sera marquée comme acceptée et ne sera plus modifiable.</p>
-      </Confirmation>
+      {/* Conversion de la proforma : « Créer la facture » ou « Convertir et valider » */}
+      {confirmation === "convertir" && doc && (
+        <ConversionProforma proforma={doc} devise={devise} onFermer={() => setConfirmation(null)}
+          avantConversion={async () => (modifie ? !!(await enregistrer({ silencieux: true })) : true)} />
+      )}
       <Confirmation ouvert={confirmation === "annuler"} titre={`Annuler ce document ?`} danger libelleBouton="Annuler le document"
         enCours={!!enCours} onConfirmer={() => executer("annuler")} onFermer={() => setConfirmation(null)}>
         {doc?.statut === "VALIDE" && type === "FAC"

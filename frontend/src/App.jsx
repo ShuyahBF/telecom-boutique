@@ -27,6 +27,9 @@ import SuiviReparation from "@/pages/public/SuiviReparation";
 import Conseil from "@/pages/public/Conseil";
 import Conversation from "@/pages/public/Conversation";
 import OuvrirBoutique from "@/pages/public/OuvrirBoutique";
+// « Mon espace » : page ouverte par le QR code des factures / proformas, espace client public
+import PageQr from "@/pages/public/PageQr";
+import EspaceClient from "@/pages/public/EspaceClient";
 // --- Pages légales publiques ---
 import Confidentialite from "@/pages/public/Confidentialite";
 import Conditions from "@/pages/public/Conditions";
@@ -107,6 +110,12 @@ export default function App() {
               <Route path="conseil" element={<Conseil />} />
               <Route path="conseil/:jeton" element={<Conversation />} />
             </Route>
+
+            {/* QR code imprimé sur les factures / proformas (jeton chiffré) et espace client
+                public de chaque boutique (numéro de téléphone + code reçu par WhatsApp) */}
+            <Route path="/q/:jeton" element={<PageQr />} />
+            <Route path="/q/:jeton/mon-espace" element={<EspaceClient />} />
+            <Route path="/mon-espace/:slug" element={<EspaceClient />} />
 
             <Route path="/connexion" element={<Connexion />} />
             {/* Lot 25 — compte ou adresse IP bloqué par le super-administrateur (onglet « Usage ») */}

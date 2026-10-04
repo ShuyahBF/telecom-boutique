@@ -39,6 +39,13 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
+      # --- QR codes chiffrés des factures / proformas et « Mon espace » (espace client) ---
+      # Clé de chiffrement des jetons des QR codes, générée par Render (jamais dans Git).
+      # Absente : repli sur une clé dérivée de JWT_SECRET (voir backend/jetons_qr.py).
+      # Ne pas la changer ensuite : les QR codes déjà imprimés deviendraient illisibles.
+      - key: QR_JETONS_CLE
+        generateValue: true
+
       # --- Adresse(s) du site public, séparées par des virgules. La PREMIÈRE
       # sert dans les liens envoyés aux clients, les QR codes et le retour
       # après paiement.
@@ -238,6 +245,18 @@ services:
       # Code émetteur d'adLyn chez SAWALI (pas secret)
       - key: LILUVINE_WA_EMETTEUR
         value: "adlyn"
+
+      # --- PI-SPI (paiement instantané BCEAO) : FACULTATIF, pour une future API Business ---
+      # Aujourd'hui seul le connecteur « manuel » existe (QR de la banque imprimé, paiements
+      # saisis à la main) : laisser vides. PISPI_FOURNISSEUR : manuel | ecobank | uba | bsic | ibbank
+      - key: PISPI_FOURNISSEUR
+        sync: false
+      - key: PISPI_API_URL
+        sync: false
+      - key: PISPI_CLIENT_ID
+        sync: false
+      - key: PISPI_CLIENT_SECRET
+        sync: false
 
       # --- Maintenance des équipements : prix du diagnostic proposé (FCFA) ---
       - key: MAINTENANCE_PRIX_DIAGNOSTIC

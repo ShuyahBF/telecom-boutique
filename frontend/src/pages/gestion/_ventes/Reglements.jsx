@@ -112,8 +112,10 @@ export default function Reglements({ doc, devise, onMaj }) {
             </select></div>
           <div><label className="label" htmlFor="reg-date">Date</label>
             <input id="reg-date" className="input" type="date" required value={saisie.date} onChange={(e) => setSaisie({ ...saisie, date: e.target.value })} /></div>
-          <div><label className="label" htmlFor="reg-ref">Référence</label>
-            <input id="reg-ref" className="input" maxLength={60} placeholder="n° de transaction…" value={saisie.reference} onChange={(e) => setSaisie({ ...saisie, reference: e.target.value })} /></div>
+          {/* PI-SPI : la référence bancaire du virement est obligatoire (rapprochement avec le relevé) */}
+          <div><label className="label" htmlFor="reg-ref">{saisie.mode === "PISPI" ? "Référence bancaire *" : "Référence"}</label>
+            <input id="reg-ref" className="input" maxLength={60} required={saisie.mode === "PISPI"}
+              placeholder={saisie.mode === "PISPI" ? "réf. du virement PI-SPI" : "n° de transaction…"} value={saisie.reference} onChange={(e) => setSaisie({ ...saisie, reference: e.target.value })} /></div>
           <button className="btn-primary" disabled={enCours}>{enCours ? "…" : "Enregistrer le règlement"}</button>
         </form>
       ) : (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "@/lib/api";
 import { nombreArticles } from "@/lib/panier";
 import BoutonAppelWa from "@/components/BoutonAppelWa";
@@ -17,6 +17,9 @@ export default function BoutiqueLayout() {
   const [introuvable, setIntrouvable] = useState(false);
   const [nbPanier, setNbPanier] = useState(0);
   const [menuOuvert, setMenuOuvert] = useState(false);
+  // Arrivée depuis le QR code d'une facture (?espace=1) : bandeau « Mon espace » mis en avant
+  const [params] = useSearchParams();
+  const depuisQr = params.get("espace") === "1";
 
   useEffect(() => {
     setBoutique(null);
@@ -77,6 +80,10 @@ export default function BoutiqueLayout() {
             <NavLink to={`${base}/conseil`} className={lien}>Demander conseil</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            {/* « Mon espace » : factures, devis, règlements et SAV du client (numéro + code WhatsApp) */}
+            <Link to={`/mon-espace/${boutique.slug}`} className="rounded-xl bg-white/15 px-3 py-2 font-semibold text-white hover:bg-white/25">
+              👤<span className="ml-1 hidden sm:inline">Mon espace</span>
+            </Link>
             <Link to={`${base}/panier`} className="relative rounded-xl bg-white/15 px-3 py-2 font-semibold text-white hover:bg-white/25">
               🛒<span className="ml-1 hidden sm:inline">Panier</span>
               {nbPanier > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-accent px-1.5 text-xs">{nbPanier}</span>}
@@ -90,9 +97,19 @@ export default function BoutiqueLayout() {
             <NavLink to={`${base}/suivi-commande`} className={lien}>Suivre ma commande</NavLink>
             <NavLink to={`${base}/suivi-reparation`} className={lien}>Suivre ma réparation</NavLink>
             <NavLink to={`${base}/conseil`} className={lien}>Demander conseil</NavLink>
+            <NavLink to={`/mon-espace/${boutique.slug}`} className={lien}>Mon espace</NavLink>
           </nav>
         )}
       </header>
+
+      {depuisQr && (
+        <div className="no-print bg-white shadow-sm">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm text-gray-700">Retrouvez vos factures, devis, règlements et réparations dans votre espace client.</p>
+            <Link to={`/mon-espace/${boutique.slug}`} className="btn-primary btn-sm">👤 Mon espace</Link>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Outlet context={{ boutique }} />

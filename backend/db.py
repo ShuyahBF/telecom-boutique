@@ -162,6 +162,18 @@ async def ensure_indexes() -> None:
     await db.echecs_connexion.create_index("expire_le", expireAfterSeconds=0)
     await db.webhook_journal.create_index([("ip", 1), ("date", -1)])
     await db.webhook_nonces.create_index("expire_le", expireAfterSeconds=0)
+    # « Mon espace » (espace client public) : codes à usage unique, limites anti-abus et
+    # sessions effacés automatiquement à expiration ; journal des connexions par boutique
+    await db.espace_client_codes.create_index("id")
+    await db.espace_client_codes.create_index("expire_le", expireAfterSeconds=0)
+    await db.espace_client_limites.create_index([("cle", 1), ("date", 1)])
+    await db.espace_client_limites.create_index("expire_le", expireAfterSeconds=0)
+    await db.espace_client_sessions.create_index("sid_hash")
+    await db.espace_client_sessions.create_index("expire_le", expireAfterSeconds=0)
+    await db.espace_client_connexions.create_index([("boutique_id", 1), ("date", -1)])
+    # Encaissements PI-SPI (référence = n° de facture)
+    await db.pispi_transactions.create_index([("boutique_id", 1), ("date", -1)])
+    await db.pispi_transactions.create_index([("boutique_id", 1), ("reference", 1)])
     await db.compteurs.create_index([("boutique_id", 1), ("prefixe", 1), ("annee", 1)], unique=True)
     # Données des boutiques : toujours indexées en commençant par boutique_id
     await db.produits.create_index([("boutique_id", 1), ("reference", 1)], unique=True)
