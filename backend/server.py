@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 import abonnements as service_abonnements
 import catalogue_public as service_catalogue
 import taches_nocturnes
+import presence_sawali  # signal de présence envoyé à SAWALI (règle 4)
 from config import get_settings
 from db import ensure_indexes
 from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta, identifiants, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
@@ -159,3 +160,6 @@ async def au_demarrage():
     asyncio.create_task(taches_nocturnes.boucle_nocturne())
     # Rappels d'abonnement (WhatsApp / SMS / e-mail) chaque jour à 9h
     asyncio.create_task(service_abonnements.boucle_rappels())
+    # Présence auprès de SAWALI : 10 s après le démarrage puis toutes les 5 min
+    # (jamais bloquant ; désactivable avec PRESENCE_SAWALI=0)
+    asyncio.create_task(presence_sawali.boucle_presence())
