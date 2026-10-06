@@ -9,6 +9,8 @@ Public, signé par SAWALI (public) :
   - POST /api/webhooks/liluvine-retour : statuts, réponses des clients, désinscriptions
     (protocole v3, section 2). Signature HMAC avec LILUVINE_WA_HMAC, horodatage ± 5 min,
     idempotent (un même retour reçu deux fois ne fait qu'une ligne).
+    Type « stats_du_jour » : SAWALI demande les statistiques internes d'une période
+    pour son rapport quotidien Liluvine (réponse : indicateurs + faits marquants).
 
 Boutique (boutique) — gérant (permission « paramètres ») ou super-admin consultant la boutique :
   - GET    /api/boutique/whatsapp-waba        : réglage du WABA propre (jeton masqué « ******** ») ;
@@ -24,6 +26,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 import envois_plateforme as envois
+import stats_du_jour
 import transmission_wa as service
 from auth import Contexte, get_super_admin, permission
 from db import SANS_ID, db
@@ -98,6 +101,13 @@ async def recevoir_retour(request: Request, taches: BackgroundTasks):
         doc = json.loads(corps_brut)
     except ValueError:
         raise HTTPException(422, "JSON invalide") from None
+    # Demande des statistiques internes du jour (rapport quotidien Liluvine de SAWALI) :
+    # rien n'est enregistré, adLyn renvoie seulement ses indicateurs (voir stats_du_jour.py)
+    if isinstance(doc, dict) and doc.get("type") == stats_du_jour.TYPE_DEMANDE:
+        try:
+            return await stats_du_jour.statistiques(doc)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
     if not isinstance(doc, dict) or doc.get("type") not in service.TYPES_RETOUR:
         raise HTTPException(422, "Type de retour inconnu (statut, reponse ou desinscription)")
     nouveau, ligne = await service.enregistrer_retour(doc)
