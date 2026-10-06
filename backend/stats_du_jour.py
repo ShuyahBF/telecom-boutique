@@ -8,7 +8,15 @@ Protocole (fixé côté SAWALI, ne pas le modifier) :
     (heures UTC, « debut » inclus, « fin » exclu) ;
   - réponse attendue (HTTP 200, en moins de 8 secondes) :
     {"indicateurs": [{"cle", "libelle", "valeur"}, ...] (4 à 10),
-     "faits_marquants": ["phrase courte", ...] (5 au plus)}.
+     "faits_marquants": ["phrase courte", ...] (5 au plus),
+     "utilisateurs_connectes": <entier ou null>}.
+
+« utilisateurs_connectes » (ajout du 06/10/2026) : nombre de comptes DISTINCTS
+actifs dans les 5 dernières minutes AU MOMENT DE LA DEMANDE (et non sur la
+période [debut, fin)). Source : la collection « sessions_activite » dont le champ
+« activite_le » (horodatage en secondes) est mis à jour à chaque requête
+authentifiée, au plus une fois par minute (voir sessions_actives.controler).
+Si ce comptage échoue, la valeur est null et le reste de la réponse est inchangé.
 
 Rien n'est écrit en base : ce module ne fait que COMPTER. Chaque indicateur est
 calculé séparément : si l'un d'eux échoue, il vaut « n/d » et les autres restent
@@ -18,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Optional
 
@@ -30,6 +39,7 @@ DELAI_MAX = 6.0  # secondes : SAWALI attend 8 s au plus, on garde une marge
 DUREE_MAX_PERIODE = timedelta(days=31)  # garde-fou : une période plus longue est refusée
 FAITS_MAX = 5  # nombre maximal de faits marquants renvoyés
 NON_DISPONIBLE = "n/d"  # valeur affichée quand un calcul a échoué
+FENETRE_CONNECTES = 5 * 60  # secondes : « connecté » = activité dans les 5 dernières minutes
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +157,8 @@ async def _calculer(debut: str, fin: str) -> dict:
             {"_id": 0, "total_ttc": 1, "boutique_id": 1}).sort("total_ttc", -1).to_list(1),
         # Abonnements qui arrivent à échéance dans les 3 prochains jours
         "echeances_proches": _echeances_proches(),
+        # Utilisateurs connectés en ce moment (activité dans les 5 dernières minutes)
+        "utilisateurs_connectes": utilisateurs_connectes(),
     }
     noms = list(taches)
     valeurs = await asyncio.gather(*(_sur(taches[n], n) for n in noms))
@@ -203,7 +215,24 @@ async def _calculer(debut: str, fin: str) -> dict:
     if r["connexions_refusees"]:
         n = r["connexions_refusees"]
         faits.append(f"{n} {_pluriel(n, 'tentative de connexion refusée', 'tentatives de connexion refusées')}")
-    return {"indicateurs": indicateurs, "faits_marquants": faits[:FAITS_MAX]}
+    return {"indicateurs": indicateurs, "faits_marquants": faits[:FAITS_MAX],
+            # entier, ou None (null en JSON) si le comptage a échoué
+            "utilisateurs_connectes": r["utilisateurs_connectes"]}
+
+
+async def utilisateurs_connectes(maintenant: Optional[float] = None) -> int:
+    """Nombre de comptes DISTINCTS actifs dans les FENETRE_CONNECTES dernières
+    secondes, à l'instant de la demande.
+    Une session compte si elle n'est pas fermée, si son jeton n'a pas expiré et si
+    sa dernière activité (« activite_le », secondes) est récente. Plusieurs appareils
+    d'un même compte ne comptent qu'une fois (distinct sur « user_id »)."""
+    maintenant = time.time() if maintenant is None else maintenant
+    comptes = await db.sessions_activite.distinct("user_id", {
+        "fermee": {"$ne": True},
+        "expire_ts": {"$gt": maintenant},
+        "activite_le": {"$gte": maintenant - FENETRE_CONNECTES},
+    })
+    return len([c for c in comptes if c])  # sessions sans compte ignorées
 
 
 async def _echeances_proches() -> int:
@@ -237,4 +266,5 @@ async def statistiques(doc: dict) -> dict:
         return {"indicateurs": [{"cle": c, "libelle": l, "valeur": NON_DISPONIBLE} for c, l in (
             ("connexions", "Connexions"), ("boutiques_nouvelles", "Nouvelles boutiques"),
             ("boutiques_actives", "Boutiques actives"), ("clients_nouveaux", "Nouveaux clients"))],
-            "faits_marquants": ["Statistiques indisponibles : calcul trop long"]}
+            "faits_marquants": ["Statistiques indisponibles : calcul trop long"],
+            "utilisateurs_connectes": None}

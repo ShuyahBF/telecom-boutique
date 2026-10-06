@@ -163,3 +163,61 @@ def test_lire_periode_formats():
     assert d == "2026-10-05T00:00:00+00:00" and f == "2026-10-06T00:00:00+00:00"
     d, _ = stats_du_jour.lire_periode({"debut": "2026-10-05T00:00:00", "fin": "2026-10-06T00:00:00"})
     assert d == datetime(2026, 10, 5, tzinfo=timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Utilisateurs connectés (activité dans les 5 dernières minutes, au moment de la demande)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def sessions_test(client):
+    """Sessions fictives (collection « sessions_activite ») supprimées après le test.
+    Les comptes portent un préfixe propre à ce fichier."""
+    maintenant = time.time()
+    prefixe = "stats-connectes-" + new_id()[:8]
+    a, b, c, d = (f"{prefixe}-{x}" for x in "abcd")
+    futur = maintenant + 3600
+    docs = [
+        # Compte A : deux appareils actifs → compte UNE seule fois
+        {"_id": f"{prefixe}-s1", "user_id": a, "activite_le": maintenant - 30, "expire_ts": futur},
+        {"_id": f"{prefixe}-s2", "user_id": a, "activite_le": maintenant - 120, "expire_ts": futur},
+        # Compte B : actif il y a 4 min → compte
+        {"_id": f"{prefixe}-s3", "user_id": b, "activite_le": maintenant - 240, "expire_ts": futur},
+        # Compte C : inactif depuis 10 min → ne compte pas
+        {"_id": f"{prefixe}-s4", "user_id": c, "activite_le": maintenant - 600, "expire_ts": futur},
+        # Compte D : session fermée ou jeton expiré → ne compte pas
+        {"_id": f"{prefixe}-s5", "user_id": d, "activite_le": maintenant - 10, "expire_ts": futur, "fermee": True},
+        {"_id": f"{prefixe}-s6", "user_id": d, "activite_le": maintenant - 10, "expire_ts": maintenant - 1},
+    ]
+
+    # Comptage AVANT l'ajout (sessions réelles ouvertes par les autres tests), puis ajout
+    deja = client.portal.call(stats_du_jour.utilisateurs_connectes)
+    client.portal.call(lambda: db.sessions_activite.insert_many(docs))
+    yield deja
+    # Nettoyage : seules les sessions fictives de ce test sont supprimées
+    client.portal.call(lambda: db.sessions_activite.delete_many({"_id": {"$regex": f"^{prefixe}"}}))
+
+
+def test_stats_utilisateurs_connectes(client, reglages, sessions_test):
+    debut, fin = _periode()  # période très ancienne : le comptage ne dépend PAS de la période
+    r = _poster(client, {"type": "stats_du_jour", "debut": debut, "fin": fin})
+    assert r.status_code == 200, r.text
+    corps = r.json()
+    # Champ de premier niveau, à côté des indicateurs et faits marquants (inchangés)
+    # Compte A (2 appareils) + compte B = 2 de plus qu'avant l'ajout des sessions fictives
+    assert corps["utilisateurs_connectes"] == sessions_test + 2
+    assert "indicateurs" in corps and "faits_marquants" in corps
+    assert all(i["cle"] != "utilisateurs_connectes" for i in corps["indicateurs"])
+
+
+def test_stats_utilisateurs_connectes_null_si_erreur(client, reglages, monkeypatch):
+    # Comptage en échec : null, et le reste de la réponse reste valide (HTTP 200)
+    async def en_panne():
+        raise RuntimeError("base indisponible")
+
+    monkeypatch.setattr(stats_du_jour, "utilisateurs_connectes", en_panne)
+    debut, fin = _periode()
+    r = _poster(client, {"type": "stats_du_jour", "debut": debut, "fin": fin})
+    assert r.status_code == 200, r.text
+    corps = r.json()
+    assert "utilisateurs_connectes" in corps and corps["utilisateurs_connectes"] is None
+    assert 4 <= len(corps["indicateurs"]) <= 10
