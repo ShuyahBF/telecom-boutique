@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { API_BASE_URL, messageErreur } from "@/lib/api";
+import { messageErreur } from "@/lib/api";
 import { apiEspace, definirJeton, qrMemorise } from "@/lib/espaceClient";
 import { date, prix } from "@/lib/format";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
+import EtatServeur from "@/components/EtatServeur";
 import FeuilleDocument from "@/components/FeuilleDocument";
 import { LogoAdlyn } from "@/components/Marque";
 import Patientez from "@/components/Patientez";
@@ -87,7 +88,7 @@ export default function EspaceClient() {
   if (!boutique || verification) return <Patientez actif />;
 
   return (
-    <div style={{ "--couleur-boutique": boutique.couleur || "#1e90ff" }} className="min-h-screen bg-gray-50">
+    <div style={{ "--couleur-boutique": boutique.couleur || "#1e90ff" }} className="min-h-screen bg-papier">
       {session
         ? <Espace boutique={boutique} session={session} setSession={setSession} sessionPerdue={sessionPerdue} retour={retourBoutique(boutique, jetonAdresse)} />
         : <ConnexionClient boutique={boutique} jetonQr={jetonQr} slug={slug} message={message}
@@ -109,34 +110,8 @@ function retourBoutique(boutique, jetonAdresse) {
   return jetonAdresse ? `/q/${jetonAdresse}` : "/";
 }
 
-// -----------------------------------------------------------------------------
-// État du serveur affiché sur la carte de connexion (actif, lent, injoignable)
-// -----------------------------------------------------------------------------
-function EtatServeur() {
-  const [etat, setEtat] = useState("verification");
-  useEffect(() => {
-    const debut = Date.now();
-    let fini = false;
-    // Au-delà de 3 secondes sans réponse : « lent » (serveur en train de se réveiller)
-    const lent = setTimeout(() => { if (!fini) setEtat("lent"); }, 3000);
-    fetch(`${API_BASE_URL}/health`)
-      .then((r) => { fini = true; setEtat(r.ok ? (Date.now() - debut > 3000 ? "lent" : "actif") : "injoignable"); })
-      .catch(() => { fini = true; setEtat("injoignable"); });
-    return () => clearTimeout(lent);
-  }, []);
-  const styles = {
-    verification: ["bg-gray-300", "Vérification du serveur…"],
-    actif: ["bg-green-500", "Serveur actif"],
-    lent: ["bg-amber-500", "Serveur lent (réveil en cours)…"],
-    injoignable: ["bg-red-500", "Serveur injoignable"],
-  };
-  const [couleur, texte] = styles[etat];
-  return (
-    <p className="flex items-center justify-center gap-2 text-xs text-gray-500">
-      <span className={`h-2 w-2 rounded-full ${couleur}`} aria-hidden="true" />{texte}
-    </p>
-  );
-}
+// État du serveur (actif, lent, injoignable) : composant partagé
+// components/EtatServeur.jsx (aussi affiché sur la page de connexion du personnel).
 
 // -----------------------------------------------------------------------------
 // Connexion : numéro de téléphone puis code reçu par WhatsApp

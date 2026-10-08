@@ -47,7 +47,7 @@ export default function Abonnements() {
   const recharger = () => setVersion((v) => v + 1);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
       <main className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6">
         <div>

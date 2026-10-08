@@ -37,13 +37,11 @@ export default function AccesSuspendu() {
   const whatsappChiffres = (contact.whatsapp || "").replace(/\D/g, "");
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4 pb-24">
-      {/* Décor : mêmes halos que la page de connexion */}
-      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
+    <div className="fond-ondes relative flex min-h-screen items-center justify-center overflow-hidden p-4 pb-24">
+      {/* Décor : motif « ondes » de la charte, comme la page de connexion */}
 
       {/* Carte centrée avec le logo */}
-      <div className="relative w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-white p-8 text-center shadow-2xl">
+      <div className="carte-acces max-w-md space-y-4 text-center">
         <LogoAdlyn className="mx-auto h-12" />
         <p className="text-4xl" aria-hidden="true">⏸️</p>
         <h1 className="text-xl font-bold">Accès momentanément suspendu</h1>

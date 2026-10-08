@@ -31,7 +31,9 @@ export function EnTetePlateforme() {
   const { user, deconnexion } = useAuth();
   const navigate = useNavigate();
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-ink text-white">
+    // Refonte « Ondes & comptoir » : bandeau bleu nuit au motif « ondes »
+    // (origine à droite), onglet actif souligné d'une barre bleu ciel.
+    <header className="fond-ondes sticky top-0 z-30 border-b border-white/10 text-white [--ondes-x:100%] [--ondes-y:0%]">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         {/* Logo (+ version et lot déployés juste dessous) et nom de l'administrateur connecté */}
         <div className="shrink-0">
@@ -40,7 +42,7 @@ export function EnTetePlateforme() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="hidden border-l border-white/15 pl-3 2xl:block">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-clair">Plateforme</p>
+          <p className="font-display text-sm font-bold text-primary-clair">Plateforme</p>
           <p className="truncate text-xs text-gray-300">Administration de la plateforme · {user?.nom}</p>
           </div>
         </div>
@@ -50,7 +52,7 @@ export function EnTetePlateforme() {
         <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-none sm:w-auto">
           {MENU_PLATEFORME.map((m) => (
             <NavLink key={m.to} to={m.to} end={m.end}
-              className={({ isActive }) => `whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:px-3 sm:text-sm ${isActive ? "bg-white/15 text-white" : "text-gray-300 hover:bg-white/10 hover:text-white"}`}>
+              className={({ isActive }) => `whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:px-3 sm:text-sm ${isActive ? "bg-white/[0.12] text-white shadow-[inset_0_-2px_0_#5cb0ff]" : "text-gray-300 hover:bg-white/[0.06] hover:text-white"}`}>
               <span className="mr-1">{m.icone}</span>
               <span className="2xl:hidden">{m.court}</span><span className="hidden 2xl:inline">{m.label}</span>
             </NavLink>

@@ -140,7 +140,7 @@ export default function Usage() {
   const maj = (champ, valeur) => setFiltres((f) => ({ ...f, [champ]: valeur }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
       <Patientez actif={chargement} />
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">

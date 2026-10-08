@@ -64,7 +64,7 @@ export default function BoutiqueLayout() {
     : "";
   const lien = ({ isActive }) => `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? "bg-white/20 text-white" : "text-white/85 hover:text-white"}`;
   return (
-    <div style={{ "--couleur-boutique": boutique.couleur || "#1e90ff" }} className="flex min-h-screen flex-col bg-gray-50">
+    <div style={{ "--couleur-boutique": boutique.couleur || "#1e90ff" }} className="flex min-h-screen flex-col bg-papier">
       <header className="no-print sticky top-0 z-40 bg-boutique shadow">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <Link to={base} className="flex min-w-0 items-center gap-2 text-white">

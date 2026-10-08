@@ -46,8 +46,8 @@ export default function ChangerMotDePasse() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary-dark p-4">
-      <form onSubmit={valider} className="w-full max-w-sm space-y-4 rounded-3xl bg-white p-8 shadow-xl">
+    <div className="fond-ondes flex min-h-screen items-center justify-center p-4">{/* fond « ondes » de la charte */}
+      <form onSubmit={valider} className="w-full max-w-sm space-y-4 carte-acces">
         <div className="text-center">
           <p className="text-3xl">🔑</p>
           <h1 className="mt-1 text-xl font-extrabold">{oblige ? "Choisissez votre mot de passe" : "Changer mon mot de passe"}</h1>
