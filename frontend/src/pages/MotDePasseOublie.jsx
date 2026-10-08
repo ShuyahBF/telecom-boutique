@@ -4,6 +4,8 @@ import { LogoAdlyn } from "@/components/Marque";
 import { apiClient, idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import { AvisMaintenance } from "@/components/MaintenancePlateforme";
+import EtatServeur from "@/components/EtatServeur";
+import VersionApp from "@/components/VersionApp";
 
 // « Mot de passe oublié ? » (personnel des boutiques), en 2 étapes :
 //   1. ID boutique + e-mail ou téléphone -> un code à 6 chiffres est envoyé
@@ -59,10 +61,10 @@ export default function MotDePasseOublie() {
     }
   }
 
+  // Fond « ondes » de la charte (même décor que la page de connexion)
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4">
-      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
-      <div className="relative w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
+    <div className="fond-ondes relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      <div className="carte-acces max-w-sm space-y-4">
         <div className="text-center">
           <LogoAdlyn className="mx-auto h-12" />
           <h1 className="mt-3 text-xl font-bold">Mot de passe oublié</h1>
@@ -117,12 +119,17 @@ export default function MotDePasseOublie() {
         )}
 
         {etape === "termine" && (
-          <Link to="/connexion" className="btn-primary block w-full text-center">Se connecter →</Link>
+          <Link to="/connexion" className="btn-primary block w-full text-center">Se connecter</Link>
         )}
 
         {etape !== "termine" && (
           <div className="text-center text-sm"><Link to="/connexion" className="text-primary">← Retour à la connexion</Link></div>
         )}
+        {/* Pied de carte (refonte) : état du serveur et version, comme sur la page de connexion */}
+        <div className="space-y-1 border-t border-gray-100 pt-4">
+          <EtatServeur />
+          <VersionApp className="text-center text-gray-400" />
+        </div>
       </div>
     </div>
   );

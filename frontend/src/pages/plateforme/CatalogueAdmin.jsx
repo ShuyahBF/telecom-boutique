@@ -89,7 +89,7 @@ export default function CatalogueAdmin() {
   const telephones = useMemo(() => (fiches || []).filter((f) => f.type_produit === "TEL"), [fiches]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
       <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-3 px-4 pt-6 sm:px-6">
         <div>

@@ -122,7 +122,7 @@ export default function CycleVie() {
   const majR = (champ, valeur) => setReouverture((r) => ({ ...r, [champ]: valeur }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
         <div>

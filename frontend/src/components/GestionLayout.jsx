@@ -104,7 +104,7 @@ export default function GestionLayout() {
   const expire = boutique.actif !== false && !!boutique.abonnement_grace?.coupe;
   if ((boutique.actif === false || expire) && user.role !== "super_admin") {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-papier">
         <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3">
           <span className="font-extrabold">{boutique.nom}</span>
           <button type="button" className="btn-outline btn-sm ml-auto" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
@@ -131,17 +131,20 @@ export default function GestionLayout() {
   }
 
   const entrees = MENU.filter((m) => peut(user, m.permission) && optionActive(boutique, m.option));
+  // Lien du menu. Refonte « Ondes & comptoir » : l'entrée active n'est plus un
+  // bloc bleu plein, mais une ligne éclairée avec une barre « signal » bleu ciel
+  // à gauche (pseudo-élément before:) — plus calme, et l'œil la trouve aussitôt.
   const classeLien = ({ isActive }) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? "bg-primary text-white shadow-sm" : "text-gray-300 hover:bg-white/5 hover:text-white"}`;
+    `relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full ${isActive ? "bg-white/[0.08] text-white before:bg-primary-clair" : "text-gray-400 before:bg-transparent hover:bg-white/[0.04] hover:text-white"}`;
 
   const menu = (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-0.5">
       {entrees.map((m) => (
         <NavLink key={m.to} to={m.to} end={m.end} className={classeLien} onClick={() => setMenuMobile(false)}>
           <span>{m.icone}</span>
           <span className="flex-1">{m.label}</span>
           {m.compteur && compteurs[m.compteur] > 0 && (
-            <span className="rounded-full bg-accent px-2 text-xs text-white" title={m.compteur === "nouveautes" ? "Nouveautés du catalogue public" : "Demandes en attente"}>
+            <span className="rounded-full bg-accent px-2 text-xs font-semibold text-white" title={m.compteur === "nouveautes" ? "Nouveautés du catalogue public" : "Demandes en attente"}>
               {compteurs[m.compteur]}
             </span>
           )}
@@ -151,7 +154,7 @@ export default function GestionLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       {user.role === "super_admin" && (
         <div className="no-print flex items-center justify-between gap-2 bg-ink px-4 py-2 text-sm text-white">
           <span>Vous consultez la boutique <b>{boutique.nom}</b> en tant qu'administrateur de la plateforme.</span>
@@ -159,31 +162,32 @@ export default function GestionLayout() {
         </div>
       )}
       <div className="flex">
-        <aside className="no-print sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r border-white/5 bg-nuit-900 p-4 lg:flex">
-          <div className="flex items-center gap-2 px-2">
+        {/* Barre latérale bleu nuit ; le motif « ondes » éclaire discrètement le haut (fond-ondes, origine en haut à droite) */}
+        <aside className="fond-ondes no-print sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-5 overflow-y-auto p-4 lg:flex [--ondes-x:110%] [--ondes-y:-6%]">
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-2.5">
             {boutique.logo_url
               ? <img src={boutique.logo_url} alt="" className="h-9 w-9 rounded-lg object-contain" />
               : <IconeAdlyn clair className="h-9 w-9" />}
             <div className="min-w-0">
               <p className="truncate font-display font-bold text-white">{boutique.nom}</p>
-              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary-clair">{boutique.code_marchand}</p>
+              <p className="font-mono text-[11px] tracking-[0.15em] text-primary-clair">{boutique.code_marchand}</p>
             </div>
           </div>
           {menu}
           {/* Signature de la plateforme en bas du menu, avec la version et le lot déployés */}
-          <div className="mt-auto space-y-2 border-t border-white/5 pt-4">
+          <div className="mt-auto space-y-2 border-t border-white/10 pt-4">
             <LogoAdlyn clair className="h-6 opacity-70" />
             <VersionApp className="px-1 text-gray-400" />
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="no-print sticky top-0 z-30 flex items-center gap-3 border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur">
-            <button type="button" className="rounded-lg border px-2 py-1 lg:hidden" onClick={() => setMenuMobile(!menuMobile)} aria-label="Menu">☰</button>
-            <span className="font-bold lg:hidden">{boutique.nom}</span>
+          <header className="no-print sticky top-0 z-30 flex items-center gap-3 border-b border-gray-200/80 bg-papier/85 px-4 py-3 backdrop-blur sm:px-6">
+            <button type="button" className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 lg:hidden" onClick={() => setMenuMobile(!menuMobile)} aria-label="Menu">☰</button>
+            <span className="truncate font-display font-bold lg:hidden">{boutique.nom}</span>
             <div className="ml-auto flex items-center gap-3 text-sm">
               <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
-              <span className="hidden text-gray-600 sm:inline">{user.nom} · {ROLES[user.role]}</span>
+              <span className="hidden text-gray-600 sm:inline"><b className="font-semibold text-ink">{user.nom}</b> · {ROLES[user.role]}</span>
               {/* Mon compte : e-mail / téléphone de connexion et mot de passe */}
               <Link to="/mon-compte" className="text-gray-500 hover:text-primary" title="Mon compte : identifiants et mot de passe">👤</Link>
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>
@@ -193,7 +197,8 @@ export default function GestionLayout() {
             ? <BandeauGrace grace={boutique.abonnement_grace} dg={user.role === "dg"} />
             : user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
           {menuMobile && <div className="no-print border-b border-white/5 bg-nuit-900 p-3 lg:hidden">{menu}</div>}
-          <main className="mx-auto max-w-7xl p-4 sm:p-6">
+          {/* Contenu de la page (largeur maximale, marges plus généreuses sur grand écran) */}
+          <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
             <Outlet />
             {/* Dates des dernières sauvegardes, en pied de page discret */}
             <DernieresSauvegardes compact />

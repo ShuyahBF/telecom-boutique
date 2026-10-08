@@ -102,7 +102,7 @@ export default function Sauvegardes() {
   const reussies = resultat ? resultat.sauvegardes.filter((s) => s.statut === "SUCCES").length : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
 
       <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">

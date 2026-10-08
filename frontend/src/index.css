@@ -2,42 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base : textes en Geist, titres en Space Grotesk (charte Sawali) */
-@layer base {
-  body { @apply bg-gray-50 font-sans text-ink antialiased; }
-  h1, h2, h3, h4 { @apply font-display tracking-tight; }
-  /* Space Grotesk n'a pas de graisse 800/900 : on plafonne à 700 pour un rendu net */
-  .font-extrabold, .font-black { font-weight: 700; }
+/* =============================================================================
+   CHARTE adLyn « ONDES & COMPTOIR » — petit système de design central
+   =============================================================================
+   Toutes les couleurs, polices et formes de l'interface partent d'ici et de
+   tailwind.config.js. Les pages utilisent des classes « maison » (.btn-primary,
+   .input, .card, .table, .badge…) : en les redessinant ici, TOUS les écrans
+   changent d'apparence sans toucher à leur fonctionnement.
+   Idée directrice :
+     - le motif d'« ondes » (anneaux concentriques, comme l'orbite du logo et
+       les ondes d'une antenne) est le SEUL décor : page de connexion, accueil
+       et haut de la barre latérale ;
+     - tout le reste est sobre : fond papier bleuté, cartes blanches à bordure
+       fine (sans ombre), boutons « touche » avec un léger relief en bas ;
+     - pas de petites capitales espacées : libellés en minuscules, lisibles.
+   ============================================================================= */
+
+/* Jetons de couleur en variables CSS (utilisables partout, y compris hors Tailwind) */
+:root {
+  --encre: #121a2c;      /* bleu nuit du logo : textes, bandeaux */
+  --signal: #1668e3;     /* bleu du logo : boutons, liens */
+  --ciel: #5cb0ff;       /* bleu clair de l'anneau du logo : sur fond sombre */
+  --monnaie: #0b7a5d;    /* vert « mobile money » : prix, compteurs */
+  --papier: #eef1f6;     /* fond général des écrans */
+  --trait: #dde3ec;      /* bordures fines des cartes et tableaux */
 }
 
-/* Petits composants réutilisables (classes « maison ») */
+/* ----- Base : fond papier, textes en Instrument Sans, titres en Bricolage ----- */
+@layer base {
+  body { @apply bg-papier font-sans text-ink antialiased; font-feature-settings: "ss01"; }
+  /* Titres : lettrage d'enseigne, serré, à l'échelle optique automatique */
+  h1, h2, h3, h4 { @apply font-display; letter-spacing: -0.015em; font-optical-sizing: auto; }
+  h1 { letter-spacing: -0.025em; }
+  /* Chiffres alignés dans les tableaux, montants et compteurs */
+  table, .font-mono, .chiffres { font-variant-numeric: tabular-nums; }
+  /* Focus clavier toujours visible (accessibilité) */
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  /* Sélection de texte aux couleurs de la charte */
+  ::selection { background: rgba(22, 104, 227, 0.2); }
+}
+
+/* ----- Composants réutilisables (classes « maison ») ----- */
 @layer components {
-  /* Boutons : angles nets, graisse moyenne, flèche possible en fin de texte */
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 font-semibold transition disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary { @apply btn bg-primary text-white shadow-sm hover:bg-primary-dark; }
-  .btn-boutique { @apply btn bg-boutique text-white hover:brightness-110; }
-  .btn-accent { @apply btn bg-accent text-white shadow-sm hover:bg-indigo-700; }
-  .btn-outline { @apply btn border border-gray-300 bg-white text-ink hover:border-gray-400 hover:bg-gray-50; }
+  /* Boutons « touche » : relief discret en bas, s'enfonce au clic */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-semibold transition duration-150 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-primary text-white hover:bg-primary-dark; box-shadow: inset 0 -2px 0 rgba(10, 15, 28, 0.25); }
+  .btn-boutique { @apply btn bg-boutique text-white hover:brightness-110; box-shadow: inset 0 -2px 0 rgba(10, 15, 28, 0.2); }
+  .btn-accent { @apply btn bg-accent text-white hover:brightness-110; box-shadow: inset 0 -2px 0 rgba(10, 15, 28, 0.25); }
+  .btn-outline { @apply btn border border-gray-300 bg-white text-ink hover:border-ink/40 hover:bg-gray-50; box-shadow: inset 0 -2px 0 rgba(18, 26, 44, 0.06); }
   /* Bouton contour pour fond sombre (bandeaux bleu nuit) */
-  .btn-clair { @apply btn border border-white/25 bg-transparent text-white hover:border-white/50 hover:bg-white/5; }
-  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
-  .btn-sm { @apply px-3 py-1.5 text-sm; }
-  /* Champs de saisie */
-  .input { @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 outline-none transition placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20; }
-  .label { @apply mb-1 block text-sm font-medium text-gray-700; }
-  /* Cartes : fond blanc, bordure fine, ombre très légère */
-  .card { @apply rounded-xl border border-gray-200 bg-white p-5 shadow-sm; }
+  .btn-clair { @apply btn border border-white/25 bg-white/[0.04] text-white hover:border-white/50 hover:bg-white/10; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; box-shadow: inset 0 -2px 0 rgba(10, 15, 28, 0.25); }
+  .btn-sm { @apply rounded-lg px-3 py-1.5 text-sm; }
+
+  /* Champs de saisie : bordure nette, anneau bleu au focus */
+  .input { @apply w-full rounded-xl border border-gray-300/80 bg-white px-3 py-2.5 text-ink outline-none transition placeholder:text-gray-400 focus:border-primary focus:ring-4 focus:ring-primary/15 disabled:bg-gray-100 disabled:text-gray-500; }
+  .label { @apply mb-1.5 block text-sm font-semibold text-gray-700; }
+
+  /* Cartes : fond blanc, bordure fine, PAS d'ombre (le relief est réservé aux fenêtres) */
+  .card { @apply rounded-2xl border bg-white p-5; border-color: var(--trait); }
   /* Carte pour fond sombre */
-  .card-nuit { @apply rounded-xl border border-white/10 bg-nuit-700/60 p-5 text-white; }
-  .badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold; }
-  /* Sur-titre Sawali : petites capitales espacées, en indigo */
-  .surtitre { @apply text-xs font-semibold uppercase tracking-[0.3em] text-accent; }
+  .card-nuit { @apply rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-white; }
+
+  /* Pastilles de statut */
+  .badge { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold; }
+  /* Sur-titre : petite ligne en vert « monnaie », en minuscules (plus de capitales espacées) */
+  .surtitre { @apply text-sm font-semibold text-accent; }
   /* Pastille « puce » en police mono (codes, versions, statuts) */
   .puce { @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs; border-color: color-mix(in srgb, currentColor 30%, transparent); }
-  /* Tableaux */
+
+  /* Tableaux : en-têtes en minuscules sur fond papier, lignes aérées */
   .table { @apply w-full text-left text-sm; }
-  .table th { @apply border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500; }
-  .table td { @apply border-b border-gray-100 px-3 py-2 align-top; }
+  .table th { @apply whitespace-nowrap border-b bg-papier px-3 py-2.5 text-xs font-semibold text-gray-500; border-color: var(--trait); }
+  .table thead th:first-child { border-top-left-radius: 0.625rem; }
+  .table thead th:last-child { border-top-right-radius: 0.625rem; }
+  .table td { @apply border-b border-gray-100 px-3 py-2.5 align-top; }
+  .table tbody tr:last-child > td { border-bottom: 0; }
+
+  /* Titre de page du back-office (composant EnTetePage) */
+  .titre-page { @apply text-[1.75rem] font-extrabold leading-tight text-ink sm:text-[2.1rem]; }
+
+  /* État vide (« aucun résultat ») : invitation à agir, centrée et calme */
+  .etat-vide { @apply rounded-2xl border border-dashed border-gray-300 bg-white/60 px-6 py-10 text-center text-gray-500; }
+
+  /* Motif « ondes » : anneaux concentriques partant d'un coin, comme l'orbite
+     du logo et les ondes d'une antenne. Seul décor de l'interface.
+     --ondes-x / --ondes-y : origine des ondes (par défaut en bas à gauche). */
+  .fond-ondes {
+    background-color: var(--encre);
+    background-image:
+      radial-gradient(circle at var(--ondes-x, 0%) var(--ondes-y, 100%), rgba(92, 176, 255, 0.22), transparent 38%),
+      repeating-radial-gradient(circle at var(--ondes-x, 0%) var(--ondes-y, 100%), transparent 0 46px, rgba(92, 176, 255, 0.13) 46px 47px, transparent 47px 92px);
+  }
+
+  /* Carte centrée des écrans d'accès (connexion, mot de passe, mon compte…) :
+     posée sur le motif « ondes », seule carte à porter une ombre profonde */
+  .carte-acces { @apply relative w-full rounded-3xl bg-white p-7 sm:p-8; box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06); }
+
+  /* « Ticket de caisse » : ligne libellé ........ valeur (points de conduite) */
+  .ligne-ticket { @apply flex items-baseline gap-2; }
+  .ligne-ticket > .pointilles { @apply min-w-[1.5rem] flex-1 translate-y-[-0.2em] border-b-2 border-dotted border-current opacity-25; }
+}
+
+/* Mouvements réduits : on coupe les animations décoratives si le système le demande.
+   La jauge « Patientez… » (.animate-spin) continue de tourner : elle indique une attente. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin), *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 /* ---------------------------------------------------------------------------

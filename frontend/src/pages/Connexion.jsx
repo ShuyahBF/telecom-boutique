@@ -8,6 +8,7 @@ import { idBoutiqueMemorise, messageErreur } from "@/lib/api";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 import { AvisMaintenance } from "@/components/MaintenancePlateforme";
 import VersionApp from "@/components/VersionApp";
+import EtatServeur from "@/components/EtatServeur";
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
 // boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
@@ -59,17 +60,16 @@ export default function Connexion() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-nuit-900 p-4 pb-20">
-      {/* Décor : halos de couleur et quadrillage discret (style Sawali) */}
-      <div className="pointer-events-none absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" />
-      <form onSubmit={valider} className="relative w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-white p-8 shadow-2xl">
+    // Refonte « Ondes & comptoir » : fond bleu nuit à motif d'ondes (anneaux
+    // concentriques partant du coin bas gauche, comme l'orbite du logo) et
+    // carte blanche centrée avec le logo. Les ondes remplacent les anciens
+    // halos et le quadrillage. Aucun changement de fonctionnement.
+    <div className="fond-ondes relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4 pb-28 sm:pb-24">
+      <form onSubmit={valider} className="carte-acces max-w-sm space-y-4">
         <div className="text-center">
-          <LogoAdlyn className="mx-auto h-12" />
-          <p className="surtitre mt-1">{administrateur ? "Administration" : "Espace boutique"}</p>
-          <h1 className="mt-3 text-xl font-bold">{administrateur ? "Administration de la plateforme" : "Connexion à votre boutique"}</h1>
-          <p className="text-sm text-gray-500">Connectez-vous pour gérer votre boutique</p>
+          <LogoAdlyn className="mx-auto h-11" />
+          <h1 className="mt-5 text-2xl font-extrabold">{administrateur ? "Administration de la plateforme" : "Connexion à votre boutique"}</h1>
+          <p className="mt-1 text-sm text-gray-500">{administrateur ? "Réservé à l'équipe adLyn." : "Votre ID boutique, puis vos identifiants personnels."}</p>
         </div>
         {/* Maintenance de la plateforme : message de l'administrateur */}
         <AvisMaintenance />
@@ -78,7 +78,7 @@ export default function Connexion() {
         {!administrateur && (
           <div>
             <label className="label" htmlFor="code">ID boutique</label>
-            <input id="code" className="input text-center font-mono text-lg tracking-[0.4em] uppercase" required
+            <input id="code" className="input bg-papier text-center font-mono text-xl font-medium tracking-[0.45em] uppercase" required
               autoComplete="organization" inputMode="text" placeholder="K7M2QD" maxLength={6}
               value={codeBoutique} onChange={(e) => saisirCode(e.target.value)} />
             <p className="mt-1 text-xs text-gray-500">6 lettres ou chiffres, reçus à la création de votre boutique.</p>
@@ -97,9 +97,11 @@ export default function Connexion() {
           </div>
           <ChampMotDePasse id="mdp" autoComplete="current-password" required value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} /></div>
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
-        <button className="btn-primary w-full" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter →"}</button>
+        <button className="btn-primary w-full py-3 text-base" disabled={envoi}>{envoi ? "Connexion…" : "Se connecter"}</button>
         <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>
-        <div className="flex justify-between text-sm">
+        {/* État du serveur (actif, lent, injoignable) : règle du propriétaire */}
+        <EtatServeur />
+        <div className="flex justify-between border-t border-gray-100 pt-4 text-sm">
           <Link to="/" className="text-primary">← Retour aux boutiques</Link>
           <button type="button" className="text-gray-500 hover:text-primary" onClick={() => { setAdministrateur(!administrateur); setErreur(""); }}>
             {administrateur ? "Personnel d'une boutique" : "Administrateur ?"}
@@ -107,7 +109,7 @@ export default function Connexion() {
         </div>
       </form>
       {/* Liens légaux + mention obligatoire + version/lot déployés, en bas de l'écran */}
-      <div className="absolute bottom-4 left-0 right-0 space-y-1 text-center">
+      <div className="absolute bottom-4 left-0 right-0 space-y-1 px-4 text-center">
         <LiensLegaux className="justify-center" />
         <PoweredBySawali />
         <VersionApp className="text-gray-400" />

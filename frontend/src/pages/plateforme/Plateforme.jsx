@@ -154,7 +154,7 @@ export default function Plateforme() {
   const nbEnAttente = boutiques.filter((b) => b.kyc?.statut === "EN_ATTENTE").length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-papier">
       <EnTetePlateforme />
 
       <main className="mx-auto max-w-7xl p-4 sm:p-6">

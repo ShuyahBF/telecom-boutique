@@ -42,9 +42,9 @@ export default function OuvrirBoutique() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-nuit-900 px-4 py-10">
+    <div className="fond-ondes flex min-h-screen flex-col items-center px-4 py-10">{/* fond « ondes » de la charte */}
       <Link to="/" aria-label="adLyn, accueil"><LogoAdlyn clair className="h-10" /></Link>
-      <div className="mt-6 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
+      <div className="mt-6 w-full max-w-lg carte-acces">
         {parrain === undefined && <p className="text-center text-gray-500">Chargement…</p>}
 
         {parrain === null && (

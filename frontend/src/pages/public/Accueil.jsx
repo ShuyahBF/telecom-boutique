@@ -93,13 +93,12 @@ export default function Accueil() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-papier">
       {/* ================= BANDEAU D'ACCUEIL (bleu nuit, style Sawali) ================= */}
-      <header className="relative overflow-hidden bg-nuit-900 text-white">
-        {/* Halo bleu et quadrillage discret en arrière-plan (décor) */}
-        <div className="pointer-events-none absolute -right-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-48 -left-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(#fff_1px,transparent_1px),linear-gradient(90deg,#fff_1px,transparent_1px)] [background-size:48px_48px]" />
+      {/* Refonte « Ondes & comptoir » : bandeau bleu nuit au motif « ondes »
+          (anneaux concentriques partant du coin haut droit, comme l'orbite du
+          logo et les ondes d'une antenne) — remplace les halos et le quadrillage */}
+      <header className="fond-ondes relative overflow-hidden text-white [--ondes-x:100%] [--ondes-y:0%]">
 
         {/* Barre de navigation : logo + nom, sous-titre espacé, lien vers l'espace boutique */}
         <div className="relative border-b border-white/10">
@@ -107,11 +106,11 @@ export default function Accueil() {
             {/* Logo officiel adLyn (version claire pour le fond bleu nuit) */}
             <Link to="/" className="flex min-w-0 items-center gap-4" aria-label="adLyn, accueil">
               <LogoAdlyn clair className="h-8 sm:h-10" />
-              <span className="hidden border-l border-white/15 pl-4 text-[10px] font-semibold uppercase leading-normal tracking-[0.3em] text-primary-clair md:block">Boutiques de téléphonie</span>
+              <span className="hidden border-l border-white/15 pl-4 text-sm font-medium text-gray-300 md:block">Boutiques de téléphonie</span>
             </Link>
             {/* Libellé court sur téléphone pour laisser la place au nom de la plateforme */}
             <Link to="/connexion" className="btn-clair btn-sm whitespace-nowrap">
-              <span className="sm:hidden">Connexion</span><span className="hidden sm:inline">Espace boutique →</span>
+              <span className="sm:hidden">Connexion</span><span className="hidden sm:inline">Espace boutique</span>
             </Link>
           </div>
         </div>
@@ -120,10 +119,11 @@ export default function Accueil() {
           {/* Colonne gauche : sur-titre, titre, texte, recherche */}
           <div>
             <span className="puce text-primary-clair">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Boutiques ouvertes · commande 24/7
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Boutiques ouvertes, commande 24 h/24
             </span>
-            <h1 className="mt-5 text-4xl font-bold leading-[1.05] sm:text-6xl">
-              Votre boutique de téléphonie, <span className="text-primary-clair">à portée de main</span>.
+            {/* Titre d'enseigne : grand, serré, d'une seule couleur */}
+            <h1 className="mt-5 max-w-[16ch] text-[2.6rem] font-extrabold leading-[0.98] sm:text-7xl">
+              Votre boutique de téléphonie, à portée de main.
             </h1>
             <p className="mt-5 max-w-xl text-lg text-gray-300">
               Téléphones, accessoires et réparations : commandez en ligne, suivez votre commande et votre réparation, posez vos questions.
@@ -139,7 +139,7 @@ export default function Accueil() {
                 aria-label="Nom de la boutique ou code marchand"
               />
               <button type="submit" className="btn-primary py-3" disabled={recherchant}>
-                {recherchant ? "Recherche…" : "Rechercher →"}
+                {recherchant ? "Recherche…" : "Rechercher"}
               </button>
             </form>
             <button type="button" onClick={() => setScannerOuvert(true)} className="btn-clair mt-3">
@@ -149,14 +149,19 @@ export default function Accueil() {
             <LiensLegaux className="mt-6" />
           </div>
 
-          {/* Colonne droite : chiffres clés dans des cartes sombres */}
-          <div className="grid grid-cols-2 gap-4">
-            {chiffres.map(([valeur, libelle]) => (
-              <div key={libelle} className="card-nuit">
-                <p className="font-display text-4xl font-bold text-primary-clair">{valeur}</p>
-                <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-400">{libelle}</p>
-              </div>
-            ))}
+          {/* Colonne droite : chiffres clés présentés comme un ticket de caisse
+              (libellé ........ valeur), clin d'œil au comptoir de la boutique */}
+          <div className="card-nuit p-6">
+            <p className="font-display text-lg font-bold">Le réseau aujourd'hui</p>
+            <ul className="mt-4 space-y-3">
+              {chiffres.map(([valeur, libelle]) => (
+                <li key={libelle} className="ligne-ticket text-gray-300">
+                  <span>{libelle}</span>
+                  <span className="pointilles" aria-hidden="true" />
+                  <span className="font-display text-2xl font-bold text-primary-clair">{valeur}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </header>
@@ -180,7 +185,7 @@ export default function Accueil() {
                 </button>
               </div>
               {resultats.length === 0 ? (
-                <p className="card text-gray-500">Vérifiez l'orthographe ou le code marchand (affiché en boutique et sur vos factures).</p>
+                <p className="etat-vide">Vérifiez l'orthographe ou le code marchand (affiché en boutique et sur vos factures).</p>
               ) : (
                 <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
                   {resultats.map((b) => (
@@ -208,7 +213,7 @@ export default function Accueil() {
               <p className="text-sm text-gray-500">Faites glisser, puis touchez une boutique pour entrer.</p>
             </div>
             {boutiques === null && <Chargement texte="Chargement des boutiques…" />}
-            {boutiques?.length === 0 && <p className="card text-gray-500">Aucune boutique n'est encore ouverte.</p>}
+            {boutiques?.length === 0 && <p className="etat-vide">Aucune boutique n'est encore ouverte.</p>}
             {boutiques?.length > 0 && <Carrousel boutiques={boutiques} />}
           </section>
         </div>
@@ -224,10 +229,11 @@ export default function Accueil() {
                 ["🛒", "Commandez en ligne", "Retrait en boutique ou livraison, paiement à la réception ou par Mobile Money."],
                 ["🔧", "Suivez tout en direct", "L'avancement de votre commande et de votre réparation, à tout moment."],
               ].map(([emoji, titre, texte], i) => (
-                <div key={titre} className="card-nuit transition hover:border-primary/40">
+                // Étapes réellement successives : numérotées 1, 2, 3 en grand chiffre d'enseigne
+                <div key={titre} className="card-nuit">
                   <div className="flex items-center justify-between">
+                    <span className="font-display text-4xl font-extrabold text-primary-clair">{i + 1}</span>
                     <span className="text-2xl">{emoji}</span>
-                    <span className="font-mono text-xs text-gray-500">0{i + 1}</span>
                   </div>
                   <p className="mt-4 font-display text-lg font-bold">{titre}</p>
                   <p className="mt-2 text-sm leading-relaxed text-gray-400">{texte}</p>
@@ -236,12 +242,12 @@ export default function Accueil() {
             </div>
 
             {/* Encadré d'appel à l'action (comme « Got a project in mind? » sur Sawali) */}
-            <div className="mt-14 flex flex-col items-start justify-between gap-6 rounded-2xl border border-white/15 bg-gradient-to-br from-nuit-700 to-nuit-800 p-8 sm:flex-row sm:items-center">
+            <div className="mt-14 flex flex-col items-start justify-between gap-6 rounded-3xl border border-white/15 bg-nuit-700 p-8 sm:flex-row sm:items-center">
               <div>
                 <p className="font-display text-2xl font-bold">Vous tenez une boutique de téléphonie ?</p>
                 <p className="mt-1 text-gray-300">Vitrine en ligne, caisse, stock et SAV : 14 jours d'essai gratuit.</p>
               </div>
-              <Link to="/connexion" className="btn-primary whitespace-nowrap px-8 py-3">Accéder à mon espace →</Link>
+              <Link to="/connexion" className="btn-primary whitespace-nowrap px-8 py-3">Accéder à mon espace</Link>
             </div>
           </div>
         </section>

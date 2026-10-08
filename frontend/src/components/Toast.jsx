@@ -21,13 +21,14 @@ export function ToastProvider({ children }) {
     info: (t) => afficher(t, "info"),
   }), [afficher]);
 
-  const couleurs = { succes: "bg-green-600", erreur: "bg-red-600", info: "bg-gray-800" };
+  // Couleurs de la charte : vert « monnaie » (succès), rouge (erreur), encre (info)
+  const couleurs = { succes: "bg-accent", erreur: "bg-red-600", info: "bg-ink" };
   return (
     <ToastContext.Provider value={api}>
       {children}
       <div className="no-print pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4">
         {messages.map((m) => (
-          <div key={m.id} className={`pointer-events-auto animate-slide-up rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg ${couleurs[m.type]}`}>
+          <div key={m.id} className={`pointer-events-auto animate-slide-up rounded-full px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(18,26,44,0.5)] ${couleurs[m.type]}`}>
             {m.texte}
           </div>
         ))}
