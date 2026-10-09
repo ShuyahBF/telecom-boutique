@@ -18,10 +18,15 @@ En résumé (pour un développeur WinDev) :
       GET  /api/support-sawali/etat      → pictogramme affiché ou non (clé présente)
       POST /api/support-sawali/messages  {texte}            → message envoyé au support
       POST /api/support-sawali/fil       {depuis, marquer_lu} → messages, réponses, état
+    SAWALI lot 93 (pictogrammes de la fenêtre, comme dans le chat SAWALI) :
+      POST /api/support-sawali/fichier     {fichier (data URL), nom, legende} → photo, document ou vidéo
+      POST /api/support-sawali/transcrire  {audio (data URL), nom}            → texte de la note vocale
+      GET  /api/support-sawali/media/{id}                                     → fichier d'un message du fil
   - aucun secret n'est renvoyé au navigateur ni journalisé.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
@@ -29,13 +34,14 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from auth import Contexte, tout_le_personnel
 from config import get_settings
 from transmission_wa import signer  # même signature HMAC que la Transmission WA
 
+DELAI_FICHIER_SECONDES = 90   # SAWALI lot 93 : envoi d'un fichier, transcription d'une note vocale
 DELAI_SECONDES = 15                                  # délai maximal d'un appel à SAWALI
 SAWALI_PAR_DEFAUT = "https://api.sawalismartsystems.com"
 EMETTEUR_DEFAUT = "adlyn"                            # code de la plateforme dans SAWALI (pas secret)
@@ -76,7 +82,7 @@ def configure() -> bool:
 # ---------------------------------------------------------------------------
 # Appel signé vers SAWALI
 # ---------------------------------------------------------------------------
-async def appeler_sawali(chemin: str, corps: Dict[str, Any]) -> Dict[str, Any]:
+async def appeler_sawali(chemin: str, corps: Dict[str, Any], delai: float = DELAI_SECONDES) -> Dict[str, Any]:
     """POST signé vers SAWALI ; renvoie le JSON ou lève une HTTPException lisible pour l'utilisateur."""
     if not configure():
         raise HTTPException(status_code=503, detail="Support SAWALI non configuré sur cette plateforme")
@@ -86,13 +92,20 @@ async def appeler_sawali(chemin: str, corps: Dict[str, Any]) -> Dict[str, Any]:
     entetes = {"Content-Type": "application/json", "X-Emetteur": emetteur(), "X-Timestamp": ts,
                "X-Signature": signer(cle(), ts, brut)}
     try:
-        async with httpx.AsyncClient(timeout=DELAI_SECONDES, transport=_transport) as client:
+        async with httpx.AsyncClient(timeout=delai, transport=_transport) as client:
             r = await client.post(f"{url_sawali()}/api{chemin}", content=brut, headers=entetes)
     except httpx.HTTPError:
         raise HTTPException(status_code=503, detail="Support SAWALI injoignable : réessayez dans un instant")
     # 403 chez SAWALI : la plateforme n'est pas (encore) autorisée à utiliser le support
     if r.status_code == 403:
         raise HTTPException(status_code=503, detail="Support SAWALI pas encore activé pour cette plateforme")
+    if r.status_code in (404, 413, 415, 422):
+        # SAWALI lot 93 : fichier refusé (type, taille, illisible) ou introuvable → message de SAWALI transmis tel quel
+        try:
+            detail = r.json().get("detail")
+        except ValueError:
+            detail = None
+        raise HTTPException(status_code=r.status_code, detail=detail if isinstance(detail, str) else "Demande refusée par le support SAWALI")
     if r.status_code >= 400:
         raise HTTPException(status_code=502, detail="Le support SAWALI a refusé la demande")
     try:
@@ -117,6 +130,19 @@ def identite(ctx: Contexte) -> Dict[str, str]:
 # ---------------------------------------------------------------------------
 class MessageEntree(BaseModel):
     texte: str = Field(..., min_length=1, max_length=2000)
+
+
+class FichierEntree(BaseModel):
+    """SAWALI lot 93 : photo, document ou vidéo (data URL base64, 15 Mo au plus une fois décodé)."""
+    fichier: str = Field(..., min_length=10, max_length=21_000_000)
+    nom: str = Field("", max_length=200)
+    legende: str = Field("", max_length=500)
+
+
+class AudioEntree(BaseModel):
+    """SAWALI lot 93 : note vocale enregistrée par le navigateur (data URL base64)."""
+    audio: str = Field(..., min_length=10, max_length=35_000_000)
+    nom: str = Field("note.webm", max_length=200)
 
 
 class FilEntree(BaseModel):
@@ -149,3 +175,31 @@ async def fil(entree: FilEntree, ctx: Contexte = Depends(tout_le_personnel)):
     if entree.depuis:
         corps["depuis"] = entree.depuis
     return await appeler_sawali("/support-plateforme/fil", corps)
+
+# --- SAWALI lot 93 : pictogrammes de la fenêtre (photo, trombone, note vocale) ---
+@router.post("/fichier")
+async def fichier(entree: FichierEntree, ctx: Contexte = Depends(tout_le_personnel)):
+    """Photo, document ou vidéo envoyé au support (SAWALI vérifie le type et la taille)."""
+    return await appeler_sawali("/support-plateforme/fichier", {
+        "utilisateur": identite(ctx), "fichier": entree.fichier, "nom": entree.nom, "legende": entree.legende.strip()},
+        delai=DELAI_FICHIER_SECONDES)
+
+
+@router.post("/transcrire")
+async def transcrire(entree: AudioEntree, ctx: Contexte = Depends(tout_le_personnel)):
+    """Note vocale → texte, placé dans la zone de saisie (l'utilisateur le relit avant d'envoyer)."""
+    return await appeler_sawali("/support-plateforme/transcrire", {
+        "utilisateur": identite(ctx), "audio": entree.audio, "nom": entree.nom}, delai=DELAI_FICHIER_SECONDES)
+
+
+@router.get("/media/{message_id}")
+async def media(message_id: str, ctx: Contexte = Depends(tout_le_personnel)):
+    """Fichier d'un message du fil (le sien ou une réponse du support), servi au navigateur."""
+    r = await appeler_sawali("/support-plateforme/media", {"utilisateur": identite(ctx), "message_id": message_id[:80]},
+                             delai=DELAI_FICHIER_SECONDES)
+    try:
+        contenu = base64.b64decode(r.get("contenu") or "")
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Fichier illisible")
+    return Response(content=contenu, media_type=r.get("type") or "application/octet-stream",
+                    headers={"Cache-Control": "private, max-age=86400"})
