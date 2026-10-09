@@ -28,7 +28,7 @@
 export const VERSION = 13;
 
 // Numéro de la Pull Request GitHub fusionnée pour ce déploiement
-export const LOT = 34;
+export const LOT = 35;
 
 // Valeurs injectées par Vite au moment de « npm run build » (vite.config.js).
 // Le « typeof » évite une erreur si le fichier est lu hors de Vite (tests, etc.).
