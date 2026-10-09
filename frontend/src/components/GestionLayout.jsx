@@ -9,6 +9,7 @@ import Abonnement from "@/pages/gestion/Abonnement";
 import { BandeauGrace, useCoupureProgrammee } from "@/components/AbonnementGrace";
 import DernieresSauvegardes from "@/components/DernieresSauvegardes";
 import VersionApp from "@/components/VersionApp";
+import SupportSawali from "@/components/SupportSawali"; // SAWALI lot 90 : pictogramme d'assistance
 
 // Menu du back-office : chaque entrée indique
 //  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
@@ -65,12 +66,29 @@ function BandeauAbonnement({ boutique }) {
   );
 }
 
+// SAWALI lot 90 — vrai sur grand écran (barre latérale visible, classe Tailwind « lg » = 1024 px).
+// Sert à n'afficher QU'UN SEUL pictogramme d'assistance (barre latérale sur grand
+// écran, barre du haut sur téléphone) : une seule lecture périodique du fil.
+function useGrandEcran() {
+  const requete = "(min-width: 1024px)";
+  const [grand, setGrand] = useState(() => typeof window !== "undefined" && window.matchMedia?.(requete).matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.(requete);
+    if (!mq) return undefined;
+    const suivre = (e) => setGrand(e.matches);
+    mq.addEventListener?.("change", suivre);
+    return () => mq.removeEventListener?.("change", suivre);
+  }, []);
+  return !!grand;
+}
+
 // Mise en page du back-office : barre latérale (menu), barre du haut, contenu.
 export default function GestionLayout() {
   const { user, boutique, deconnexion, rafraichir } = useAuth();
   const navigate = useNavigate();
   const [menuMobile, setMenuMobile] = useState(false);
   const [compteurs, setCompteurs] = useState({ conversations: 0, nouveautes: 0 });
+  const grandEcran = useGrandEcran(); // emplacement du pictogramme d'assistance (SAWALI lot 90)
   // Fin de la période de grâce : la session est relue à l'heure exacte de la coupure
   useCoupureProgrammee(boutique?.abonnement_grace, rafraichir);
 
@@ -176,6 +194,8 @@ export default function GestionLayout() {
           {menu}
           {/* Signature de la plateforme en bas du menu, avec la version et le lot déployés */}
           <div className="mt-auto space-y-2 border-t border-white/10 pt-4">
+            {/* SAWALI lot 90 — petit pictogramme d'assistance : discussion avec le support SAWALI */}
+            {grandEcran && <SupportSawali clair libelle="Assistance" />}
             <LogoAdlyn clair className="h-6 opacity-70" />
             <VersionApp className="px-1 text-gray-400" />
           </div>
@@ -188,6 +208,8 @@ export default function GestionLayout() {
             <div className="ml-auto flex items-center gap-3 text-sm">
               <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
               <span className="hidden text-gray-600 sm:inline"><b className="font-semibold text-ink">{user.nom}</b> · {ROLES[user.role]}</span>
+              {/* SAWALI lot 90 — sur téléphone, le pictogramme d'assistance passe dans la barre du haut */}
+              {!grandEcran && <SupportSawali />}
               {/* Mon compte : e-mail / téléphone de connexion et mot de passe */}
               <Link to="/mon-compte" className="text-gray-500 hover:text-primary" title="Mon compte : identifiants et mot de passe">👤</Link>
               <button type="button" className="btn-outline btn-sm" onClick={async () => { await deconnexion(); navigate("/connexion"); }}>Déconnexion</button>

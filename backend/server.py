@@ -16,6 +16,7 @@ import abonnements as service_abonnements
 import catalogue_public as service_catalogue
 import taches_nocturnes
 import presence_sawali  # signal de présence envoyé à SAWALI (règle 4)
+import support_sawali  # SAWALI lot 90 : pictogramme d'assistance → discussion avec le support SAWALI
 from config import get_settings
 from db import ensure_indexes
 from routes import (abonnements, acces_boutique, auth, boutique, caisse_aizenta, identifiants, carrousel, catalogue, catalogue_public, commandes, conversations, documents, journal,
@@ -93,6 +94,8 @@ api.include_router(sms.admin)
 api.include_router(transmission_wa.router)  # test et état de la Transmission WA (super-admin)
 api.include_router(transmission_wa.public)  # retours signés de SAWALI : POST /api/webhooks/liluvine-retour
 api.include_router(transmission_wa.boutique)  # WABA propre à la boutique (Paramètres > WhatsApp)
+# SAWALI lot 90 — support SAWALI : relais signé (HMAC) des messages du personnel de la boutique
+api.include_router(support_sawali.router)
 # « Mon espace » : page de la boutique ouverte par le QR code des factures / proformas,
 # connexion du client par son numéro + code à usage unique, lecture de ses documents
 api.include_router(espace_client.router)
