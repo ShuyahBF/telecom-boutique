@@ -80,3 +80,40 @@ def test_routes_gerant_identite_boutique(client, nouvelle_boutique, reglages, mo
     assert u["contexte"] == "Boutique Support" and u["id"] and set(u) == {"id", "nom", "role", "contexte", "email", "telephone"}
     client.cookies.clear()
     assert client.get("/api/support-sawali/etat").status_code == 401
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# SAWALI lot 93 — pictogrammes de la fenêtre d'assistance : photo / document, note vocale, média
+# ---------------------------------------------------------------------------------------------------------------
+JPEG93 = b"\xff\xd8\xff\xe0" + b"\x00" * 32 + b"\xff\xd9"
+
+
+def test_pictos_fichier_transcription_media(client, nouvelle_boutique, reglages, monkeypatch):
+    """Photo relayée signée (avec la boutique), note vocale transcrite, média renvoyé au navigateur avec son type."""
+    import base64
+    vus = []
+
+    def repondre(r: httpx.Request):
+        corps = json.loads(r.content.decode())
+        vus.append((r.url.path, corps))
+        if r.url.path.endswith("/fichier"):
+            return httpx.Response(200, json={"ok": True, "message": {"id": "m1", "media": {"genre": "image"}}})
+        if r.url.path.endswith("/transcrire"):
+            return httpx.Response(200, json={"ok": True, "texte": "Bonjour"})
+        return httpx.Response(200, json={"type": "image/jpeg", "nom": "a.jpg", "contenu": base64.b64encode(JPEG93).decode()})
+
+    monkeypatch.setattr(ss, "_transport", httpx.MockTransport(repondre))
+    _boutique, entetes = nouvelle_boutique(nom="Boutique Pictos")
+    data = "data:image/jpeg;base64," + base64.b64encode(JPEG93).decode()
+    r = client.post("/api/support-sawali/fichier", headers=entetes, json={"fichier": data, "nom": "a.jpg", "legende": " Voici "})
+    assert r.status_code == 200, r.text
+    assert vus[-1][0] == "/api/support-plateforme/fichier" and vus[-1][1]["legende"] == "Voici"
+    assert vus[-1][1]["utilisateur"]["contexte"] == "Boutique Pictos"
+    t = client.post("/api/support-sawali/transcrire", headers=entetes, json={"audio": "data:audio/webm;base64,QUJDREVGR0g="})
+    assert t.json()["texte"] == "Bonjour"
+    m = client.get("/api/support-sawali/media/m1", headers=entetes)
+    assert m.status_code == 200 and m.content == JPEG93 and m.headers["content-type"] == "image/jpeg"
+    # Refus de SAWALI (type non accepté) transmis tel quel
+    monkeypatch.setattr(ss, "_transport", httpx.MockTransport(lambda r: httpx.Response(415, json={"detail": "Type de fichier non accepté"})))
+    r = client.post("/api/support-sawali/fichier", headers=entetes, json={"fichier": "data:application/x-msdownload;base64,TVo=AAAA", "nom": "x.exe"})
+    assert r.status_code == 415 and r.json()["detail"] == "Type de fichier non accepté"
