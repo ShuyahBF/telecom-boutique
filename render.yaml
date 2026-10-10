@@ -20,6 +20,8 @@ services:
     buildFilter:
       paths:
         - backend/**
+        # Le serveur lit la version et le lot dans frontend/src/version.js : il doit se redéployer quand ce fichier change
+        - frontend/src/version.js
       ignoredPaths:
         - backend/tests/**
         - backend/**/*.test.js
