@@ -64,12 +64,10 @@ services:
         value: "false"
 
       # --- PawaPay (Mobile Money) : même compte que beauthentik / Sawali ---
-      - key: PAWAPAY_ENVIRONMENT
-        sync: false
-      - key: PAWAPAY_API_TOKEN_SANDBOX
-        sync: false
-      - key: PAWAPAY_API_TOKEN_PRODUCTION
-        sync: false
+      # Environnement et jetons pawaPay : groupe d'environnement Render « pawapay-commun »
+      # (créé et rempli par le propriétaire, partagé par ZandGo, beAuthentik, adLyn et bfmobility).
+      # Ne PAS redéclarer ces 3 variables sur le service : une variable du service masque celle du groupe.
+      - fromGroup: pawapay-commun
       - key: PAWAPAY_CALLBACK_SECRET
         generateValue: true
       - key: PAWAPAY_DEFAULT_COUNTRY
