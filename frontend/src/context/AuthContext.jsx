@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { signalerVisite } from "@/lib/presenceVisite";
 import { apiClient, BOUTIQUE_ACTIVE_KEY, EVENEMENT_ABONNEMENT_EXPIRE, EVENEMENT_SESSION_PERDUE, memoriserIdBoutique } from "@/lib/api";
 
 // Session du personnel : utilisateur connecté + sa boutique.
@@ -49,6 +50,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     rafraichir();
   }, [rafraichir]);
+
+  // Lot 39 — visiteur NON connecté arrivé sur le site : visite signalée à SAWALI
+  // (au plus une fois / 30 min par navigateur, voir lib/presenceVisite.js).
+  // Vérifié UNE seule fois, au chargement du site (pas après une déconnexion).
+  const visiteVerifiee = useRef(false);
+  useEffect(() => {
+    if (chargement || visiteVerifiee.current) return;
+    visiteVerifiee.current = true;
+    if (!user) signalerVisite(window.location.pathname);
+  }, [chargement, user]);
 
   // Session refusée en cours d'utilisation (401) : retour à la connexion, avec le motif
   useEffect(() => {

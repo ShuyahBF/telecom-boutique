@@ -14,7 +14,7 @@ export default function Confidentialite() {
       titreOnglet="adLyn Privacy Policy"
       titre="adLyn Privacy Policy"
       sousTitre="Politique de confidentialité"
-      miseAJour="29 septembre 2026"
+      miseAJour="11 octobre 2026"
     >
       <Section titre="1. Qui sommes-nous ?">
         <p>
@@ -68,6 +68,15 @@ export default function Confidentialite() {
           <li>Orange, OVH et WhatsApp (Meta) pour les SMS et messages ;</li>
           <li>Google Drive (sauvegardes chiffrées) ;</li>
           <li>TikTok et les autres réseaux sociaux qu'une boutique choisit de connecter, pour publier ses contenus.</li>
+          {/* Lot 39 : connexions et visites signalées à SAWALI (supervision de la plateforme) */}
+          <li>
+            SAWALI Smart Systems (supervision de la plateforme) : à chaque connexion à adLyn (personnel des boutiques,
+            administrateur ou client dans « Mon espace »), nous lui transmettons l'adresse IP, la date et l'heure, le
+            navigateur utilisé et l'identité du compte (nom, rôle, boutique, téléphone). Pour un visiteur non connecté,
+            seuls l'adresse IP, la page d'arrivée, le navigateur et un identifiant anonyme tiré au hasard sont transmis
+            (au plus une fois toutes les 30 minutes). Ces informations servent uniquement à surveiller la sécurité et
+            l'activité de la plateforme ; aucun mot de passe n'est jamais transmis.
+          </li>
         </ul>
         <p>
           L'assistant de recherche du catalogue (Anthropic) ne lit que les fiches techniques publiques des fabricants,
@@ -82,6 +91,7 @@ export default function Confidentialite() {
           <li>un cookie qui retient l'ID de la boutique sur l'écran de connexion (1 an) ;</li>
           <li>le panier d'achat, gardé dans votre navigateur ;</li>
           <li>un identifiant d'appareil, pour la sécurité des connexions du personnel.</li>
+          <li>un identifiant anonyme tiré au hasard et l'heure de la dernière visite signalée (stockage local), pour ne signaler une visite qu'une fois toutes les 30 minutes.</li>
         </ul>
       </Section>
 

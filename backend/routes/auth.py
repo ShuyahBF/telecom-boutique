@@ -23,6 +23,7 @@ import acces
 import blocages_acces
 import maintenance_plateforme
 import sessions_actives
+import signal_connexion
 from config import get_settings
 from pydantic import BaseModel, Field
 
@@ -156,6 +157,9 @@ async def login(payload: Connexion, request: Request, response: Response):
     session["sessions_fermees"] = await sessions_actives.ouvrir(user, session["access_token"], request,
                                                                 methode=type_identifiant or "email")
     poser_cookie_session(response, session["access_token"])
+    # Lot 39 — connexion signalée à SAWALI (alerte WhatsApp du propriétaire) :
+    # envoi en arrière-plan, jamais bloquant, rien si SAWALI n'est pas configuré
+    signal_connexion.signaler_connexion_personnel(request, user, boutique)
     return session
 
 
