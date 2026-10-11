@@ -17,6 +17,8 @@ os.environ.update({
     "PAWAPAY_API_TOKEN_SANDBOX": "",
     # Pas de signal de présence SAWALI pendant les tests (aucun accès réseau)
     "PRESENCE_SAWALI": "0",
+    # Lot 39 : pas de signal de connexion / visite vers SAWALI (sauf tests dédiés)
+    "SIGNAL_CONNEXIONS_SAWALI": "0",
     # Clé de chiffrement des sauvegardes (32 octets en base64), propre aux tests
     "SAUVEGARDE_CLE": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 })

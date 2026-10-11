@@ -16,6 +16,7 @@ import abonnements as service_abonnements
 import catalogue_public as service_catalogue
 import taches_nocturnes
 import presence_sawali  # signal de présence envoyé à SAWALI (règle 4)
+import signal_connexion  # lot 39 : connexions et visites signalées à SAWALI (alerte WhatsApp)
 import support_sawali  # SAWALI lot 90 : pictogramme d'assistance → discussion avec le support SAWALI
 from config import get_settings
 from db import ensure_indexes
@@ -96,6 +97,8 @@ api.include_router(transmission_wa.public)  # retours signés de SAWALI : POST /
 api.include_router(transmission_wa.boutique)  # WABA propre à la boutique (Paramètres > WhatsApp)
 # SAWALI lot 90 — support SAWALI : relais signé (HMAC) des messages du personnel de la boutique
 api.include_router(support_sawali.router)
+# Lot 39 — visites du site (visiteur non connecté) signalées à SAWALI : POST /api/presence/visite
+api.include_router(signal_connexion.public)
 # « Mon espace » : page de la boutique ouverte par le QR code des factures / proformas,
 # connexion du client par son numéro + code à usage unique, lecture de ses documents
 api.include_router(espace_client.router)

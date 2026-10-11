@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 
 import acces
 import jetons_qr
+import signal_connexion
 from config import get_settings
 from db import SANS_ID, TenantDB, db
 from utils import new_id, now_iso
@@ -329,6 +330,9 @@ async def verifier_code(payload: VerificationCode, request: Request, response: R
     })
     jeton = jetons_qr.creer_jeton_session(sid, b["id"], client["id"])
     _poser_cookie(response, jeton)
+    # Lot 39 — ouverture de « Mon espace » signalée à SAWALI (alerte WhatsApp du propriétaire) :
+    # envoi en arrière-plan, jamais bloquant, rien si SAWALI n'est pas configuré
+    signal_connexion.signaler_connexion_client(request, client, b)
     return {"jeton": jeton, "expire_dans": s.espace_client_session_minutes * 60,
             "client": {"nom": client.get("nom", "")}, "boutique": boutique_minimale(b)}
 
