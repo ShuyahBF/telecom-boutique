@@ -143,6 +143,9 @@ REGLES: list[tuple[tuple[str, ...], re.Pattern, tuple[str, ...]]] = [(m, re.comp
     (TOUTES, r"^/catalogue-public(/|$)", ("catalogue_public",)),
     (LECTURE, r"^/referentiel(/|$)", ("catalogue_public", "produits")),
     (TOUTES, r"^/boutique/parrainage(/|$)", ("parrainage",)),
+    # Lot E — partage d'un produit : suit l'option « Catalogue » (le partage de la
+    # boutique, /partage/lien, reste ouvert à tout le personnel, sans option)
+    (LECTURE, r"^/partage/lien/produit(/|$)", ("produits",)),
     # Paramètres : l'équipe (liste des techniciens) sert aussi aux dossiers SAV
     (LECTURE, r"^/boutique/equipe$", ("parametres", "maintenance")),
     (TOUTES, r"^/boutique/(equipe|kyc|messagerie|acces|logo|pispi)(/|$)", ("parametres",)),

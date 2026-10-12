@@ -148,6 +148,8 @@ async def ensure_indexes() -> None:
     await db.otp_whatsapp.create_index([("telephone", 1), ("objet", 1)])
     await db.otp_whatsapp.create_index("expire_le", expireAfterSeconds=0)
     await db.boutiques.create_index([("origine", 1), ("validee", 1)])
+    # Lot E — ouvertures des liens de partage, cumulées par jour (boutique, produit, canal)
+    await db.partages_clics.create_index([("boutique_id", 1), ("produit_id", 1), ("canal", 1), ("jour", 1)])
     for collection in (db.limites_codes, db.echecs_codes, db.blocages_codes):
         await collection.create_index([("cle", 1), ("date", 1)])
         await collection.create_index("expire_le", expireAfterSeconds=0)
