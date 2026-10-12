@@ -4,6 +4,7 @@ import { apiClient, messageErreur } from "@/lib/api";
 import Modal from "@/components/Modal";
 import Patientez from "@/components/Patientez";
 import QrCode from "@/components/QrCode";
+import IconePartage from "@/components/IconePartage";
 import { useToast } from "@/components/Toast";
 
 // ============================================================================
@@ -93,14 +94,19 @@ export default function BoutonPartager({ produit = null, libelle, className = "b
   // Liens WhatsApp (message prérempli) et Facebook (adresse seule : Facebook n'accepte pas de texte)
   const lienWhatsApp = infos?.url ? `https://wa.me/?text=${encodeURIComponent(messagePour(message, infos.url, "whatsapp"))}` : "";
   const lienFacebook = infos?.url ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(avecCanal(infos.url, "facebook"))}` : "";
-  const intitule = libelle ?? (produit ? "🔗 Partager" : "🔗 Partager ma boutique");
+  // Texte du bouton (sans pictogramme : l'icône « Partager » usuelle est ajoutée devant).
+  // libelle = "" → bouton réduit à l'icône (barre du haut sur téléphone, lignes du tableau).
+  const intitule = libelle ?? (produit ? "Partager" : "Partager ma boutique");
 
   return (
     // Les clics dans la fenêtre ne remontent pas à la ligne du tableau (qui ouvrirait la fiche)
     <span className={`no-print ${className.includes("w-full") ? "flex w-full" : "inline-flex"}`} onClick={(e) => e.stopPropagation()}>
       <button type="button" className={className} title={titre || (produit ? `Partager « ${produit.nom} »` : "Partager le lien de ma vitrine")}
         onClick={(e) => { e.preventDefault(); setOuvert(true); }}>
-        {intitule}
+        <span className="inline-flex items-center gap-1.5">
+          <IconePartage />
+          {intitule && <span>{intitule}</span>}
+        </span>
       </button>
       {/* « Patientez… » pendant la lecture du lien (rendu à la racine de la page, lui aussi) */}
       {chargement && createPortal(<Patientez actif />, document.body)}
@@ -130,7 +136,9 @@ export default function BoutonPartager({ produit = null, libelle, className = "b
                 {/* Canaux de partage */}
                 <div className="grid gap-2 sm:grid-cols-2">
                   {natif && (
-                    <button type="button" className="btn-primary sm:col-span-2" onClick={partagerNatif}>📤 Partager… (WhatsApp, SMS, Facebook…)</button>
+                    <button type="button" className="btn-primary sm:col-span-2" onClick={partagerNatif}>
+                      <span className="inline-flex items-center justify-center gap-2"><IconePartage /> Partager… (WhatsApp, SMS, Facebook…)</span>
+                    </button>
                   )}
                   <a className="btn-outline justify-center" href={lienWhatsApp} target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>
                   <a className="btn-outline justify-center" href={lienFacebook} target="_blank" rel="noopener noreferrer">🔵 Facebook</a>

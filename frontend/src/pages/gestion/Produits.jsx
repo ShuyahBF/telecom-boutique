@@ -199,7 +199,7 @@ export default function Produits() {
                     </span>
                   </Link>
                   {/* Lot E — partage de l'article (hors du lien, pour ne pas ouvrir la fiche) */}
-                  <BoutonPartager produit={p} className="btn-outline btn-sm px-2" libelle="🔗" />
+                  <BoutonPartager produit={p} className="btn-outline btn-sm px-2" libelle="" titre={`Partager « ${p.nom} »`} />
                 </li>
               );
             })}
@@ -248,7 +248,7 @@ export default function Produits() {
                     <td className="text-center">{p.visible_portail ? "✅" : "—"}</td>
                     {/* Lot E — partage de l'article ; un article masqué, inactif ou sans prix
                         affiche la raison dans la fenêtre au lieu des canaux de partage */}
-                    <td className="text-center"><BoutonPartager produit={p} libelle="🔗 Partager" /></td>
+                    <td className="text-center"><BoutonPartager produit={p} libelle="" titre={`Partager « ${p.nom} »`} /></td>
                   </tr>
                 );
               })}
