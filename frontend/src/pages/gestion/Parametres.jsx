@@ -12,6 +12,7 @@ import ParamJournal from "./_atelier/ParamJournal";
 import ParamEquipe from "./_atelier/ParamEquipe";
 import ParamSecurite from "./_atelier/ParamSecurite";
 import ParamReseaux from "./_atelier/ParamReseaux";
+import ParamFacebookAdlyn from "./_atelier/ParamFacebookAdlyn";
 import ParamPispi from "./_atelier/ParamPispi";
 
 // Liste des onglets de la page (le code apparaît dans l'adresse : ?onglet=equipe)
@@ -59,7 +60,13 @@ export default function Parametres() {
       {onglet === "journal" && <ParamJournal />}
       {onglet === "equipe" && <ParamEquipe />}
       {onglet === "securite" && <ParamSecurite />}
-      {onglet === "reseaux" && <ParamReseaux />}
+      {/* Réseaux sociaux : compte TikTok de la boutique, puis accord pour la page Facebook d'adLyn (désactivé par défaut) */}
+      {onglet === "reseaux" && (
+        <div className="space-y-4">
+          <ParamReseaux />
+          <ParamFacebookAdlyn />
+        </div>
+      )}
     </div>
   );
 }
