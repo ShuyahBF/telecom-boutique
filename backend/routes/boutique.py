@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, Union
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 from pymongo.errors import DuplicateKeyError
 
@@ -88,7 +88,23 @@ async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(
 # ---------------------------------------------------------------------------
 @router.get("/kyc/types")
 async def types_kyc(_: Contexte = Depends(parametres)):
-    return {"types": service_kyc.TYPES_PIECES_KYC, "statuts": service_kyc.STATUTS_KYC}
+    import kyc_ia
+    # Lot C : types de pièce d'identité (CNIB, passeport…) et taille maximale d'une photo
+    return {"types": service_kyc.TYPES_PIECES_KYC, "statuts": service_kyc.STATUTS_KYC,
+            "types_documents": kyc_ia.TYPES_DOCUMENTS, "taille_max_piece": kyc_ia.TAILLE_MAX}
+
+
+@router.post("/kyc/piece-identite")
+async def envoyer_piece_identite(taches: BackgroundTasks, recto: UploadFile = File(...),
+                                 verso: Optional[UploadFile] = File(None), type_document: str = Form(...),
+                                 ctx: Contexte = Depends(parametres)):
+    """Lot C — formulaire « Ma pièce d'identité » : recto (+ verso facultatif) et type de
+    pièce. Liluvine lit la pièce tout de suite ; si le nom concorde avec le propriétaire
+    déclaré, le KYC est vérifié et la boutique validée sur-le-champ (voir kyc_ia.py).
+    Réponse : {kyc, decision, motif_code, motif, boutique_validee, validee_maintenant, message}."""
+    import kyc_ia
+    return await kyc_ia.envoyer_piece_identite(ctx.boutique, recto, verso, type_document,
+                                               ctx.user.get("nom", ""), taches=taches)
 
 
 @router.post("/kyc/documents")

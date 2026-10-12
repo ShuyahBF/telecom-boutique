@@ -10,8 +10,10 @@ import { optionActive } from "@/lib/options";
 // visible du public tant qu'elle n'est pas validée.
 //   - <BandeauAttenteValidation> : bandeau en haut de toutes les pages du back-office ;
 //   - <CarteAttenteValidation>   : carte détaillée en tête du tableau de bord.
-// Le dossier d'identité (KYC) est l'onglet « Identité & KYC » des Paramètres
-// (le lot C y ajoutera la lecture automatique de la carte d'identité).
+// Le dossier d'identité (KYC) est l'onglet « Identité & KYC » des Paramètres.
+// Lot C : Liluvine (IA) y lit la pièce d'identité ; si le nom concorde avec le
+// propriétaire déclaré, la boutique est validée sur-le-champ. Sinon, la carte
+// affiche le motif (photo floue, nom différent…) et invite à renvoyer une photo.
 // ============================================================================
 export const LIEN_KYC = "/gestion/parametres?onglet=kyc";
 
@@ -41,7 +43,10 @@ export function BandeauAttenteValidation({ user, boutique }) {
 function etapeDossier(kyc) {
   switch (kyc?.statut) {
     case "VERIFIE": return { fait: true, texte: "Dossier d'identité vérifié" };
-    case "EN_ATTENTE": return { fait: true, texte: "Dossier d'identité envoyé : vérification en cours" };
+    case "EN_ATTENTE":
+      // Lot C : motif donné par Liluvine (ex. photo floue) -> le commerçant peut renvoyer une photo
+      if (kyc.ia?.motif) return { fait: false, texte: `Pièce d'identité reçue, vérification par l'équipe adLyn : ${kyc.ia.motif}` };
+      return { fait: true, texte: "Dossier d'identité envoyé : vérification en cours" };
     case "REJETE": return { fait: false, texte: `Dossier d'identité à reprendre${kyc.motif_rejet ? ` : ${kyc.motif_rejet}` : ""}` };
     default: return { fait: false, texte: "Envoyez la photo de votre pièce d'identité (CNIB ou passeport)" };
   }
@@ -53,7 +58,7 @@ export function CarteAttenteValidation({ user, boutique, bienvenue = false }) {
   const etapes = [
     { fait: true, texte: boutique.origine === "inscription" ? "Compte créé, numéro WhatsApp vérifié" : "Compte créé" },
     dossier,
-    { fait: false, texte: "Validation par l'équipe adLyn : votre vitrine devient visible du public" },
+    { fait: false, texte: "Validation : immédiate dès que Liluvine confirme votre pièce, sinon par l'équipe adLyn. Votre vitrine devient alors visible du public" },
   ];
   return (
     <section className="card mb-6 border-amber-200 bg-amber-50/60">
@@ -82,8 +87,10 @@ export function CarteAttenteValidation({ user, boutique, bienvenue = false }) {
           <p className="font-mono text-xl font-bold tracking-[0.2em]">{boutique.code_marchand}</p>
         </div>
       </div>
-      {peutCompleterDossier(user, boutique) && !["VERIFIE", "EN_ATTENTE"].includes(boutique.kyc?.statut) && (
-        <Link to={LIEN_KYC} className="btn-primary mt-4 inline-flex">🪪 Compléter mon dossier (pièce d'identité)</Link>
+      {peutCompleterDossier(user, boutique) && !dossier.fait && (
+        <Link to={LIEN_KYC} className="btn-primary mt-4 inline-flex">
+          {boutique.kyc?.ia ? "📷 Renvoyer une photo de ma pièce d'identité" : "🪪 Compléter mon dossier (pièce d'identité)"}
+        </Link>
       )}
     </section>
   );

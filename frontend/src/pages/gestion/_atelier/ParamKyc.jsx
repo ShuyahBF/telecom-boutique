@@ -4,11 +4,12 @@ import { apiClient, messageErreur } from "@/lib/api";
 import { date, dateHeure } from "@/lib/format";
 import { useToast } from "@/components/Toast";
 import { Champ, Vide } from "./communs";
+import PieceIdentite from "./PieceIdentite";
 
 // Présentation de chaque statut du dossier KYC : couleurs, icône et explication
 const PRESENTATION_STATUTS = {
   NON_FOURNI: { icone: "📂", classe: "border-gray-300 bg-gray-50 text-gray-800", texte: "Aucun justificatif envoyé pour l'instant. Ajoutez vos pièces ci-dessous." },
-  EN_ATTENTE: { icone: "⏳", classe: "border-amber-300 bg-amber-50 text-amber-900", texte: "Vos justificatifs ont bien été reçus. L'administrateur de la plateforme va les vérifier." },
+  EN_ATTENTE: { icone: "⏳", classe: "border-amber-300 bg-amber-50 text-amber-900", texte: "Vos justificatifs ont bien été reçus. L'équipe adLyn va les vérifier." },
   VERIFIE: { icone: "✅", classe: "border-green-300 bg-green-50 text-green-900", texte: "Votre boutique est identifiée. Pour retirer un justificatif, contactez l'administrateur." },
   REJETE: { icone: "⛔", classe: "border-red-300 bg-red-50 text-red-900", texte: "Votre dossier a été refusé. Corrigez les points signalés puis envoyez de nouveaux justificatifs." },
 };
@@ -36,6 +37,8 @@ export default function ParamKyc({ allerA }) {
 
   // Types de pièces proposés (GET /boutique/kyc/types → { types: { CODE: "Libellé" } })
   const [types, setTypes] = useState({});
+  // Lot C — types de pièce d'identité (CNIB, passeport…) pour le formulaire « Ma pièce d'identité »
+  const [typesDocuments, setTypesDocuments] = useState({});
   // Formulaire d'ajout : type de pièce choisi + fichier sélectionné
   const [typePiece, setTypePiece] = useState("");
   const [fichier, setFichier] = useState(null);
@@ -46,8 +49,12 @@ export default function ParamKyc({ allerA }) {
   useEffect(() => {
     apiClient.get("/boutique/kyc/types")
       .then(({ data }) => {
-        setTypes(data.types || {});
-        setTypePiece((t) => t || Object.keys(data.types || {})[0] || "");
+        // La pièce d'identité du DG passe par son propre formulaire (lecture par Liluvine) :
+        // le formulaire « Ajouter un justificatif » ne garde que les autres pièces
+        const autres = Object.fromEntries(Object.entries(data.types || {}).filter(([code]) => code !== "PIECE_IDENTITE_DG"));
+        setTypes(autres);
+        setTypesDocuments(data.types_documents || {});
+        setTypePiece((t) => t || Object.keys(autres)[0] || "");
       })
       .catch((err) => toast.erreur(messageErreur(err, "Impossible de charger les types de justificatifs")));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -164,6 +171,9 @@ export default function ParamKyc({ allerA }) {
         </div>
       </div>
 
+      {/* Lot C — pièce d'identité du DG : photo recto / verso, lecture immédiate par Liluvine */}
+      <PieceIdentite typesDocuments={typesDocuments} />
+
       {/* min-w-0 : empêche un nom de fichier très long d'élargir la page sur téléphone */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
@@ -196,7 +206,7 @@ export default function ParamKyc({ allerA }) {
 
           {/* Formulaire d'ajout d'un justificatif */}
           <form onSubmit={envoyer} className="card grid gap-4 sm:grid-cols-2">
-            <h2 className="font-bold sm:col-span-2">Ajouter un justificatif</h2>
+            <h2 className="font-bold sm:col-span-2">Ajouter un autre justificatif (RCCM, IFU, CNSS…)</h2>
             <Champ label="Type de pièce">
               <select className="input" value={typePiece} onChange={(e) => setTypePiece(e.target.value)} required>
                 {Object.entries(types).map(([code, libelle]) => <option key={code} value={code}>{libelle}</option>)}

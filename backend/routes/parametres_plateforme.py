@@ -171,3 +171,26 @@ async def essai_smtp(payload: Essai, _: dict = Depends(get_super_admin)):
 async def journal_email(_: dict = Depends(get_super_admin)):
     """Dernières modifications du service d'envoi de la plateforme : qui, quand, quel fournisseur."""
     return await db.journal_reglages_email.find({"cible": "plateforme"}, SANS_ID).sort("date", -1).to_list(20)
+
+
+# ---------------------------------------------------------------------------
+# Lot C — vérification de la pièce d'identité par l'IA (« Liluvine », kyc_ia.py)
+# ---------------------------------------------------------------------------
+class ReglagesKycIa(BaseModel):
+    auto_validation: bool = True  # valider la boutique sur-le-champ quand le nom concorde
+    seuil_confiance: float = Field(0.8, ge=0.5, le=1.0)  # score minimal de lecture de l'IA
+    max_par_jour: int = Field(5, ge=1, le=20)  # vérifications IA par boutique sur 24 heures
+
+
+@router.get("/kyc-ia")
+async def lire_kyc_ia(_: dict = Depends(get_super_admin)):
+    """Réglages de la validation automatique (et présence de la clé de l'IA, jamais sa valeur)."""
+    import kyc_ia
+    return await kyc_ia.lire_reglages()
+
+
+@router.put("/kyc-ia")
+async def enregistrer_kyc_ia(payload: ReglagesKycIa, admin: dict = Depends(get_super_admin)):
+    import kyc_ia
+    return await kyc_ia.enregistrer_reglages(payload.auto_validation, payload.seuil_confiance,
+                                             payload.max_par_jour, admin.get("email", ""))
