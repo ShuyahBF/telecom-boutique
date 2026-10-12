@@ -11,6 +11,8 @@ Public, signé par SAWALI (public) :
     idempotent (un même retour reçu deux fois ne fait qu'une ligne).
     Type « stats_du_jour » : SAWALI demande les statistiques internes d'une période
     pour son rapport quotidien Liluvine (réponse : indicateurs + faits marquants).
+    Types « facebook_candidats » / « facebook_publie » : page Facebook d'adLyn animée par
+    Liluvine (articles des boutiques qui l'ont autorisé, publication notée) — partage_facebook.py.
 
 Boutique (boutique) — gérant (permission « paramètres ») ou super-admin consultant la boutique :
   - GET    /api/boutique/whatsapp-waba        : réglage du WABA propre (jeton masqué « ******** ») ;
@@ -108,6 +110,11 @@ async def recevoir_retour(request: Request, taches: BackgroundTasks):
             return await stats_du_jour.statistiques(doc)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from None
+    # Page Facebook d'adLyn animée par Liluvine : SAWALI demande des articles des boutiques consentantes
+    # (facebook_candidats) ou signale une publication faite (facebook_publie) — voir partage_facebook.py
+    import partage_facebook
+    if isinstance(doc, dict) and doc.get("type") in partage_facebook.TYPES:
+        return await partage_facebook.traiter(doc, request)
     if not isinstance(doc, dict) or doc.get("type") not in service.TYPES_RETOUR:
         raise HTTPException(422, "Type de retour inconnu (statut, reponse ou desinscription)")
     nouveau, ligne = await service.enregistrer_retour(doc)

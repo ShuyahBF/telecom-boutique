@@ -51,6 +51,9 @@ class FicheBoutique(BaseModel):
     conditions_facture: Optional[str] = Field(None, max_length=1000)
     couleur: Optional[str] = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
     paiement_mobile_money: Optional[bool] = None
+    # Accord du gérant : « Autoriser adLyn à publier mes articles sur sa page Facebook » (désactivé par défaut ;
+    # voir partage_facebook.py). Modifiable à tout moment dans Paramètres → Réseaux sociaux.
+    publication_facebook_adlyn: Optional[bool] = None
 
 
 @router.patch("")
@@ -69,6 +72,10 @@ async def modifier_fiche(payload: FicheBoutique, ctx: Contexte = Depends(paramet
     legales = ("ifu", "rccm", "cnss", "dg_nom")
     if any(k in maj and maj[k] != ctx.boutique.get(k) for k in legales) and (ctx.boutique.get("kyc") or {}).get("documents"):
         maj["kyc.statut"] = "EN_ATTENTE"
+    # Accord Facebook : date et auteur du choix gardés pour la preuve (accord ou retrait)
+    if "publication_facebook_adlyn" in maj and maj["publication_facebook_adlyn"] != bool(ctx.boutique.get("publication_facebook_adlyn")):
+        maj["publication_facebook_adlyn_le"] = now_iso()
+        maj["publication_facebook_adlyn_par"] = ctx.user.get("id")
     if maj:
         await db.boutiques.update_one({"id": ctx.boutique["id"]}, {"$set": maj})
     return _sans_secrets(await db.boutiques.find_one({"id": ctx.boutique["id"]}, SANS_ID))
