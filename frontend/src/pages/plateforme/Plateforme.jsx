@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, montant } from "@/lib/format";
@@ -19,10 +19,16 @@ import { horodatage, messageErreurFichier, STATUTS_KYC, telechargerFichier } fro
 // Page d'administration de la PLATEFORME (super-administrateur) :
 // statistiques globales et gestion de toutes les boutiques (création,
 // dossier KYC, sauvegarde / restauration, mise en avant, suspension…).
+
+// Lot D — dossier d'identité à vérifier par un humain (Liluvine a eu un doute)
+const kycAVerifier = (b) => !!b.kyc?.revue_humaine_requise && b.kyc?.statut !== "VERIFIE";
+
 export default function Plateforme() {
   const { choisirBoutique } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  // Lot D — lien de l'e-mail « KYC à vérifier » : /plateforme?kyc=<id> ouvre le dossier
+  const [parametresUrl, setParametresUrl] = useSearchParams();
 
   // --- État de la page ---
   const [stats, setStats] = useState(null);
@@ -41,6 +47,8 @@ export default function Plateforme() {
   const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
   // Lot B — filtre « Inscriptions en ligne à valider » (commerçants inscrits seuls, code WhatsApp)
   const [inscriptionsSeulement, setInscriptionsSeulement] = useState(false);
+  // Lot D — file « 🔍 KYC à vérifier » : seulement les dossiers qui attendent un humain
+  const [kycAVerifierSeulement, setKycAVerifierSeulement] = useState(false);
   const [journalOuvert, setJournalOuvert] = useState(false); // fenêtre « Journal du webhook »
   const [identifiantsDg, setIdentifiantsDg] = useState(null); // { boutique, email, telephone } : connexion du DG
 
@@ -53,6 +61,15 @@ export default function Plateforme() {
       .finally(() => setChargement(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { charger(); }, [charger]);
+
+  // Lot D — ouverture directe du dossier indiqué dans l'adresse (?kyc=<id>), une seule fois
+  useEffect(() => {
+    const id = parametresUrl.get("kyc");
+    if (!id || !boutiques.length) return;
+    if (boutiques.some((b) => b.id === id)) setDossierId(id);
+    parametresUrl.delete("kyc");
+    setParametresUrl(parametresUrl, { replace: true });
+  }, [boutiques, parametresUrl, setParametresUrl]);
 
   // Remplace une boutique dans la liste (après une modification)
   function remplacer(b) {
@@ -147,7 +164,10 @@ export default function Plateforme() {
     (!q || [b.nom, b.code_marchand, b.ville, b.pays].some((v) => (v || "").toLowerCase().includes(q)))
     && (!filtreKyc || (b.kyc?.statut || "NON_FOURNI") === filtreKyc)
     && (!aValiderSeulement || b.validee === false)
-    && (!inscriptionsSeulement || (b.origine === "inscription" && b.validee === false)));
+    && (!inscriptionsSeulement || (b.origine === "inscription" && b.validee === false))
+    && (!kycAVerifierSeulement || kycAVerifier(b)));
+  // Lot D — nombre de dossiers dans la file « KYC à vérifier »
+  const nbKycAVerifier = boutiques.filter(kycAVerifier).length;
   // Boutiques créées automatiquement (webhook, parrainage, inscription en ligne) en attente de validation
   const nbAValider = boutiques.filter((b) => b.validee === false).length;
   // Lot B — dont les inscriptions libres de commerçants (numéro vérifié par code WhatsApp)
@@ -193,10 +213,26 @@ export default function Plateforme() {
                 <option key={code} value={code}>KYC : {s.libelle}{code === "EN_ATTENTE" && nbEnAttente ? ` (${nbEnAttente})` : ""}</option>
               ))}
             </select>
+            {/* Lot D — file « KYC à vérifier » : badge (nombre) + filtre */}
+            <button type="button" aria-pressed={kycAVerifierSeulement}
+              className={`btn whitespace-nowrap ${kycAVerifierSeulement ? "bg-orange-500 text-white hover:bg-orange-600" : nbKycAVerifier ? "border border-orange-300 bg-orange-50 text-orange-900 hover:bg-orange-100" : "btn-outline"}`}
+              onClick={() => setKycAVerifierSeulement(!kycAVerifierSeulement)}>
+              🔍 KYC à vérifier <span className={`ml-1 rounded-full px-2 text-xs font-bold ${nbKycAVerifier ? "bg-orange-600 text-white" : "bg-gray-200 text-gray-700"}`}>{nbKycAVerifier}</span>
+            </button>
             <button type="button" className="btn-outline whitespace-nowrap" onClick={() => setJournalOuvert(true)}>🔗 Webhook</button>
             <button type="button" className="btn-primary whitespace-nowrap" onClick={() => setCreation(true)}>+ Créer une boutique</button>
           </div>
         </div>
+
+        {/* Lot D — bandeau bien visible : dossiers d'identité qui attendent une décision humaine */}
+        {nbKycAVerifier > 0 && !kycAVerifierSeulement && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-orange-300 bg-orange-50 p-3 text-sm text-orange-900">
+            <span>🔍 <b>{nbKycAVerifier}</b> dossier(s) d'identité à vérifier : Liluvine a un doute (visage, pièce, selfie…) et attend votre décision.</span>
+            <button type="button" className="btn btn-sm bg-orange-500 text-white hover:bg-orange-600" onClick={() => setKycAVerifierSeulement(true)}>
+              Voir la file ({nbKycAVerifier})
+            </button>
+          </div>
+        )}
 
         {/* Bandeau : boutiques créées par le webhook, invisibles du public tant qu'elles ne sont pas validées */}
         {nbAValider > 0 && (
@@ -250,6 +286,12 @@ export default function Plateforme() {
                       {/* Boutique de démonstration : repère visible ici seulement (super-admin), jamais du public */}
                       {b.test && <span className="badge bg-slate-800 text-white" title="Boutique de démonstration : pas de paiement en ligne, aucun message envoyé">🧪 Démo</span>}
                       <BadgeKyc statut={b.kyc?.statut} />
+                      {/* Lot D — dossier dans la file de revue humaine */}
+                      {kycAVerifier(b) && (
+                        <button type="button" className="badge bg-orange-500 text-white" onClick={() => setDossierId(b.id)} title="Ouvrir la revue de l'identité">
+                          🔍 KYC à vérifier
+                        </button>
+                      )}
                       {b.mise_en_avant && <span className="badge bg-amber-100 text-amber-800">⭐ En avant</span>}
                       {b.maintenance_equipements && <span className="badge bg-teal-50 text-teal-800">🛠️ Maintenance</span>}
                       {/* Nombre d'options du menu actives (« tout » = boutique créée avant les options) */}

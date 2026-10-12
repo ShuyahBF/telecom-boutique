@@ -39,6 +39,8 @@ export default function ParamKyc({ allerA }) {
   const [types, setTypes] = useState({});
   // Lot C — types de pièce d'identité (CNIB, passeport…) pour le formulaire « Ma pièce d'identité »
   const [typesDocuments, setTypesDocuments] = useState({});
+  // Lot D — photo de soi tenant sa pièce (selfie) exigée par la plateforme ? (oui par défaut)
+  const [exigerSelfie, setExigerSelfie] = useState(true);
   // Formulaire d'ajout : type de pièce choisi + fichier sélectionné
   const [typePiece, setTypePiece] = useState("");
   const [fichier, setFichier] = useState(null);
@@ -54,6 +56,7 @@ export default function ParamKyc({ allerA }) {
         const autres = Object.fromEntries(Object.entries(data.types || {}).filter(([code]) => code !== "PIECE_IDENTITE_DG"));
         setTypes(autres);
         setTypesDocuments(data.types_documents || {});
+        setExigerSelfie(data.exiger_selfie !== false);
         setTypePiece((t) => t || Object.keys(autres)[0] || "");
       })
       .catch((err) => toast.erreur(messageErreur(err, "Impossible de charger les types de justificatifs")));
@@ -172,7 +175,7 @@ export default function ParamKyc({ allerA }) {
       </div>
 
       {/* Lot C — pièce d'identité du DG : photo recto / verso, lecture immédiate par Liluvine */}
-      <PieceIdentite typesDocuments={typesDocuments} />
+      <PieceIdentite typesDocuments={typesDocuments} exigerSelfie={exigerSelfie} />
 
       {/* min-w-0 : empêche un nom de fichier très long d'élargir la page sur téléphone */}
       <div className="grid gap-5 lg:grid-cols-3">

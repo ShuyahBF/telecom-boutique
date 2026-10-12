@@ -90,21 +90,27 @@ async def envoyer_logo(fichier: UploadFile = File(...), ctx: Contexte = Depends(
 async def types_kyc(_: Contexte = Depends(parametres)):
     import kyc_ia
     # Lot C : types de pièce d'identité (CNIB, passeport…) et taille maximale d'une photo
+    # Lot D : la photo du DG tenant sa pièce (selfie) est-elle exigée ? (réglage plateforme)
+    reglages = await kyc_ia.lire_reglages()
     return {"types": service_kyc.TYPES_PIECES_KYC, "statuts": service_kyc.STATUTS_KYC,
-            "types_documents": kyc_ia.TYPES_DOCUMENTS, "taille_max_piece": kyc_ia.TAILLE_MAX}
+            "types_documents": kyc_ia.TYPES_DOCUMENTS, "taille_max_piece": kyc_ia.TAILLE_MAX,
+            "exiger_selfie": reglages["exiger_selfie"]}
 
 
 @router.post("/kyc/piece-identite")
 async def envoyer_piece_identite(taches: BackgroundTasks, recto: UploadFile = File(...),
                                  verso: Optional[UploadFile] = File(None), type_document: str = Form(...),
+                                 selfie: Optional[UploadFile] = File(None),
                                  ctx: Contexte = Depends(parametres)):
     """Lot C — formulaire « Ma pièce d'identité » : recto (+ verso facultatif) et type de
     pièce. Liluvine lit la pièce tout de suite ; si le nom concorde avec le propriétaire
     déclaré, le KYC est vérifié et la boutique validée sur-le-champ (voir kyc_ia.py).
-    Réponse : {kyc, decision, motif_code, motif, boutique_validee, validee_maintenant, message}."""
+    Lot D : `selfie` = photo du DG prise maintenant, pièce tenue à côté du visage (exigée par
+    défaut ; sans elle, le dossier part en revue humaine, sans erreur).
+    Réponse : {kyc, decision, motif_code, motif, boutique_validee, validee_maintenant, revue_humaine, message}."""
     import kyc_ia
     return await kyc_ia.envoyer_piece_identite(ctx.boutique, recto, verso, type_document,
-                                               ctx.user.get("nom", ""), taches=taches)
+                                               ctx.user.get("nom", ""), taches=taches, selfie=selfie)
 
 
 @router.post("/kyc/documents")
@@ -114,7 +120,8 @@ async def envoyer_justificatif(fichier: UploadFile = File(...), type_piece: str 
 
 @router.get("/kyc/documents/{piece_id}")
 async def ouvrir_justificatif(piece_id: str, ctx: Contexte = Depends(parametres)):
-    return await service_kyc.ouvrir_piece(ctx.boutique, piece_id)
+    # Lot D — le selfie n'est ouvert qu'au super-administrateur (refus 403 pour la boutique)
+    return await service_kyc.ouvrir_piece(ctx.boutique, piece_id, super_admin=ctx.role == "super_admin")
 
 
 @router.delete("/kyc/documents/{piece_id}")

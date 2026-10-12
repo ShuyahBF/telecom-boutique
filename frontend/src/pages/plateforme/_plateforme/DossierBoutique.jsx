@@ -5,6 +5,8 @@
 // Lot C : résultat de la lecture de la pièce d'identité par Liluvine (IA), boutons
 // « Valider la boutique », « Refuser le KYC » (motif, message WhatsApp au commerçant)
 // et « Relancer la vérification IA ».
+// Lot D : écran de revue humaine (recto, verso, selfie côte à côte) et décisions
+// « Valider l'identité », « Refuser », « Demander une nouvelle photo » (RevueKyc.jsx).
 import { useEffect, useState } from "react";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
@@ -12,6 +14,7 @@ import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import Patientez from "@/components/Patientez";
 import ResultatLiluvine from "@/components/ResultatLiluvine";
+import RevueKyc from "./RevueKyc";
 import { BadgeKyc, Champ, ChampsIdentification, ChoixSecteur, erreurCoordonnees, identificationVersApi } from "./composants";
 import { FORMATS_JUSTIFICATIFS, messageErreurFichier, ouvrirFichier, TYPES_PIECES_KYC } from "./outils";
 
@@ -197,6 +200,8 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
               )}
             </div>
           </div>
+          {/* Lot D — revue humaine : images côte à côte + décisions */}
+          <div className="mb-3"><RevueKyc key={boutique.id} boutique={boutique} onMaj={onMaj} /></div>
           {kyc.ia ? <ResultatLiluvine ia={kyc.ia} detaille /> : (
             <p className="rounded-xl border border-dashed border-gray-300 p-3 text-center text-sm text-gray-500">
               Aucune lecture par Liluvine pour l'instant (le commerçant n'a pas encore envoyé sa pièce depuis ses Paramètres).

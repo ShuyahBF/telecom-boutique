@@ -75,7 +75,8 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
     b = dict(boutique)
     if not super_admin:
         b.pop("test", None)
-    b["kyc"] = kyc_public(b.get("kyc"))
+    # Lot D — scores de l'IA et analyse du selfie : écrans du super-administrateur seulement
+    b["kyc"] = kyc_public(b.get("kyc"), super_admin=super_admin)
     # État réel des options de la barre latérale (menu affiché par le site)
     import options_sidebar
     b["options_actives"] = options_sidebar.options_effectives(boutique)

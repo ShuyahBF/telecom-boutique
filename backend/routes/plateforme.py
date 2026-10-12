@@ -480,17 +480,18 @@ async def statistiques(_: dict = Depends(get_super_admin)):
 async def ajouter_justificatif(boutique_id: str, fichier: UploadFile = File(...), type_piece: str = Form(...),
                                admin: dict = Depends(get_super_admin)):
     boutique = await service_kyc.boutique_ou_404(boutique_id)
-    return await service_kyc.ajouter_piece(boutique, fichier, type_piece, admin.get("nom", "Administrateur"))
+    return await service_kyc.ajouter_piece(boutique, fichier, type_piece, admin.get("nom", "Administrateur"),
+                                           super_admin=True)
 
 
 @router.get("/boutiques/{boutique_id}/kyc/documents/{piece_id}")
 async def ouvrir_justificatif(boutique_id: str, piece_id: str, _: dict = Depends(get_super_admin)):
-    return await service_kyc.ouvrir_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id)
+    return await service_kyc.ouvrir_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id, super_admin=True)
 
 
 @router.delete("/boutiques/{boutique_id}/kyc/documents/{piece_id}")
 async def retirer_justificatif(boutique_id: str, piece_id: str, _: dict = Depends(get_super_admin)):
-    return await service_kyc.retirer_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id)
+    return await service_kyc.retirer_piece(await service_kyc.boutique_ou_404(boutique_id), piece_id, super_admin=True)
 
 
 class DecisionKyc(BaseModel):
@@ -510,7 +511,7 @@ async def decider_kyc(boutique_id: str, payload: DecisionKyc, taches: Background
     kyc.update({"statut": payload.statut, "motif_rejet": payload.motif_rejet.strip(),
                 "verifie_par": admin.get("nom", ""), "date_verification": now_iso()})
     await db.boutiques.update_one({"id": boutique_id}, {"$set": {"kyc": kyc}})
-    return service_kyc.kyc_public(kyc)
+    return service_kyc.kyc_public(kyc, super_admin=True)
 
 
 # ---------------------------------------------------------------------------
@@ -544,3 +545,40 @@ async def journal_kyc_ia(boutique_id: str, _: dict = Depends(get_super_admin)):
     import kyc_ia
     await service_kyc.boutique_ou_404(boutique_id)
     return await kyc_ia.journal(boutique_id)
+
+
+# ---------------------------------------------------------------------------
+# Lot D — revue humaine du KYC (selfie + pièce) : images protégées et décisions
+# ---------------------------------------------------------------------------
+@router.get("/boutiques/{boutique_id}/kyc/images/{piece_id}")
+async def image_kyc(boutique_id: str, piece_id: str, _: dict = Depends(get_super_admin)):
+    """Recto, verso ou selfie pour l'écran de revue : contenu renvoyé par l'API elle-même
+    (jamais d'adresse publique ni de lien signé), réservé au super-administrateur, sans cache."""
+    from fastapi.responses import Response
+    import kyc_ia
+    contenu, mime = await kyc_ia.image_piece(boutique_id, piece_id)
+    return Response(contenu, media_type=mime, headers={
+        "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": "inline"})
+
+
+@router.post("/boutiques/{boutique_id}/kyc/valider-identite")
+async def valider_identite_kyc(boutique_id: str, taches: BackgroundTasks, admin: dict = Depends(get_super_admin)):
+    """« ✓ Valider l'identité » : KYC VÉRIFIÉ + validation de la boutique (par le nom du super-admin).
+    Renvoie {kyc, validee_maintenant, boutique}."""
+    import kyc_ia
+    resultat = await kyc_ia.valider_identite(boutique_id, admin, taches=taches)
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    return {**resultat, "boutique": _sans_secrets(boutique, super_admin=True)}
+
+
+class DemandePhoto(BaseModel):
+    motif: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/boutiques/{boutique_id}/kyc/nouvelle-photo")
+async def nouvelle_photo_kyc(boutique_id: str, payload: DemandePhoto, taches: BackgroundTasks,
+                             admin: dict = Depends(get_super_admin)):
+    """« 📷 Demander une nouvelle photo » : motif affiché au commerçant et envoyé par WhatsApp."""
+    import kyc_ia
+    return await kyc_ia.demander_nouvelle_photo(boutique_id, payload.motif, admin, taches=taches)

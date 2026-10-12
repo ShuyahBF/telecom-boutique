@@ -180,6 +180,10 @@ class ReglagesKycIa(BaseModel):
     auto_validation: bool = True  # valider la boutique sur-le-champ quand le nom concorde
     seuil_confiance: float = Field(0.8, ge=0.5, le=1.0)  # score minimal de lecture de l'IA
     max_par_jour: int = Field(5, ge=1, le=20)  # vérifications IA par boutique sur 24 heures
+    # Lot D — photo du DG tenant sa pièce exigée (activé par défaut) et confiance minimale
+    # « même personne » pour valider sans humain (0,85 par défaut)
+    exiger_selfie: bool = True
+    seuil_visage: float = Field(0.85, ge=0.5, le=1.0)
 
 
 @router.get("/kyc-ia")
@@ -193,4 +197,5 @@ async def lire_kyc_ia(_: dict = Depends(get_super_admin)):
 async def enregistrer_kyc_ia(payload: ReglagesKycIa, admin: dict = Depends(get_super_admin)):
     import kyc_ia
     return await kyc_ia.enregistrer_reglages(payload.auto_validation, payload.seuil_confiance,
-                                             payload.max_par_jour, admin.get("email", ""))
+                                             payload.max_par_jour, admin.get("email", ""),
+                                             exiger_selfie=payload.exiger_selfie, seuil_visage=payload.seuil_visage)

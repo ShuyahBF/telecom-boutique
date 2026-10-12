@@ -14,7 +14,7 @@ export default function Confidentialite() {
       titreOnglet="adLyn Privacy Policy"
       titre="adLyn Privacy Policy"
       sousTitre="Politique de confidentialité"
-      miseAJour="11 octobre 2026"
+      miseAJour="12 octobre 2026"
     >
       <Section titre="1. Qui sommes-nous ?">
         <p>
@@ -39,6 +39,13 @@ export default function Confidentialite() {
         </ul>
         <p><b>Personnel des boutiques</b> (comptes) : nom, e-mail, téléphone, rôle, mot de passe (enregistré uniquement sous forme chiffrée irréversible), journal des connexions (date, adresse IP, identifiant de l'appareil).</p>
         <p><b>Boutiques</b> : informations de la boutique (nom, adresse, position GPS, contacts, logo) et dossier d'identification (pièce d'identité du dirigeant, IFU, RCCM, CNSS), rangé dans un espace de stockage privé.</p>
+        {/* Lot D — photo de la pièce et photo du visage (selfie) du dirigeant */}
+        <p>
+          <b>Vérification de l'identité du commerçant</b> : la photo de la pièce d'identité et la photo du visage
+          (prise en tenant la pièce) servent uniquement à vérifier l'identité du commerçant ; elles sont accessibles
+          seulement à l'équipe adLyn. Elles sont rangées dans un espace de stockage privé, ne sont jamais publiées et
+          le numéro de la pièce n'est conservé que masqué.
+        </p>
         <p>
           <b>Comptes de réseaux sociaux</b> : si une boutique connecte son compte TikTok ou un autre réseau social pour
           publier ses produits, nous recevons, avec son accord, les informations de base de ce compte (identifiant,
@@ -80,7 +87,10 @@ export default function Confidentialite() {
         </ul>
         <p>
           L'assistant de recherche du catalogue (Anthropic) ne lit que les fiches techniques publiques des fabricants,
-          jamais les données des clients ou des boutiques.
+          jamais les données des clients. Pour vérifier l'identité d'un commerçant, la photo de sa pièce et la photo
+          de son visage sont analysées par Liluvine, l'assistante d'adLyn (service d'intelligence artificielle
+          d'Anthropic), uniquement pour aider l'équipe adLyn dans cette vérification ; en cas de doute, la décision
+          revient toujours à un membre de l'équipe.
         </p>
       </Section>
 
