@@ -107,13 +107,25 @@ def mot_de_passe_temporaire() -> str:
     return "".join(secrets.choice(_ALPHABET_CODE + "abcdefghjkmnpqrstuvwxyz") for _ in range(10))
 
 
-async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe: str, validee: bool,
-                               origine: str, doit_changer_mot_de_passe: bool = False,
-                               code: Optional[str] = None, test: bool = False) -> tuple[dict, dict, int]:
+async def enregistrer_boutique(donnees: dict, *, dg_email: Optional[str], dg_mot_de_passe: Optional[str],
+                               validee: bool, origine: str, doit_changer_mot_de_passe: bool = False,
+                               code: Optional[str] = None, test: bool = False,
+                               dg_telephone: Optional[str] = None,
+                               dg_complements: Optional[dict] = None) -> tuple[dict, dict, int]:
     """Crée la boutique, le compte de son DG et copie le catalogue public.
-    Utilisé par la création manuelle (super-admin) ET par le webhook.
+    Utilisé par la création manuelle (super-admin), le webhook, le parrainage ET
+    l'inscription libre (lot B, routes/inscription.py).
     `donnees` : nom, telephone, email + champs d'Identification
-    + `secteur` facultatif (lot A : « telecom » par défaut, pour ne rien changer)."""
+    + `secteur` facultatif (lot A : « telecom » par défaut, pour ne rien changer).
+    Lot B — inscription libre :
+      - `dg_email` peut être vide : le compte n'a alors PAS de champ « email »
+        (l'index d'unicité est partiel, un compte sans e-mail n'y entre pas) ;
+      - `dg_mot_de_passe` peut être vide : compte SANS mot de passe (connexion par
+        code WhatsApp ; le DG pourra en définir un depuis « Mon compte ») ;
+      - `dg_telephone` : numéro E.164 DÉJÀ VÉRIFIÉ (code WhatsApp) qui devient
+        l'identifiant de connexion du DG ;
+      - `dg_complements` : champs en plus sur la fiche du DG (prénom, nom de famille…)."""
+    from pymongo.errors import DuplicateKeyError
     import secteurs as service_secteurs
     from db import TenantDB
 
@@ -150,12 +162,25 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
     boutique["dg_telephone"] = normaliser_telephone(boutique.get("dg_telephone"))
     await db.boutiques.insert_one(boutique.copy())
     dg = {
-        "id": new_id(), "email": dg_email.lower(), "nom": boutique["dg_nom"].strip(),
-        "password_hash": hash_password(dg_mot_de_passe), "role": "dg",
+        "id": new_id(), "nom": boutique["dg_nom"].strip(),
+        # Lot B : "" = aucun mot de passe (connexion par code WhatsApp uniquement)
+        "password_hash": hash_password(dg_mot_de_passe) if dg_mot_de_passe else "", "role": "dg",
         "boutique_id": boutique["id"], "actif": True, "created_at": now_iso(),
         "doit_changer_mot_de_passe": doit_changer_mot_de_passe,
+        **(dg_complements or {}),
     }
-    await db.users.insert_one(dg.copy())
+    if dg_email:
+        dg["email"] = dg_email.lower()
+    if dg_telephone:
+        # Numéro vérifié par code WhatsApp : identifiant de connexion du DG
+        dg.update({"telephone": dg_telephone, "telephone_verifie": True})
+    try:
+        await db.users.insert_one(dg.copy())
+    except DuplicateKeyError:
+        # E-mail ou téléphone pris au même instant par un autre compte : on retire
+        # la boutique qui vient d'être créée (pas de boutique sans DG)
+        await db.boutiques.delete_one({"id": boutique["id"]})
+        raise HTTPException(409, "Un compte existe déjà avec cet e-mail ou ce numéro de téléphone") from None
     # Lot A — catégories de départ du secteur (ex. Femme, Homme, Enfant… pour le prêt-à-porter)
     tdb = TenantDB(boutique["id"])
     for ordre, nom_categorie in enumerate(secteur["categories_depart"], start=1):

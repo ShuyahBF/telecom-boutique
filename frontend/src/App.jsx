@@ -27,6 +27,8 @@ import SuiviReparation from "@/pages/public/SuiviReparation";
 import Conseil from "@/pages/public/Conseil";
 import Conversation from "@/pages/public/Conversation";
 import OuvrirBoutique from "@/pages/public/OuvrirBoutique";
+// Lot B — inscription libre d'un commerçant (numéro WhatsApp + code)
+import CreerBoutique from "@/pages/public/CreerBoutique";
 // « Mon espace » : page ouverte par le QR code des factures / proformas, espace client public
 import PageQr from "@/pages/public/PageQr";
 import EspaceClient from "@/pages/public/EspaceClient";
@@ -128,6 +130,8 @@ export default function App() {
             <Route path="/mon-compte" element={<MonCompte />} />
             {/* Lien de parrainage partagé par une boutique : demande d'ouverture d'une boutique */}
             <Route path="/ouvrir-ma-boutique" element={<OuvrirBoutique />} />
+            {/* Lot B — « Créer ma boutique » : inscription libre, boutique en attente de validation */}
+            <Route path="/creer-ma-boutique" element={<CreerBoutique />} />
             {/* Lien de paiement Mobile Money d'une fiche de maintenance des équipements */}
             <Route path="/paiement/maintenance/:jeton" element={<PaiementMaintenance />} />
 

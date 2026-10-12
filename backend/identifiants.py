@@ -289,7 +289,10 @@ def texte_code(code: str, objet: str) -> tuple[str, str]:
     """(sujet, texte) du message qui porte un code de vérification."""
     pour = {REINIT_MDP: "pour réinitialiser votre mot de passe",
             CHANGEMENT_EMAIL: "pour confirmer votre nouvelle adresse e-mail",
-            CHANGEMENT_TELEPHONE: "pour confirmer votre nouveau numéro"}[objet]
+            CHANGEMENT_TELEPHONE: "pour confirmer votre nouveau numéro",
+            # Lot B — inscription libre et connexion par code WhatsApp (inscription_otp.py)
+            "INSCRIPTION": "pour creer votre boutique",
+            "CONNEXION": "de connexion"}[objet]
     texte = (f"adLyn : votre code {pour} est {code}. Il expire dans 10 minutes. "
              "Ne le communiquez a personne, meme a l'equipe adLyn.")
     return "[adLyn] Votre code de vérification", texte

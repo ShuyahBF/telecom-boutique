@@ -68,6 +68,9 @@ METHODES = {
     "telephone": "Téléphone + mot de passe",
     "session": "Session en cours",
     "creation_boutique": "Demande d'ouverture de boutique",
+    # Lot B — connexion par téléphone + code WhatsApp, et inscription libre d'un commerçant
+    "whatsapp": "Téléphone + code WhatsApp",
+    "inscription": "Inscription en ligne (code WhatsApp)",
 }
 
 # Réglage « contact affiché sur la page de blocage » (collection parametres_plateforme)

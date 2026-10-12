@@ -72,7 +72,16 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    """Vrai si le mot de passe correspond à l'empreinte enregistrée.
+    Lot B : un compte créé par l'inscription libre peut n'avoir AUCUN mot de passe
+    (connexion par code WhatsApp) ; son empreinte est vide -> toujours faux
+    (au lieu de l'erreur « hash could not be identified » de passlib)."""
+    if not password or not password_hash:
+        return False
+    try:
+        return pwd_context.verify(password, password_hash)
+    except ValueError:
+        return False  # empreinte illisible : on refuse, sans planter
 
 
 def create_access_token(user_id: str, version: int = 0) -> str:
@@ -138,6 +147,9 @@ def user_public(user: dict) -> dict:
     public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session",
                                                      "sessions_fermees_par_admin_le")}
     public["permissions"] = permissions_de(user.get("role", ""))
+    # Lot B : faux pour un compte créé par l'inscription libre (connexion par code
+    # WhatsApp) tant qu'il n'a pas défini de mot de passe (« Mon compte »)
+    public["a_mot_de_passe"] = bool(user.get("password_hash"))
     return public
 
 

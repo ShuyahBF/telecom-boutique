@@ -37,6 +37,7 @@ from routes import transmission_wa  # Transmission WA : WABA boutique / platefor
 from routes import pispi  # paiement PI-SPI (BCEAO) : QR de la banque sur les factures
 from routes import espace_client  # « Mon espace » : espace client public (QR code + code WhatsApp)
 from routes import secteurs as routes_secteurs  # lot A : secteurs d'activité (télécom, prêt-à-porter…)
+from routes import inscription  # lot B : inscription libre des commerçants + connexion par code WhatsApp
 import secteurs as service_secteurs
 
 settings = get_settings()
@@ -138,6 +139,9 @@ api.include_router(usage_connexions.public)
 # Lot A — secteurs d'activité : administration (super-admin) et liste publique des secteurs actifs
 api.include_router(routes_secteurs.admin)
 api.include_router(routes_secteurs.public)
+# Lot B — inscription libre (« Créer ma boutique ») et connexion par téléphone + code WhatsApp
+api.include_router(inscription.public)
+api.include_router(inscription.connexion)
 
 
 @api.get("/health")
