@@ -9,6 +9,7 @@ import EnTetePage from "@/components/EnTetePage";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import BoutonPartager from "@/components/BoutonPartager"; // lot E : partage d'un article
 import { Vide } from "./_atelier/communs";
 
 // Page « Catalogue » : liste des produits avec recherche et filtres,
@@ -176,8 +177,8 @@ export default function Produits() {
               const service = p.type_produit === "SER";
               const enAlerte = !service && p.stock <= p.stock_alerte;
               return (
-                <li key={p.id}>
-                  <Link to={`/gestion/produits/${p.id}`} className={`flex items-center gap-3 p-3 ${p.actif === false ? "opacity-50" : ""}`}>
+                <li key={p.id} className="flex items-center gap-1 pr-2">
+                  <Link to={`/gestion/produits/${p.id}`} className={`flex min-w-0 flex-1 items-center gap-3 p-3 ${p.actif === false ? "opacity-50" : ""}`}>
                     {p.image_url
                       ? <img src={p.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border object-contain" />
                       : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-lg">{v.icone}</span>}
@@ -197,12 +198,14 @@ export default function Produits() {
                       {service ? "—" : <>{p.stock}<span className="block text-[10px] font-normal text-gray-500">en stock</span></>}
                     </span>
                   </Link>
+                  {/* Lot E — partage de l'article (hors du lien, pour ne pas ouvrir la fiche) */}
+                  <BoutonPartager produit={p} className="btn-outline btn-sm px-2" libelle="🔗" />
                 </li>
               );
             })}
           </ul>
           {/* Écran large : tableau complet */}
-          <table className="table hidden min-w-[760px] sm:table">
+          <table className="table hidden min-w-[860px] sm:table">
             <thead>
               <tr>
                 <th className="w-16"><span className="sr-only">Photo</span></th>
@@ -213,6 +216,7 @@ export default function Produits() {
                 <th className="text-right">Prix de vente</th>
                 <th className="text-right">Stock</th>
                 <th className="text-center">Portail</th>
+                <th className="text-center">Partager</th>
               </tr>
             </thead>
             <tbody>
@@ -242,6 +246,9 @@ export default function Produits() {
                       {enAlerte && <span className="ml-1" title={`Seuil d'alerte : ${p.stock_alerte}`}>⚠️</span>}
                     </td>
                     <td className="text-center">{p.visible_portail ? "✅" : "—"}</td>
+                    {/* Lot E — partage de l'article ; un article masqué, inactif ou sans prix
+                        affiche la raison dans la fenêtre au lieu des canaux de partage */}
+                    <td className="text-center"><BoutonPartager produit={p} libelle="🔗 Partager" /></td>
                   </tr>
                 );
               })}

@@ -39,6 +39,7 @@ from routes import espace_client  # « Mon espace » : espace client public (QR 
 from routes import secteurs as routes_secteurs  # lot A : secteurs d'activité (télécom, prêt-à-porter…)
 from routes import inscription  # lot B : inscription libre des commerçants + connexion par code WhatsApp
 import secteurs as service_secteurs
+from routes import partage  # lot E : liens de partage de la boutique et des produits
 
 settings = get_settings()
 
@@ -142,6 +143,10 @@ api.include_router(routes_secteurs.public)
 # Lot B — inscription libre (« Créer ma boutique ») et connexion par téléphone + code WhatsApp
 api.include_router(inscription.public)
 api.include_router(inscription.connexion)
+# Lot E — partage : pages publiques avec aperçu (Open Graph) + redirection vers la vitrine,
+# et lien / message prérempli pour le personnel (DG et collaborateurs)
+api.include_router(partage.public)
+api.include_router(partage.boutique)
 
 
 @api.get("/health")
