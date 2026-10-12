@@ -54,7 +54,7 @@ export default function Conseil() {
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
         <h1 className="text-2xl font-extrabold">💬 Demander conseil</h1>
-        <p className="text-gray-500">Une question sur un téléphone, un accessoire ou une réparation ? L'équipe de {boutique.nom} vous répond.</p>
+        <p className="text-gray-500">Une question sur un article, une commande ou un service ? L'équipe de {boutique.nom} vous répond.</p>
       </div>
 
       {/* Explication : conversation privée + e-mail pour être prévenu */}

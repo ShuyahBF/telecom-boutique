@@ -19,8 +19,8 @@ export default function Confidentialite() {
       <Section titre="1. Qui sommes-nous ?">
         <p>
           adLyn (<a className="text-primary hover:underline" href="https://adlynservice.com">adlynservice.com</a>) est
-          une plateforme en ligne pour les boutiques de téléphonie : vitrine en ligne, commandes, suivi des réparations
-          et gestion de la boutique. adLyn est un produit de <b>SAWALI SMART SYSTEMS</b>, société basée à Ouagadougou
+          une plateforme en ligne pour les boutiques et commerces de tous secteurs : vitrine en ligne, commandes, suivi des services
+          (réparations, maintenance…) et gestion de la boutique. adLyn est un produit de <b>SAWALI SMART SYSTEMS</b>, société basée à Ouagadougou
           (Burkina Faso), qui l'édite, l'exploite et en est le responsable de traitement.
         </p>
         <p>
