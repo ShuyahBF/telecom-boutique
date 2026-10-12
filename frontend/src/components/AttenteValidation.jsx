@@ -14,6 +14,8 @@ import { optionActive } from "@/lib/options";
 // Lot C : Liluvine (IA) y lit la pièce d'identité ; si le nom concorde avec le
 // propriétaire déclaré, la boutique est validée sur-le-champ. Sinon, la carte
 // affiche le motif (photo floue, nom différent…) et invite à renvoyer une photo.
+// Lot D : dossier en revue humaine -> « Notre équipe vérifie votre dossier » (sans
+// score) ; nouvelle photo demandée par l'équipe -> motif + bouton pour renvoyer.
 // ============================================================================
 export const LIEN_KYC = "/gestion/parametres?onglet=kyc";
 
@@ -44,6 +46,10 @@ function etapeDossier(kyc) {
   switch (kyc?.statut) {
     case "VERIFIE": return { fait: true, texte: "Dossier d'identité vérifié" };
     case "EN_ATTENTE":
+      // Lot D : l'équipe adLyn demande une nouvelle photo (motif) -> le commerçant renvoie
+      if (kyc.nouvelle_photo?.motif) return { fait: false, photo: true, texte: `Nouvelle photo demandée par l'équipe adLyn : ${kyc.nouvelle_photo.motif}` };
+      // Lot D : revue humaine en cours -> rien à faire, prévenu par WhatsApp
+      if (kyc.revue_humaine_requise) return { fait: true, texte: "Notre équipe vérifie votre dossier, vous serez prévenu par WhatsApp" };
       // Lot C : motif donné par Liluvine (ex. photo floue) -> le commerçant peut renvoyer une photo
       if (kyc.ia?.motif) return { fait: false, texte: `Pièce d'identité reçue, vérification par l'équipe adLyn : ${kyc.ia.motif}` };
       return { fait: true, texte: "Dossier d'identité envoyé : vérification en cours" };
@@ -89,7 +95,7 @@ export function CarteAttenteValidation({ user, boutique, bienvenue = false }) {
       </div>
       {peutCompleterDossier(user, boutique) && !dossier.fait && (
         <Link to={LIEN_KYC} className="btn-primary mt-4 inline-flex">
-          {boutique.kyc?.ia ? "📷 Renvoyer une photo de ma pièce d'identité" : "🪪 Compléter mon dossier (pièce d'identité)"}
+          {dossier.photo ? "📷 Renvoyer mes photos" : boutique.kyc?.ia ? "📷 Renvoyer une photo de ma pièce d'identité" : "🪪 Compléter mon dossier (pièce d'identité)"}
         </Link>
       )}
     </section>

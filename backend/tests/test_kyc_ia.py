@@ -3,7 +3,9 @@ automatique de la boutique quand le nom concorde avec le propriétaire déclaré
 
 Le client Anthropic est remplacé par un DOUBLE (aucun appel réseau, aucun coût) :
 `ia.lecture` règle la réponse JSON renvoyée, `ia.erreur` simule une panne. Les envois
-(WhatsApp, e-mail) sont capturés dans `boite`."""
+(WhatsApp, e-mail) sont capturés dans `boite`.
+Lot D : le selfie (photo du DG tenant sa pièce) est exigé par défaut ; les envois de ces tests
+le joignent donc (`envoyer(..., selfie=JPEG)`) et la lecture simulée contient l'avis « visage »."""
 import io
 import json
 from types import SimpleNamespace
@@ -18,10 +20,16 @@ from db import db
 JPEG = b"\xff\xd8\xff\xe0" + b"photo-de-test" * 20  # signature JPEG valable
 PDF = b"%PDF-1.4 carte"
 
+# Lot D — avis de l'IA sur le selfie quand tout concorde
+VISAGE_BON = {"meme_personne": "oui", "confiance_visage": 0.93, "piece_tenue_visible": True,
+              "piece_selfie_correspond": "oui", "photo_d_ecran": False, "photo_de_photo": False,
+              "montage_suspecte": False, "visage_masque": False, "remarques": ""}
+
 LECTURE_BONNE = {
     "type_document": "CNIB", "nom": "OUEDRAOGO", "prenoms": "Awa Mariam", "date_naissance": "1990-04-12",
     "numero_piece": "B12345789", "date_expiration": "2034-01-01", "pays": "Burkina Faso",
     "lisible": True, "ressemble_piece_identite": True, "expiree": False, "confiance": 0.95, "remarques": "",
+    "visage": VISAGE_BON,
 }
 
 
@@ -97,10 +105,12 @@ def inscrite(client, nouvelle_boutique):
     return _creer
 
 
-def envoyer(client, h, recto=JPEG, verso=None, type_document="CNIB", mime="image/jpeg"):
+def envoyer(client, h, recto=JPEG, verso=None, type_document="CNIB", mime="image/jpeg", selfie=JPEG):
     fichiers = {"recto": ("recto.jpg", io.BytesIO(recto), mime)}
     if verso is not None:
         fichiers["verso"] = ("verso.jpg", io.BytesIO(verso), "image/jpeg")
+    if selfie is not None:  # lot D : photo du DG tenant sa pièce (None = envoi sans selfie)
+        fichiers["selfie"] = ("selfie.jpg", io.BytesIO(selfie), "image/jpeg")
     return client.post("/api/boutique/kyc/piece-identite", headers=h, files=fichiers,
                        data={"type_document": type_document})
 
@@ -143,11 +153,11 @@ def test_nom_concordant_ordre_inverse_et_accents_valide_la_boutique(client, insc
     d = r.json()
     assert d["decision"] == "VERIFIE" and d["validee_maintenant"] and d["boutique_validee"]
     assert d["kyc"]["statut"] == "VERIFIE" and d["kyc"]["verifie_par"] == "IA (Liluvine)"
-    # Recto + verso envoyés à l'IA (deux images en base64) et rangés dans le dossier
+    # Recto + verso + selfie (lot D) envoyés à l'IA (trois images en base64) et rangés dans le dossier
     contenu = ia.appels[0]["messages"][0]["content"]
-    assert [c["type"] for c in contenu].count("image") == 2
+    assert [c["type"] for c in contenu].count("image") == 3
     assert ia.appels[0]["output_config"]["format"]["type"] == "json_schema"
-    assert [p["face"] for p in d["kyc"]["documents"]] == ["RECTO", "VERSO"]
+    assert [p["face"] for p in d["kyc"]["documents"]] == ["RECTO", "VERSO", "SELFIE"]
     # Boutique validée par l'IA, traçabilité complète
     f = fiche(client, b["id"])
     assert f["validee"] is True and f["validee_par"] == "IA (Liluvine)"
@@ -157,6 +167,18 @@ def test_nom_concordant_ordre_inverse_et_accents_valide_la_boutique(client, insc
     assert trace["lecture"]["confiance"] == 0.95 and trace["modele"]
     # Message WhatsApp de bienvenue au DG
     assert any(m["canal"] == "whatsapp" and "est validée" in m["texte"] for m in boite)
+
+
+def test_concordant_sans_selfie_exige_passe_en_revue_humaine(client, inscrite, ia, boite):
+    """Lot D — même pièce concordante, mais sans la photo du DG alors qu'elle est exigée :
+    pas de validation automatique, revue humaine, l'équipe est prévenue (jamais d'erreur)."""
+    b, h = inscrite()
+    r = envoyer(client, h, selfie=None)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["decision"] == "EN_ATTENTE" and d["motif_code"] == "SELFIE_MANQUANT" and d["revue_humaine"]
+    assert d["kyc"]["revue_humaine_requise"] is True and fiche(client, b["id"])["validee"] is False
+    assert any(m["canal"] == "email" for m in boite)
 
 
 def test_nom_different_reste_en_attente(client, inscrite, ia, boite):
@@ -193,7 +215,7 @@ def test_sans_cle_api_verification_manuelle(client, inscrite, boite, monkeypatch
     assert r.status_code == 200
     d = r.json()
     assert d["motif_code"] == "IA_INDISPONIBLE" and "vérification manuelle" in d["motif"]
-    assert d["kyc"]["statut"] == "EN_ATTENTE" and len(d["kyc"]["documents"]) == 1  # pièce enregistrée
+    assert d["kyc"]["statut"] == "EN_ATTENTE" and len(d["kyc"]["documents"]) == 2  # pièce + selfie enregistrés
 
 
 def test_erreur_de_l_ia_jamais_500(client, inscrite, ia, boite):
@@ -245,7 +267,7 @@ def test_limite_par_jour(client, inscrite, ia, boite, super_admin):
     assert envoyer(client, h).json()["motif_code"] == "ILLISIBLE"
     d = envoyer(client, h).json()
     assert d["motif_code"] == "LIMITE" and len(ia.appels) == 2  # 3e envoi : pas d'appel à l'IA
-    assert len(d["kyc"]["documents"]) == 3  # la pièce est quand même enregistrée
+    assert len(d["kyc"]["documents"]) == 6  # pièce + selfie quand même enregistrés (3 envois)
 
 
 def test_fichiers_controles(client, inscrite, ia, boite):
@@ -311,8 +333,8 @@ def test_relance_par_le_super_admin(client, inscrite, ia, boite, super_admin):
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["decision"] == "VERIFIE" and d["boutique"]["validee"] is True
-    # Les deux faces du dernier envoi sont relues depuis le stockage privé
-    assert [c["type"] for c in ia.appels[-1]["messages"][0]["content"]].count("image") == 2
+    # Les deux faces ET le selfie (lot D) du dernier envoi sont relus depuis le stockage privé
+    assert [c["type"] for c in ia.appels[-1]["messages"][0]["content"]].count("image") == 3
     assert fiche(client, b["id"])["kyc"]["ia"]["relance"] is True
 
 

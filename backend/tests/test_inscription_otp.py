@@ -18,9 +18,17 @@ from db import db
 _n = {"i": 0}
 
 
+# Lot D — correction d'un test intermittent : l'ancienne version collait le compteur et
+# l'horloge (« 12 » + « 3456 » = « 1 » + « 23456 ») et pouvait redonner un numéro ou une
+# adresse IP déjà utilisés (code « déjà inscrit », limite d'envoi atteinte…). Désormais :
+# un décalage tiré une fois par session (< 4 000, pour rester sous les numéros du lot C
+# « +22674300001… ») suivi du compteur : deux appels ne donnent jamais la même valeur.
+_DEPART = time.time_ns() // 1000 % 4000
+
+
 def unique() -> int:
     _n["i"] += 1
-    return int(f"{_n['i']}{time.time_ns() % 100_000}")
+    return _DEPART * 1000 + _n["i"]
 
 
 def numero_unique() -> str:
@@ -32,9 +40,14 @@ def e164(numero_local: str) -> str:
     return "+226" + numero_local
 
 
+def _adresse_ip(k: int) -> dict:
+    """Adresse 10.x.y.z tirée d'un nombre : deux nombres différents (< 15 millions) -> deux adresses différentes."""
+    return {"X-Forwarded-For": f"10.{k // 62_500 % 250}.{k // 250 % 250}.{k % 250}"}
+
+
 def ip() -> dict:
     """Adresse IP différente pour chaque appel de test."""
-    return {"X-Forwarded-For": f"10.{unique() % 250}.{unique() % 250}.{unique() % 250}"}
+    return _adresse_ip(unique())
 
 
 @pytest.fixture

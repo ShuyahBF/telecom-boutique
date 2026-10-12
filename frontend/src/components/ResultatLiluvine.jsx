@@ -9,7 +9,21 @@ import { dateHeure } from "@/lib/format";
 //   - au super-administrateur (dossier de la boutique), avec `detaille` : en plus,
 //     la comparaison mot à mot, le score face au seuil et l'erreur technique éventuelle.
 // `ia` = boutique.kyc.ia, renvoyé par le serveur (voir backend/kyc_ia.py).
+// Lot D — avec `detaille` (super-admin) : avis de Liluvine sur le selfie (même personne ?
+// confiance face au seuil visage, pièce tenue = recto ?, signes de fraude, remarques).
+// Le commerçant ne reçoit jamais ces informations (le serveur les retire).
 // ============================================================================
+
+// Lot D — réponses « oui / non / incertain » de l'IA : couleur et libellé
+const AVIS = {
+  oui: { classe: "bg-green-100 text-green-800", libelle: "Oui" },
+  non: { classe: "bg-red-100 text-red-800", libelle: "Non" },
+  incertain: { classe: "bg-amber-100 text-amber-800", libelle: "Incertain" },
+};
+function Avis({ valeur }) {
+  const a = AVIS[valeur] || AVIS.incertain;
+  return <span className={`badge ${a.classe}`}>{a.libelle}</span>;
+}
 
 // Présentation de chaque décision : couleur et icône
 const DECISIONS = {
@@ -99,6 +113,36 @@ export default function ResultatLiluvine({ ia, detaille = false }) {
               {comparaison.correspondances.map((c) => `${c.declare} ↔ ${c.lu} (${Math.round(c.similarite * 100)} %)`).join(" · ")}
             </p>
           )}
+        </div>
+      )}
+      {/* Lot D — super-admin : avis de Liluvine sur le selfie (aide à la décision, jamais une preuve) */}
+      {detaille && ia.selfie_fourni === false && (
+        <p className="mt-3 rounded-xl bg-white/80 p-3 text-gray-800">🤳 Aucun selfie dans cet envoi{ia.exiger_selfie ? " (exigé par les réglages)" : ""}.</p>
+      )}
+      {detaille && ia.visage && (
+        <div className="mt-3 overflow-x-auto rounded-xl bg-white/80 text-gray-800">
+          <table className="table">
+            <thead><tr><th>🤳 Selfie (avis de Liluvine)</th><th>Résultat</th></tr></thead>
+            <tbody>
+              <tr>
+                <td className="text-gray-500">Même personne que sur la pièce</td>
+                <td>
+                  <Avis valeur={ia.visage.meme_personne} />{" "}
+                  <b>{Math.round((ia.visage.confiance_visage || 0) * 100)} %</b>{" "}
+                  <span className="text-gray-500">(seuil {Math.round((ia.seuil_visage || 0) * 100)} %)</span>
+                </td>
+              </tr>
+              <tr><td className="text-gray-500">Pièce tenue à côté du visage</td><td><Indicateur ok={ia.visage.piece_tenue_visible} /></td></tr>
+              <tr><td className="text-gray-500">Pièce tenue = recto envoyé</td><td><Avis valeur={ia.visage.piece_selfie_correspond} /></td></tr>
+              <tr>
+                <td className="text-gray-500">Signes de fraude</td>
+                <td>{ia.visage.signes_fraude?.length
+                  ? <span className="badge bg-red-100 text-red-800">⚠ {ia.visage.signes_fraude.join(", ")}</span>
+                  : <span className="badge bg-green-100 text-green-800">Aucun</span>}</td>
+              </tr>
+              {ia.visage.remarques && <tr><td className="text-gray-500">Remarques</td><td>{ia.visage.remarques}</td></tr>}
+            </tbody>
+          </table>
         </div>
       )}
       {detaille && ia.erreur_ia && <p className="mt-2 text-xs">Détail technique : {ia.erreur_ia}</p>}
