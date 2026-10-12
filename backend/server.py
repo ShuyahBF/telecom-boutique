@@ -36,6 +36,8 @@ from routes import usage_connexions  # onglet « Usage » : connexions, présenc
 from routes import transmission_wa  # Transmission WA : WABA boutique / plateforme, sinon Liluvine
 from routes import pispi  # paiement PI-SPI (BCEAO) : QR de la banque sur les factures
 from routes import espace_client  # « Mon espace » : espace client public (QR code + code WhatsApp)
+from routes import secteurs as routes_secteurs  # lot A : secteurs d'activité (télécom, prêt-à-porter…)
+import secteurs as service_secteurs
 
 settings = get_settings()
 
@@ -133,6 +135,9 @@ api.include_router(caisse_aizenta.admin)
 # blocage d'IP / de comptes ; contact public de la page « Accès momentanément suspendu »
 api.include_router(usage_connexions.admin)
 api.include_router(usage_connexions.public)
+# Lot A — secteurs d'activité : administration (super-admin) et liste publique des secteurs actifs
+api.include_router(routes_secteurs.admin)
+api.include_router(routes_secteurs.public)
 
 
 @api.get("/health")
@@ -157,6 +162,9 @@ async def au_demarrage():
         await creer_demo()
     # Formules d'abonnement par défaut + essai de 14 jours des boutiques plus anciennes
     await service_abonnements.initialiser()
+    # Lot A — secteurs d'activité par défaut (collection vide) + migration, une seule fois,
+    # des boutiques existantes vers le secteur « telecom »
+    await service_secteurs.initialiser()
     # Rapprochement automatique des paiements PawaPay en attente (compte partagé :
     # le callback PawaPay ne pointe pas vers ce site)
     asyncio.create_task(paiements.boucle_rapprochement())

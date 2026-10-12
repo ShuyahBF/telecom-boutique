@@ -65,6 +65,8 @@ class BoutiqueCreation(Identification):
     dg_mot_de_passe: str = Field(..., min_length=8)
     # Boutique interne (présentation) : créée d'emblée invisible des visiteurs
     test: bool = False
+    # Lot A — secteur d'activité (code du référentiel des secteurs) ; vide = « telecom »
+    secteur: Optional[str] = Field(None, max_length=40)
 
 
 class BoutiqueMaj(BaseModel):
@@ -87,6 +89,8 @@ class BoutiqueMaj(BaseModel):
     # Fonction « Maintenance des équipements » activée pour la boutique
     maintenance_equipements: Optional[bool] = None
     ordre: Optional[int] = None
+    # Lot A — changement du secteur d'activité (vocabulaire et champs des articles)
+    secteur: Optional[str] = Field(None, max_length=40)
 
 
 def _normaliser_code(code: str) -> str:
@@ -108,8 +112,21 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
                                code: Optional[str] = None, test: bool = False) -> tuple[dict, dict, int]:
     """Crée la boutique, le compte de son DG et copie le catalogue public.
     Utilisé par la création manuelle (super-admin) ET par le webhook.
-    `donnees` : nom, telephone, email + champs d'Identification."""
+    `donnees` : nom, telephone, email + champs d'Identification
+    + `secteur` facultatif (lot A : « telecom » par défaut, pour ne rien changer)."""
+    import secteurs as service_secteurs
+    from db import TenantDB
+
     nom = donnees["nom"].strip()
+    # Lot A — secteur d'activité : contrôlé (existant et actif), « telecom » si non précisé
+    code_secteur = await service_secteurs.code_valide(donnees.get("secteur"))
+    secteur = await service_secteurs.lire_secteur(code_secteur)
+    # Barre latérale : seuls « Tableau de bord » et « Caisse Aizenta » sont actifs au
+    # départ, PLUS les modules prévus par le secteur (ex. Catalogue, Stock, Clients…)
+    options = options_sidebar.options_par_defaut()
+    for module in secteur["modules"]:
+        if module in options:
+            options[module] = True
     boutique = {
         "id": new_id(), "nom": nom, "slug": await _slug_unique(nom),
         "code_marchand": code or await _code_marchand_unique(),
@@ -119,12 +136,17 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "validee": validee, "origine": origine, "test": test,
         # 14 jours de démo complète, puis abonnement (voir abonnements.py)
         "abonnement": abonnement_initial(now_iso()),
-        # Barre latérale : seuls « Tableau de bord » et « Caisse Aizenta » sont actifs
-        # au départ ; le super-admin active les autres options boutique par boutique
-        "options_sidebar": options_sidebar.options_par_defaut(),
+        # Barre latérale : options obligatoires + modules du secteur ; le super-admin
+        # active les autres options boutique par boutique
+        "options_sidebar": options,
         **boutique_par_defaut(nom),
         **Identification(**{k: v for k, v in donnees.items() if k in Identification.model_fields}).model_dump(),
+        # Lot A — secteur principal ; secteurs secondaires prévus pour plus tard (non exposés)
+        "secteur": code_secteur, "secteurs_secondaires": [],
     }
+    # Ancien interrupteur « Maintenance des équipements » : suit le module du secteur
+    if options.get("maintenance_equipements"):
+        boutique["maintenance_equipements"] = True
     boutique["dg_telephone"] = normaliser_telephone(boutique.get("dg_telephone"))
     await db.boutiques.insert_one(boutique.copy())
     dg = {
@@ -134,9 +156,17 @@ async def enregistrer_boutique(donnees: dict, *, dg_email: str, dg_mot_de_passe:
         "doit_changer_mot_de_passe": doit_changer_mot_de_passe,
     }
     await db.users.insert_one(dg.copy())
-    # Première initialisation : la boutique reçoit tout le catalogue public (sans prix)
-    from catalogue_public import copier_catalogue_dans_boutique
-    nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
+    # Lot A — catégories de départ du secteur (ex. Femme, Homme, Enfant… pour le prêt-à-porter)
+    tdb = TenantDB(boutique["id"])
+    for ordre, nom_categorie in enumerate(secteur["categories_depart"], start=1):
+        await tdb.categories.insert_one({"id": new_id(), "nom": nom_categorie, "slug": slugifier(nom_categorie),
+                                         "ordre": ordre})
+    # Première initialisation : la boutique reçoit tout le catalogue public (sans prix),
+    # SEULEMENT pour le télécom (catalogue de téléphones et pièces détachées)
+    nb_produits = 0
+    if secteur["catalogue_telecom"]:
+        from catalogue_public import copier_catalogue_dans_boutique
+        nb_produits = await copier_catalogue_dans_boutique(boutique["id"])
     return boutique, dg, nb_produits
 
 
@@ -194,6 +224,8 @@ async def envoyer_identifiants(boutique: dict, dg: dict, mot_de_passe: str, tele
 def boutique_par_defaut(nom: str) -> dict:
     """Valeurs initiales d'une nouvelle boutique (modifiables par son gérant)."""
     return {
+        # Lot A — secteur d'activité (remplacé par celui choisi à la création)
+        "secteur": "telecom", "secteurs_secondaires": [],
         "slogan": "", "logo_url": None, "kyc": service_kyc.kyc_vide(),
         "devise": "FCFA", "taux_tva_defaut": 18.0, "prix_ttc": True, "validite_proforma_jours": 15,
         "conditions_facture": "Les marchandises vendues ne sont ni reprises ni échangées.",
@@ -317,6 +349,11 @@ async def modifier_boutique(boutique_id: str, payload: BoutiqueMaj, admin: dict 
         maj["slug"] = await _slug_unique(maj["nom"], sauf_id=boutique_id)
     if "dg_telephone" in maj:
         maj["dg_telephone"] = normaliser_telephone(maj["dg_telephone"])
+    if "secteur" in maj:
+        # Lot A — secteur contrôlé (existant et actif) ; modules, catégories et articles
+        # déjà en place ne sont pas touchés : seuls le vocabulaire et les champs suivent
+        import secteurs as service_secteurs
+        maj["secteur"] = await service_secteurs.code_valide(maj["secteur"])
     # Suspension / réactivation manuelle : le motif est gardé (« MANUEL » : un paiement
     # d'abonnement ne la lèvera pas automatiquement, contrairement à « IMPAYE »)
     if maj.get("actif") is False and boutique.get("actif", True):

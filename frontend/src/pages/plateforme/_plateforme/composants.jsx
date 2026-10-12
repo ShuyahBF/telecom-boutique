@@ -1,6 +1,7 @@
 // Petits composants partagés par les écrans de la plateforme :
 // en-tête commun, champ de formulaire, choix du pays, champs d'identification.
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiClient, EN_ARRIERE_PLAN } from "@/lib/api";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATUTS_KYC } from "./outils";
@@ -16,6 +17,8 @@ const MENU_PLATEFORME = [
   { to: "/plateforme", label: "Boutiques", court: "Boutiques", icone: "🏪", end: true },
   { to: "/plateforme/referentiel", label: "Référentiel mondial", court: "Appareils", icone: "📚" },
   { to: "/plateforme/catalogue", label: "Catalogue public", court: "Catalogue", icone: "🌍" },
+  // Lot A : secteurs d'activité (vocabulaire, champs, modules, catégories de départ)
+  { to: "/plateforme/secteurs", label: "Secteurs d'activité", court: "Secteurs", icone: "🧭" },
   { to: "/plateforme/abonnements", label: "Abonnements", court: "Abonnements", icone: "💰" },
   { to: "/plateforme/reversements", label: "Reversements", court: "Reversements", icone: "💸" },
   { to: "/plateforme/maintenance-equipements", label: "Maintenance", court: "Maintenance", icone: "🛠️" },
@@ -188,4 +191,23 @@ export function erreurCoordonnees(v) {
   if (api.latitude !== null && (Number.isNaN(api.latitude) || Math.abs(api.latitude) > 90)) return "Latitude invalide : nombre entre -90 et 90.";
   if (api.longitude !== null && (Number.isNaN(api.longitude) || Math.abs(api.longitude) > 180)) return "Longitude invalide : nombre entre -180 et 180.";
   return "";
+}
+
+// ---------------------------------------------------------------------------
+// Lot A — choix du SECTEUR D'ACTIVITÉ d'une boutique (création et dossier).
+// La liste vient de la route publique /secteurs (secteurs actifs) ; le secteur
+// actuel reste proposé même s'il a été désactivé depuis.
+// ---------------------------------------------------------------------------
+export function ChoixSecteur({ valeur, onChange, required = false }) {
+  const [secteurs, setSecteurs] = useState([]);
+  useEffect(() => {
+    apiClient.get("/secteurs", EN_ARRIERE_PLAN).then(({ data }) => setSecteurs(data)).catch(() => setSecteurs([]));
+  }, []);
+  const connus = secteurs.some((s) => s.code === valeur);
+  return (
+    <select className="input bg-white" required={required} value={valeur || "telecom"} onChange={(e) => onChange(e.target.value)}>
+      {!connus && <option value={valeur || "telecom"}>{valeur === "telecom" || !valeur ? "📱 Télécom (téléphonie et accessoires)" : valeur}</option>}
+      {secteurs.map((s) => <option key={s.code} value={s.code}>{s.icone} {s.libelle}</option>)}
+    </select>
+  );
 }

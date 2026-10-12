@@ -4,13 +4,15 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure, prix } from "@/lib/format";
-import { TYPES_PRODUIT } from "@/lib/statuts";
+import { TYPES_PRODUIT, typesProduitPour } from "@/lib/statuts";
+import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes et champs du secteur d'activité
 import EnTetePage from "@/components/EnTetePage";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
 import { Case, Champ, ChoixImage } from "./_atelier/communs";
 import DocumentsPrives from "./_catalogue/DocumentsPrives";
 import FicheTechnique, { FICHE_VIDE, ficheVersApi, ficheVersFormulaire } from "./_catalogue/FicheTechnique";
+import ChampsSecteur from "./_catalogue/ChampsSecteur";
 
 // Valeurs d'un produit vierge (création)
 const PRODUIT_VIDE = {
@@ -18,6 +20,7 @@ const PRODUIT_VIDE = {
   caracteristiques: [""], prix_achat: 0, prix_vente: 0, stock_alerte: 2, garantie_mois: 0,
   visible_portail: true, actif: true, stock_initial: 0, conseils_utilisation: "",
   fiche_technique: FICHE_VIDE, referentiel: null, // fiche technique + appareil du référentiel mondial relié
+  attributs: {}, // lot A : valeurs des champs propres au secteur ({ taille: "M", couleur: "Bleu" })
 };
 
 // Message affiché quand on veut montrer sur le portail un produit sans prix
@@ -40,9 +43,12 @@ export default function ProduitForm() {
   const { user, boutique } = useAuth();
   // Le technicien voit la fiche en lecture seule
   const peutModifier = peut(user, "catalogue.edition");
+  // Lot A — secteur d'activité : vocabulaire (Article, Rayon…), champs propres, mode télécom
+  const v = useVocabulaire();
 
   // --- État du formulaire ---
-  const [produit, setProduit] = useState(PRODUIT_VIDE);
+  // Nouvel article : type « TEL » pour le télécom, « ART » (article générique) sinon
+  const [produit, setProduit] = useState(() => ({ ...PRODUIT_VIDE, type_produit: v.telecom ? "TEL" : "ART" }));
   const [original, setOriginal] = useState(null); // produit tel qu'enregistré (stock, image...)
   const [categories, setCategories] = useState([]);
   const [mouvements, setMouvements] = useState([]);
@@ -78,6 +84,7 @@ export default function ProduitForm() {
         setProduit({ ...PRODUIT_VIDE, ...data, marque: data.marque || "", description: data.description || "",
           conseils_utilisation: data.conseils_utilisation || "",
           fiche_technique: ficheVersFormulaire(data.fiche_technique), referentiel: data.referentiel || null,
+          attributs: data.attributs || {},
           caracteristiques: data.caracteristiques?.length ? data.caracteristiques : [""] });
         // Nouveauté du catalogue public : l'ouvrir retire le badge « Nouveau »
         if (data.nouveau) apiClient.post(`/produits/${id}/vu`).catch(() => {});
@@ -144,9 +151,11 @@ export default function ProduitForm() {
       stock_alerte: Number(produit.stock_alerte) || 0, garantie_mois: Number(produit.garantie_mois) || 0,
       visible_portail: produit.visible_portail, actif: produit.actif,
       conseils_utilisation: produit.conseils_utilisation || "",
-      // Fiche technique : seulement pour un téléphone (null = pas de fiche)
-      fiche_technique: produit.type_produit === "TEL" ? ficheVersApi(produit.fiche_technique) : null,
-      referentiel_cle: produit.type_produit === "TEL" ? produit.referentiel?.cle || null : null,
+      // Fiche technique : seulement pour un téléphone d'une boutique télécom (null = pas de fiche)
+      fiche_technique: v.telecom && produit.type_produit === "TEL" ? ficheVersApi(produit.fiche_technique) : null,
+      referentiel_cle: v.telecom && produit.type_produit === "TEL" ? produit.referentiel?.cle || null : null,
+      // Lot A — champs du secteur (contrôlés aussi par le serveur)
+      attributs: produit.attributs || {},
     };
     try {
       if (creation) {
@@ -159,12 +168,12 @@ export default function ProduitForm() {
             toast.erreur(messageErreur(err, "Produit créé, mais la photo a été refusée"));
           }
         }
-        toast.succes("Produit créé");
+        toast.succes(`${v.article} « ${data.nom} » créé(e)`);
         navigate(`/gestion/produits/${data.id}`, { replace: true });
       } else {
         const { data } = await apiClient.put(`/produits/${id}`, corps);
         setOriginal(data);
-        toast.succes("Produit enregistré");
+        toast.succes(`${v.article} enregistré(e)`);
       }
     } catch (err) {
       toast.erreur(messageErreur(err, "Vérifiez les champs obligatoires (référence, nom, catégorie, prix)"));
@@ -174,7 +183,7 @@ export default function ProduitForm() {
   }
 
   if (chargement) return <Chargement />;
-  if (!creation && !original) return <p className="p-6 text-gray-500">Produit introuvable. <Link to="/gestion/produits" className="text-primary underline">Retour au catalogue</Link></p>;
+  if (!creation && !original) return <p className="p-6 text-gray-500">Produit introuvable. <Link to="/gestion/produits" className="text-primary underline">Retour : {v.catalogue}</Link></p>;
 
   const service = produit.type_produit === "SER";
   const lectureSeule = !peutModifier;
@@ -187,9 +196,9 @@ export default function ProduitForm() {
 
   return (
     <form onSubmit={enregistrer}>
-      <EnTetePage titre={creation ? "Nouveau produit" : produit.nom}
-        sousTitre={creation ? "Ajout d'un article au catalogue" : `Référence ${original.reference}`}>
-        <Link to="/gestion/produits" className="btn-outline">← Catalogue</Link>
+      <EnTetePage titre={creation ? v.nouvel_article : produit.nom}
+        sousTitre={creation ? `Ajout : ${v.catalogue}` : `Référence ${original.reference}`}>
+        <Link to="/gestion/produits" className="btn-outline">← {v.catalogue}</Link>
         {!lectureSeule && <button className="btn-primary" disabled={enregistrement}>{enregistrement ? "Enregistrement…" : "💾 Enregistrer"}</button>}
       </EnTetePage>
 
@@ -214,22 +223,31 @@ export default function ProduitForm() {
             <h2 className="font-bold sm:col-span-2">Identification {duCatalogue && <span className="ml-1 text-xs font-normal text-gray-500">🔒 informations communes (lecture seule)</span>}</h2>
             {/* Champs partagés : désactivés (disabled) pour un produit du catalogue public */}
             <Champ label="Référence *"><input className="input disabled:bg-gray-100 disabled:text-gray-600" required maxLength={50} disabled={verrou} value={produit.reference} onChange={(e) => maj("reference", e.target.value)} placeholder="ex. SAM-A15-128" /></Champ>
-            <Champ label="Type"><select className="input disabled:bg-gray-100 disabled:text-gray-600" disabled={verrou} value={produit.type_produit} onChange={(e) => maj("type_produit", e.target.value)}>
-              {Object.entries(TYPES_PRODUIT).map(([code, lib]) => <option key={code} value={code}>{lib}</option>)}
+            {/* Types proposés selon le secteur : TEL / ACC / PIE / SER (télécom) ou Article / Service (autres) ;
+                un type hors liste (boutique passée d'un secteur à l'autre) reste affiché */}
+            <Champ label={v.telecom ? "Type" : "Type (facultatif)"}><select className="input disabled:bg-gray-100 disabled:text-gray-600" disabled={verrou} value={produit.type_produit} onChange={(e) => maj("type_produit", e.target.value)}>
+              {Object.entries({ ...typesProduitPour(v.telecom), ...(typesProduitPour(v.telecom)[produit.type_produit] ? {} : { [produit.type_produit]: TYPES_PRODUIT[produit.type_produit] || produit.type_produit }) })
+                .map(([code, lib]) => <option key={code} value={code}>{lib}</option>)}
             </select></Champ>
-            <Champ label="Nom *" className="sm:col-span-2"><input className="input disabled:bg-gray-100 disabled:text-gray-600" required maxLength={200} disabled={verrou} value={produit.nom} onChange={(e) => maj("nom", e.target.value)} placeholder="ex. Samsung Galaxy A15 128 Go" /></Champ>
-            <Champ label="Catégorie *" aide={categories.length === 0 ? "Créez d'abord une catégorie depuis le catalogue (bouton « Catégories »)." : ""}>
+            <Champ label="Nom *" className="sm:col-span-2"><input className="input disabled:bg-gray-100 disabled:text-gray-600" required maxLength={200} disabled={verrou} value={produit.nom} onChange={(e) => maj("nom", e.target.value)} placeholder={v.telecom ? "ex. Samsung Galaxy A15 128 Go" : ""} /></Champ>
+            <Champ label={`${v.categorie} *`} aide={categories.length === 0 ? `Créez-en d'abord depuis la page ${v.catalogue} (bouton « ${v.categories} »).` : ""}>
               <select className="input" required value={produit.categorie_id} onChange={(e) => maj("categorie_id", e.target.value)}>
                 <option value="">— Choisir —</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
               </select>
             </Champ>
-            <Champ label="Marque"><input className="input disabled:bg-gray-100 disabled:text-gray-600" maxLength={80} disabled={verrou} value={produit.marque} onChange={(e) => maj("marque", e.target.value)} placeholder="ex. Samsung" /></Champ>
+            <Champ label="Marque"><input className="input disabled:bg-gray-100 disabled:text-gray-600" maxLength={80} disabled={verrou} value={produit.marque} onChange={(e) => maj("marque", e.target.value)} placeholder={v.telecom ? "ex. Samsung" : ""} /></Champ>
           </div>
+
+          {/* Lot A — champs propres au secteur d'activité (Taille, Couleur, Péremption, ISBN…),
+              modifiables même pour un article du catalogue public (ils ne sont pas partagés) */}
+          <ChampsSecteur champs={v.champs} attributs={produit.attributs} onChange={(a) => maj("attributs", a)}
+            titre={v.caracteristiques} desactive={lectureSeule} />
 
           {/* Fiche technique structurée : téléphones créés par la boutique
               (ceux du catalogue public ont déjà leurs caractéristiques communes) */}
-          {produit.type_produit === "TEL" && !duCatalogue && (
+          {/* Lot A : masquée hors du secteur télécom (ni fiche de téléphone, ni référentiel des appareils) */}
+          {v.telecom && produit.type_produit === "TEL" && !duCatalogue && (
             <FicheTechnique fiche={produit.fiche_technique} onFiche={(f) => maj("fiche_technique", f)}
               referentiel={produit.referentiel} onReferentiel={(a) => maj("referentiel", a)}
               nomProduit={produit.nom} desactive={lectureSeule}
@@ -244,9 +262,9 @@ export default function ProduitForm() {
             </Champ>
             {/* Caractéristiques : une ligne = une caractéristique */}
             <div>
-              <label className="label">Caractéristiques</label>
+              <label className="label">{v.champs.length ? `Autres ${v.minuscule("caracteristiques")} (texte libre)` : v.caracteristiques}</label>
               <p className="mb-2 text-xs text-gray-500">
-                {produit.type_produit === "TEL" && !duCatalogue
+                {v.telecom && produit.type_produit === "TEL" && !duCatalogue
                   ? "Autres informations, en plus de la fiche technique ci-dessus (une par ligne)."
                   : "Une caractéristique par ligne, par exemple « Écran : 6,5 pouces »."}
               </p>
@@ -331,7 +349,7 @@ export default function ProduitForm() {
             {sansPrixVisible && alerteVisibilite && (
               <p role="alert" className="rounded-xl bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-800">⚠️ {MESSAGE_SANS_PRIX}</p>
             )}
-            <Case label="Produit actif" aide="Un produit inactif ne peut plus être vendu ni commandé." checked={produit.actif} onChange={(v) => maj("actif", v)} />
+            <Case label={`${v.article} actif`} aide={`Inactif : ne peut plus être vendu ni commandé.`} checked={produit.actif} onChange={(v) => maj("actif", v)} />
           </fieldset>
 
           {/* TikTok : publication de la photo du produit sur le compte de la boutique */}

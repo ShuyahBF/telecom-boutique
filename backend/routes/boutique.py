@@ -24,6 +24,9 @@ parametres = permission("parametres")
 
 @router.get("")
 async def ma_boutique(ctx: Contexte = Depends(tout_le_personnel)):
+    # Lot A — secteurs relus si le cache a plus d'une minute (vocabulaire à jour)
+    import secteurs
+    await secteurs.rafraichir_cache()
     return _sans_secrets(ctx.boutique)
 
 

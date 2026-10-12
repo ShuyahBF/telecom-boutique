@@ -54,6 +54,9 @@ async def _reponse_session(user: dict) -> dict:
     boutique = None
     if user.get("boutique_id"):
         boutique = await db.boutiques.find_one({"id": user["boutique_id"]}, SANS_ID)
+        # Lot A — secteurs d'activité tenus à jour en mémoire (vocabulaire envoyé avec la boutique)
+        import secteurs
+        await secteurs.rafraichir_cache()
     return {
         "access_token": create_access_token(user["id"], int(user.get("version_session", 0))),
         "user": user_public(user),
@@ -76,6 +79,11 @@ def _sans_secrets(boutique: dict | None, super_admin: bool = False) -> dict | No
     # État réel des options de la barre latérale (menu affiché par le site)
     import options_sidebar
     b["options_actives"] = options_sidebar.options_effectives(boutique)
+    # Lot A — secteur d'activité : code, libellé, pictogramme, vocabulaire de l'interface
+    # (« Article », « Rayon »…) et champs propres au secteur (fiche article)
+    import secteurs
+    b.update(secteurs.infos_boutique(boutique))
+    b.setdefault("secteurs_secondaires", [])
     # Période de grâce de l'abonnement (bandeau rouge, puis écran « Abonnement expiré »)
     import abonnement_grace
     b["abonnement_grace"] = abonnement_grace.resume(boutique)

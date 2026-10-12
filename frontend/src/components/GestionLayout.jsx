@@ -4,6 +4,7 @@ import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, EN_ARRIERE_PLAN } from "@/lib/api";
 import { optionActive } from "@/lib/options";
 import { ROLES } from "@/lib/statuts";
+import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes et pictogramme selon le secteur
 import { IconeAdlyn, LogoAdlyn } from "@/components/Marque";
 import Abonnement from "@/pages/gestion/Abonnement";
 import { BandeauGrace, useCoupureProgrammee } from "@/components/AbonnementGrace";
@@ -27,9 +28,10 @@ const MENU = [
   { to: "/gestion/commandes", label: "Commandes en ligne", icone: "📦", permission: "commandes", option: "commandes" },
   { to: "/gestion/maintenance", label: "Maintenance (SAV)", icone: "🔧", permission: "maintenance", option: "maintenance" },
   { to: "/gestion/maintenance-equipements", label: "Maintenance équipements", icone: "🛠️", permission: "maintenance", option: "maintenance_equipements" },
-  { to: "/gestion/produits", label: "Catalogue", icone: "📱", permission: "catalogue.lecture", option: "produits", compteur: "nouveautes" },
+  // Libellé et pictogramme remplacés selon le secteur d'activité (vocab : clé du vocabulaire, voir plus bas)
+  { to: "/gestion/produits", label: "Catalogue", icone: "📱", vocab: "catalogue", iconeSecteur: true, permission: "catalogue.lecture", option: "produits", compteur: "nouveautes" },
   { to: "/gestion/catalogue-public", label: "Catalogue public", icone: "🌍", permission: "catalogue.lecture", option: "catalogue_public" },
-  { to: "/gestion/stock", label: "Stock", icone: "🏷️", permission: "stock", option: "stock" },
+  { to: "/gestion/stock", label: "Stock", icone: "🏷️", vocab: "stock", permission: "stock", option: "stock" },
   { to: "/gestion/clients", label: "Clients", icone: "👥", permission: "clients", option: "clients" },
   { to: "/gestion/fournisseurs", label: "Fournisseurs", icone: "🚚", permission: "fournisseurs", option: "fournisseurs" },
   { to: "/gestion/messagerie", label: "Messagerie", icone: "💬", permission: "messagerie", option: "messagerie", compteur: "conversations" },
@@ -89,6 +91,7 @@ export default function GestionLayout() {
   const [menuMobile, setMenuMobile] = useState(false);
   const [compteurs, setCompteurs] = useState({ conversations: 0, nouveautes: 0 });
   const grandEcran = useGrandEcran(); // emplacement du pictogramme d'assistance (SAWALI lot 90)
+  const vocabulaire = useVocabulaire(); // lot A : « Catalogue », « Stock »… selon le secteur
   // Fin de la période de grâce : la session est relue à l'heure exacte de la coupure
   useCoupureProgrammee(boutique?.abonnement_grace, rafraichir);
 
@@ -148,7 +151,9 @@ export default function GestionLayout() {
     );
   }
 
-  const entrees = MENU.filter((m) => peut(user, m.permission) && optionActive(boutique, m.option));
+  // Entrées autorisées, avec le libellé et le pictogramme du secteur d'activité (lot A)
+  const entrees = MENU.filter((m) => peut(user, m.permission) && optionActive(boutique, m.option))
+    .map((m) => ({ ...m, label: m.vocab ? vocabulaire[m.vocab] : m.label, icone: m.iconeSecteur ? vocabulaire.icone : m.icone }));
   // Lien du menu. Refonte « Ondes & comptoir » : l'entrée active n'est plus un
   // bloc bleu plein, mais une ligne éclairée avec une barre « signal » bleu ciel
   // à gauche (pseudo-élément before:) — plus calme, et l'œil la trouve aussitôt.

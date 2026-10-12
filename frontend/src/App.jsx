@@ -68,6 +68,7 @@ import ParametresPlateforme from "@/pages/plateforme/Parametres";
 import CycleVie from "@/pages/plateforme/CycleVie";
 import KycDg from "@/pages/plateforme/KycDg";
 import Referentiel from "@/pages/plateforme/Referentiel";
+import Secteurs from "@/pages/plateforme/Secteurs"; // lot A : secteurs d'activité
 import MaintenanceEquipementsPlateforme from "@/pages/plateforme/MaintenanceEquipements";
 // Lot 25 — onglet « Usage » (connexions, présence, blocages) et page de l'accès suspendu
 import Usage from "@/pages/plateforme/Usage";
@@ -178,6 +179,7 @@ export default function App() {
             <Route path="/plateforme" element={<RouteProtegee roles={["super_admin"]}><Plateforme /></RouteProtegee>} />
             <Route path="/plateforme/catalogue" element={<RouteProtegee roles={["super_admin"]}><CatalogueAdmin /></RouteProtegee>} />
             <Route path="/plateforme/referentiel" element={<RouteProtegee roles={["super_admin"]}><Referentiel /></RouteProtegee>} />
+            <Route path="/plateforme/secteurs" element={<RouteProtegee roles={["super_admin"]}><Secteurs /></RouteProtegee>} />
             <Route path="/plateforme/abonnements" element={<RouteProtegee roles={["super_admin"]}><Abonnements /></RouteProtegee>} />
             <Route path="/plateforme/reversements" element={<RouteProtegee roles={["super_admin"]}><ReversementsPlateforme /></RouteProtegee>} />
             <Route path="/plateforme/sauvegardes" element={<RouteProtegee roles={["super_admin"]}><Sauvegardes /></RouteProtegee>} />
