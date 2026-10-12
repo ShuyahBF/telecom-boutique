@@ -46,7 +46,12 @@ export const STATUTS_CONVERSATION = {
   CLOS: { libelle: "Clos", classe: "bg-gray-100 text-gray-700" },
 };
 
-export const TYPES_PRODUIT = { TEL: "Téléphone", ACC: "Accessoire", PIE: "Pièce détachée", SER: "Service" };
+// Types de produit. « ART » (article générique) : secteurs autres que le télécom (lot A).
+export const TYPES_PRODUIT = { TEL: "Téléphone", ACC: "Accessoire", PIE: "Pièce détachée", SER: "Service", ART: "Article" };
+// Types proposés selon le secteur : télécom = TEL / ACC / PIE / SER ; autres = Article / Service
+export const TYPES_PRODUIT_TELECOM = { TEL: "Téléphone", ACC: "Accessoire", PIE: "Pièce détachée", SER: "Service" };
+export const TYPES_PRODUIT_GENERIQUES = { ART: "Article", SER: "Service" };
+export const typesProduitPour = (telecom) => (telecom ? TYPES_PRODUIT_TELECOM : TYPES_PRODUIT_GENERIQUES);
 
 export const ROLES = {
   super_admin: "Administrateur plateforme",

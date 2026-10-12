@@ -7,6 +7,7 @@ import { STATUTS_COMMANDE, STATUTS_SAV } from "@/lib/statuts";
 import Badge from "@/components/Badge";
 import Chargement from "@/components/Chargement";
 import EnTetePage from "@/components/EnTetePage";
+import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes du secteur d'activité
 
 // Page d'accueil du back-office : indicateurs clés, ventes des 30 derniers
 // jours et listes de ce qui attend une action.
@@ -14,6 +15,8 @@ export default function TableauDeBord() {
   const { user, boutique } = useAuth();
   const [donnees, setDonnees] = useState(null);
   const [erreur, setErreur] = useState("");
+  // Lot A — « Produits » / « Articles », « Catalogue »… selon le secteur de la boutique
+  const v = useVocabulaire();
 
   // Le technicien ne voit que l'atelier (réparations) et les alertes de stock
   const vendeur = peut(user, "facturation") || peut(user, "commandes");
@@ -42,13 +45,13 @@ export default function TableauDeBord() {
       { option: "documents", libelle: "Factures en brouillon", valeur: donnees.brouillons, detail: "à valider", lien: "/gestion/documents?type=FAC&statut=BROUILLON", alerte: donnees.brouillons > 0 },
       { option: "commandes", libelle: "Commandes à traiter", valeur: donnees.nb_commandes_a_traiter, detail: "reçues, confirmées ou en préparation", lien: "/gestion/commandes", alerte: donnees.nb_commandes_a_traiter > 0 },
       { option: "maintenance", libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: donnees.nb_dossiers_en_retard ? `dont ${donnees.nb_dossiers_en_retard} en retard` : "aucune en retard", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
-      { option: "stock", libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
+      { option: "stock", libelle: `${v.articles} en alerte`, valeur: donnees.nb_produits_alerte, detail: `${v.minuscule("stock")} au seuil ou en dessous`, lien: "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
       { option: "messagerie", libelle: "Demandes de conseil", valeur: donnees.conversations_attente, detail: "en attente de réponse", lien: "/gestion/messagerie", alerte: donnees.conversations_attente > 0 },
     ]
     : [
       { option: "maintenance", libelle: "Réparations en cours", valeur: donnees.nb_dossiers_en_cours, detail: "dossiers non restitués", lien: "/gestion/maintenance" },
       { option: "maintenance", libelle: "Réparations en retard", valeur: donnees.nb_dossiers_en_retard, detail: "date prévue dépassée", lien: "/gestion/maintenance", alerte: donnees.nb_dossiers_en_retard > 0 },
-      { option: "stock", libelle: "Produits en alerte", valeur: donnees.nb_produits_alerte, detail: "stock au seuil ou en dessous", lien: opt("produits") ? "/gestion/produits" : "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
+      { option: "stock", libelle: `${v.articles} en alerte`, valeur: donnees.nb_produits_alerte, detail: `${v.minuscule("stock")} au seuil ou en dessous`, lien: opt("produits") ? "/gestion/produits" : "/gestion/stock", alerte: donnees.nb_produits_alerte > 0 },
     ]).filter((t) => opt(t.option));
 
   // Alertes du catalogue, ajoutées seulement quand il y a quelque chose à voir
@@ -58,7 +61,7 @@ export default function TableauDeBord() {
       tuiles.push({ libelle: "Nouveautés du catalogue public", valeur: donnees.nb_nouveautes_catalogue, detail: "nouveaux modèles reçus, à consulter", lien: "/gestion/produits?nouveau=1", alerte: true });
     }
     if (donnees.nb_produits_sans_prix > 0) {
-      tuiles.push({ libelle: "Produits sans prix", valeur: donnees.nb_produits_sans_prix, detail: "prix de vente à renseigner", lien: "/gestion/produits?sans_prix=1", alerte: true });
+      tuiles.push({ libelle: `${v.articles} sans prix`, valeur: donnees.nb_produits_sans_prix, detail: "prix de vente à renseigner", lien: "/gestion/produits?sans_prix=1", alerte: true });
     }
   }
 
@@ -145,8 +148,8 @@ export default function TableauDeBord() {
           }}
         </Bloc>}
 
-        {opt("stock") && <Bloc titre="Stock en alerte" lien={vendeur || !opt("produits") ? "/gestion/stock" : "/gestion/produits"} nombre={donnees.nb_produits_alerte}
-          vide="Aucun produit en alerte. 👍" elements={donnees.produits_alerte}>
+        {opt("stock") && <Bloc titre={`${v.stock} en alerte`} lien={vendeur || !opt("produits") ? "/gestion/stock" : "/gestion/produits"} nombre={donnees.nb_produits_alerte}
+          vide={`Aucun ${v.minuscule("article")} en alerte. 👍`} elements={donnees.produits_alerte}>
           {(p) => (
             <Link key={p.id} to={opt("produits") ? `/gestion/produits/${p.id}` : "/gestion/stock"} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50">
               <div className="min-w-0">

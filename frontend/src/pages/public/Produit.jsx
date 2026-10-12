@@ -166,7 +166,8 @@ export default function Produit() {
           {/* Fiche technique structurée (lignes « Libellé : valeur » préparées par le serveur) */}
           {produit.fiche_technique?.length > 0 && (
             <div>
-              <h2 className="mb-2 font-bold">Fiche technique</h2>
+              {/* Lot A : « Caractéristiques » pour les articles des autres secteurs (taille, couleur…) */}
+              <h2 className="mb-2 font-bold">{produit.titre_fiche || "Fiche technique"}</h2>
               <table className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white text-sm">
                 <tbody className="divide-y divide-gray-100">
                   {produit.fiche_technique.map((ligne) => {

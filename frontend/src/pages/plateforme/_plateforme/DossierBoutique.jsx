@@ -7,7 +7,7 @@ import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
-import { BadgeKyc, Champ, ChampsIdentification, erreurCoordonnees, identificationVersApi } from "./composants";
+import { BadgeKyc, Champ, ChampsIdentification, ChoixSecteur, erreurCoordonnees, identificationVersApi } from "./composants";
 import { FORMATS_JUSTIFICATIFS, messageErreurFichier, ouvrirFichier, TYPES_PIECES_KYC } from "./outils";
 
 /** Fiche boutique -> valeurs du formulaire d'identification (textes) */
@@ -16,6 +16,7 @@ function versFormulaire(b) {
     pays: b.pays || "", ville: b.ville || "", adresse: b.adresse || "",
     latitude: b.latitude ?? "", longitude: b.longitude ?? "",
     dg_nom: b.dg_nom || "", dg_telephone: b.dg_telephone || "", ifu: b.ifu || "", cnss: b.cnss || "", rccm: b.rccm || "",
+    secteur: b.secteur || "telecom", // lot A : secteur d'activité
   };
 }
 
@@ -52,6 +53,8 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
     if (erreur) return toast.erreur(erreur);
     if (infos.dg_nom.trim().length < 2) return toast.erreur("Indiquez le nom du DG.");
     const donnees = identificationVersApi(infos);
+    // Lot A — secteur envoyé seulement s'il a changé (un secteur désactivé depuis reste en place)
+    if (infos.secteur !== (boutique.secteur || "telecom")) donnees.secteur = infos.secteur;
     setOccupe("infos");
     try {
       const { data } = await apiClient.patch(base, donnees);
@@ -153,6 +156,11 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
               <input className="input" type="tel" maxLength={30} value={infos.dg_telephone} onChange={(e) => maj("dg_telephone", e.target.value)} placeholder="+226 70 00 00 00" />
             </Champ>
             <ChampsIdentification valeurs={infos} maj={maj} />
+            {/* Lot A — changer le secteur : le vocabulaire et les champs des articles suivent ;
+                modules, catégories et articles déjà en place ne bougent pas */}
+            <Champ label="Secteur d'activité" className="sm:col-span-2" aide="Change le vocabulaire et les champs des articles. Les modules, catégories et articles existants restent en place.">
+              <ChoixSecteur valeur={infos.secteur} onChange={(v) => maj("secteur", v)} />
+            </Champ>
             <div className="sm:col-span-2 sm:text-right">
               <button className="btn-primary w-full sm:w-auto" disabled={occupe === "infos"}>{occupe === "infos" ? "Enregistrement…" : "Enregistrer les informations"}</button>
             </div>

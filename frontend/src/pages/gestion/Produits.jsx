@@ -3,7 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { prix } from "@/lib/format";
-import { TYPES_PRODUIT } from "@/lib/statuts";
+import { TYPES_PRODUIT, typesProduitPour } from "@/lib/statuts";
+import { lignesAttributs, useVocabulaire } from "@/lib/vocabulaire";
 import EnTetePage from "@/components/EnTetePage";
 import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
@@ -25,6 +26,8 @@ export default function Produits() {
   const toast = useToast();
   // Le technicien consulte le catalogue sans pouvoir le modifier
   const peutModifier = peut(user, "catalogue.edition");
+  // Lot A — vocabulaire du secteur (Article / Rayon…) ; « telecom » = catalogue public de téléphones
+  const v = useVocabulaire();
 
   // --- État de la page ---
   const [produits, setProduits] = useState([]);
@@ -99,13 +102,14 @@ export default function Produits() {
 
   return (
     <div>
-      <EnTetePage titre="Catalogue" sousTitre={`${produits.length} produit(s) affiché(s)`}>
-        {/* Le catalogue public sert à chercher les infos d'un modèle (caractéristiques, pièces compatibles) */}
-        <Link to="/gestion/catalogue-public" className="btn-outline">🌍 Catalogue public</Link>
+      <EnTetePage titre={v.catalogue} sousTitre={`${produits.length} ${v.minuscule("article")}(s) affiché(s)`}>
+        {/* Le catalogue public sert à chercher les infos d'un modèle (caractéristiques, pièces compatibles) :
+            proposé seulement aux boutiques télécom (lot A) */}
+        {v.telecom && <Link to="/gestion/catalogue-public" className="btn-outline">🌍 Catalogue public</Link>}
         {peutModifier && (
           <>
-            <button type="button" className="btn-outline" onClick={() => setModaleCategories(true)}>🗂️ Catégories</button>
-            <Link to="/gestion/produits/nouveau" className="btn-primary">+ Nouveau produit</Link>
+            <button type="button" className="btn-outline" onClick={() => setModaleCategories(true)}>🗂️ {v.categories}</button>
+            <Link to="/gestion/produits/nouveau" className="btn-primary">+ {v.nouvel_article}</Link>
           </>
         )}
       </EnTetePage>
@@ -114,27 +118,28 @@ export default function Produits() {
       <div className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <input className="input" placeholder="🔍 Nom, référence, marque…" value={filtres.q} onChange={(e) => maj("q", e.target.value)} />
         <select className="input" value={filtres.categorie_id} onChange={(e) => maj("categorie_id", e.target.value)}>
-          <option value="">Toutes les catégories</option>
+          <option value="">{v.categories} : tout</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
         </select>
         <select className="input" value={filtres.type_produit} onChange={(e) => maj("type_produit", e.target.value)}>
           <option value="">Tous les types</option>
-          {Object.entries(TYPES_PRODUIT).map(([code, libelle]) => <option key={code} value={code}>{libelle}</option>)}
+          {Object.entries(typesProduitPour(v.telecom)).map(([code, libelle]) => <option key={code} value={code}>{libelle}</option>)}
         </select>
         <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold">
           <input type="checkbox" className="h-4 w-4 accent-red-600" checked={filtres.alerte} onChange={(e) => maj("alerte", e.target.checked)} />
           ⚠️ Stock en alerte seulement
         </label>
-        {/* Deuxième ligne de filtres : origine, nouveautés, produits sans prix (rangés dans l'adresse) */}
-        <select className="input" value={source} onChange={(e) => majAdresse("source", e.target.value)} aria-label="Origine du produit">
+        {/* Deuxième ligne de filtres : origine, nouveautés, produits sans prix (rangés dans l'adresse).
+            Origine et nouveautés concernent le catalogue public : boutiques télécom seulement (lot A) */}
+        {v.telecom && <select className="input" value={source} onChange={(e) => majAdresse("source", e.target.value)} aria-label="Origine du produit">
           <option value="">Toutes les origines</option>
           <option value="catalogue">🌍 Catalogue public</option>
-          <option value="boutique">🏪 Mes produits</option>
-        </select>
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold">
+          <option value="boutique">🏪 Mes {v.minuscule("articles")}</option>
+        </select>}
+        {v.telecom && <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold">
           <input type="checkbox" className="h-4 w-4 accent-accent" checked={nouveau} onChange={(e) => majAdresse("nouveau", e.target.checked ? "1" : "")} />
           ✨ Nouveautés seulement
-        </label>
+        </label>}
         <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-semibold">
           <input type="checkbox" className="h-4 w-4 accent-accent" checked={sansPrix} onChange={(e) => majAdresse("sans_prix", e.target.checked ? "1" : "")} />
           🏷️ Sans prix seulement
@@ -162,7 +167,7 @@ export default function Produits() {
       {/* Tableau des produits (défilement horizontal sur petit écran) */}
       <div className="card overflow-x-auto p-0">
         {chargement ? <Chargement /> : produits.length === 0 ? (
-          <Vide icone="📱">Aucun produit ne correspond à votre recherche.</Vide>
+          <Vide icone={v.icone}>Aucun {v.minuscule("article")} ne correspond à votre recherche.</Vide>
         ) : (
           <>
           {/* Téléphone : une ligne compacte par produit */}
@@ -175,12 +180,13 @@ export default function Produits() {
                   <Link to={`/gestion/produits/${p.id}`} className={`flex items-center gap-3 p-3 ${p.actif === false ? "opacity-50" : ""}`}>
                     {p.image_url
                       ? <img src={p.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg border object-contain" />
-                      : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-lg">📱</span>}
+                      : <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-lg">{v.icone}</span>}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
                         <NomProduit produit={p} className="min-w-0 truncate font-semibold" avecBadge={false} />
                       </span>
                       <span className="block truncate text-xs text-gray-500">{p.reference} · {p.categorie_nom}{p.visible_portail ? "" : " · masqué du portail"}</span>
+                      <Attributs champs={v.champs} attributs={p.attributs} />
                       {/* Sur téléphone, le badge « Nouveau » est placé à côté du prix pour laisser la place au nom */}
                       <span className="flex items-center gap-2">
                         <PrixProduit produit={p} devise={boutique?.devise} className="text-sm" />
@@ -202,7 +208,7 @@ export default function Produits() {
                 <th className="w-16"><span className="sr-only">Photo</span></th>
                 <th>Référence</th>
                 <th>Nom</th>
-                <th>Catégorie</th>
+                <th>{v.categorie}</th>
                 <th>Marque</th>
                 <th className="text-right">Prix de vente</th>
                 <th className="text-right">Stock</th>
@@ -219,12 +225,14 @@ export default function Produits() {
                     <td>
                       {p.image_url
                         ? <img src={p.image_url} alt="" className="h-11 w-11 rounded-lg border object-contain" />
-                        : <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-lg">📱</span>}
+                        : <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-lg">{v.icone}</span>}
                     </td>
                     <td className="font-mono text-xs">{p.reference}</td>
                     <td>
                       <div className="flex flex-wrap items-center gap-1.5"><NomProduit produit={p} className="font-semibold" /></div>
                       <div className="text-xs text-gray-500">{TYPES_PRODUIT[p.type_produit]}{p.actif === false && " · inactif"}</div>
+                      {/* Lot A — caractéristiques du secteur (Taille : M · Couleur : Bleu…) */}
+                      <Attributs champs={v.champs} attributs={p.attributs} />
                     </td>
                     <td>{p.categorie_nom}</td>
                     <td>{p.marque || "—"}</td>
@@ -269,9 +277,22 @@ function PrixProduit({ produit, devise, className = "" }) {
   return <span className={`font-semibold ${className}`}>{prix(produit.prix_vente, devise)}</span>;
 }
 
-// Fenêtre de gestion des catégories : ajout, renommage, ordre, suppression.
+// Lot A — caractéristiques propres au secteur d'un article, sur une ligne discrète
+function Attributs({ champs, attributs }) {
+  const lignes = lignesAttributs(champs, attributs);
+  if (!lignes.length) return null;
+  return (
+    <span className="block truncate text-xs text-gray-500">
+      {lignes.map((l) => `${l.libelle} : ${l.valeur}`).join(" · ")}
+    </span>
+  );
+}
+
+// Fenêtre de gestion des catégories (« Rayons », « Familles »… selon le secteur) :
+// ajout, renommage, ordre, suppression.
 function ModaleCategories({ ouvert, onFermer, categories, onChange }) {
   const toast = useToast();
+  const v = useVocabulaire(); // lot A : terme du secteur pour « catégorie »
   const [nouvelle, setNouvelle] = useState({ nom: "", ordre: 0 });
   const [edition, setEdition] = useState(null); // catégorie en cours de modification
 
@@ -281,10 +302,10 @@ function ModaleCategories({ ouvert, onFermer, categories, onChange }) {
     try {
       await apiClient.post("/categories", { nom: nouvelle.nom, ordre: Number(nouvelle.ordre) || 0 });
       setNouvelle({ nom: "", ordre: 0 });
-      toast.succes("Catégorie créée");
+      toast.succes(`${v.categorie} « ${nouvelle.nom} » ajouté(e)`);
       onChange();
     } catch (err) {
-      toast.erreur(messageErreur(err, "Nom de catégorie invalide"));
+      toast.erreur(messageErreur(err, `Nom invalide (${v.minuscule("categorie")})`));
     }
   }
 
@@ -293,19 +314,19 @@ function ModaleCategories({ ouvert, onFermer, categories, onChange }) {
     try {
       await apiClient.put(`/categories/${edition.id}`, { nom: edition.nom, ordre: Number(edition.ordre) || 0 });
       setEdition(null);
-      toast.succes("Catégorie modifiée");
+      toast.succes(`${v.categorie} enregistré(e)`);
       onChange();
     } catch (err) {
-      toast.erreur(messageErreur(err, "Nom de catégorie invalide"));
+      toast.erreur(messageErreur(err, `Nom invalide (${v.minuscule("categorie")})`));
     }
   }
 
   // Suppression (refusée par l'API si des produits l'utilisent encore)
   async function supprimer(c) {
-    if (!window.confirm(`Supprimer la catégorie « ${c.nom} » ?`)) return;
+    if (!window.confirm(`Supprimer ${v.minuscule("categorie")} « ${c.nom} » ?`)) return;
     try {
       await apiClient.delete(`/categories/${c.id}`);
-      toast.succes("Catégorie supprimée");
+      toast.succes(`${v.categorie} « ${c.nom} » supprimé(e)`);
       onChange();
     } catch (err) {
       toast.erreur(messageErreur(err, "Suppression impossible"));
@@ -313,10 +334,10 @@ function ModaleCategories({ ouvert, onFermer, categories, onChange }) {
   }
 
   return (
-    <Modal ouvert={ouvert} titre="Catégories du catalogue" onFermer={onFermer}>
+    <Modal ouvert={ouvert} titre={`${v.categories} — ${v.catalogue}`} onFermer={onFermer}>
       {/* Formulaire d'ajout */}
       <form onSubmit={creer} className="mb-2 flex gap-2">
-        <input className="input" placeholder="Nouvelle catégorie (ex. Smartphones)" required value={nouvelle.nom}
+        <input className="input" placeholder={`${v.categorie} à ajouter${v.telecom ? " (ex. Smartphones)" : ""}`} required value={nouvelle.nom}
           onChange={(e) => setNouvelle({ ...nouvelle, nom: e.target.value })} />
         <input className="input w-20 shrink-0" type="number" title="Ordre d'affichage" aria-label="Ordre d'affichage" value={nouvelle.ordre}
           onChange={(e) => setNouvelle({ ...nouvelle, ordre: e.target.value })} />
@@ -326,7 +347,7 @@ function ModaleCategories({ ouvert, onFermer, categories, onChange }) {
 
       {/* Liste des catégories existantes */}
       <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
-        {categories.length === 0 && <li className="p-3 text-sm text-gray-500">Aucune catégorie pour l'instant.</li>}
+        {categories.length === 0 && <li className="p-3 text-sm text-gray-500">Rien pour l'instant : ajoutez votre premier élément ({v.minuscule("categorie")}).</li>}
         {categories.map((c) => (
           <li key={c.id} className="flex items-center gap-2 p-2">
             {edition?.id === c.id ? (

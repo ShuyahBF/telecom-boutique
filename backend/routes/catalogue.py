@@ -3,11 +3,12 @@ accessoires, pièces détachées, services)."""
 from __future__ import annotations
 
 import re
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+import secteurs as service_secteurs
 from auth import Contexte, permission, tout_le_personnel
 from services import entree_stock, est_stockable
 from catalogue_public import CHAMPS_PARTAGES
@@ -72,13 +73,17 @@ async def supprimer_categorie(categorie_id: str, ctx: Contexte = Depends(edition
 # ---------------------------------------------------------------------------
 # Produits
 # ---------------------------------------------------------------------------
-TypeProduit = Literal["TEL", "ACC", "PIE", "SER"]
+# Types de produit : TEL / ACC / PIE / SER pour le télécom ; « ART » (article
+# générique) pour les autres secteurs d'activité (lot A), qui gardent aussi « SER »
+TypeProduit = Literal["TEL", "ACC", "PIE", "SER", "ART"]
+TYPE_DEFAUT_TELECOM, TYPE_DEFAUT_AUTRES = "TEL", "ART"
 
 
 class ProduitSaisie(BaseModel):
     reference: str = Field(..., min_length=1, max_length=50)
     nom: str = Field(..., min_length=1, max_length=200)
-    type_produit: TypeProduit = "TEL"
+    # Facultatif : « TEL » par défaut pour une boutique télécom, « ART » sinon (lot A)
+    type_produit: Optional[TypeProduit] = None
     categorie_id: str
     marque: str = Field("", max_length=80)
     description: str = Field("", max_length=5000)
@@ -96,6 +101,30 @@ class ProduitSaisie(BaseModel):
     fiche_technique: Optional[FicheTechnique] = None
     # Appareil correspondant du référentiel mondial (choisi pendant la saisie du modèle)
     referentiel_cle: Optional[str] = Field(None, max_length=200)
+    # Lot A — valeurs des champs propres au secteur de la boutique : {cle: valeur}
+    # (ex. {"taille": "M", "couleur": "Bleu"}) ; absent = inchangé en modification
+    attributs: Optional[dict[str, Any]] = None
+
+
+async def _appliquer_secteur(payload: "ProduitSaisie", ctx: Contexte, actuel: Optional[dict] = None) -> tuple[dict, bool]:
+    """Lot A — règles du secteur d'activité de la boutique sur la saisie d'un article :
+      - type de produit absent -> « TEL » (télécom) ou « ART » (autres secteurs) ;
+      - hors télécom : pas de fiche technique de téléphone ni de lien avec le
+        référentiel des appareils (on garde ce qui existait déjà, sans y toucher) ;
+      - attributs contrôlés d'après les champs du secteur (obligatoire, type, options).
+    Renvoie (attributs nettoyés à enregistrer, vrai si la boutique est du secteur télécom)."""
+    secteur = await service_secteurs.lire_secteur(service_secteurs.code_de_boutique(ctx.boutique))
+    telecom = secteur["catalogue_telecom"]
+    if payload.type_produit is None:
+        payload.type_produit = (actuel or {}).get("type_produit") or (TYPE_DEFAUT_TELECOM if telecom else TYPE_DEFAUT_AUTRES)
+    if not telecom:
+        payload.fiche_technique = None
+        payload.referentiel_cle = (actuel or {}).get("referentiel_cle")
+    if payload.attributs is None:
+        if actuel is not None:  # modification sans attributs : on garde ceux enregistrés
+            return actuel.get("attributs") or {}, telecom
+        payload.attributs = {}
+    return service_secteurs.valider_attributs(secteur["champs"], payload.attributs), telecom
 
 
 async def _completer_depuis_fiche(payload: "ProduitSaisie") -> None:
@@ -171,12 +200,13 @@ async def lire_produit(produit_id: str, ctx: Contexte = Depends(tout_le_personne
 async def creer_produit(payload: ProduitCreation, ctx: Contexte = Depends(edition)):
     if await ctx.tdb.produits.find_one({"reference": payload.reference.strip()}):
         raise HTTPException(409, "Cette référence existe déjà dans votre catalogue")
+    attributs, _ = await _appliquer_secteur(payload, ctx)
     _controler_mise_en_vente(payload)
     await _completer_depuis_fiche(payload)
     cat = await _categorie(ctx, payload.categorie_id)
     donnees = payload.model_dump(exclude={"stock_initial"})
     produit = {
-        **donnees, "id": new_id(), "reference": payload.reference.strip(), "nom": payload.nom.strip(),
+        **donnees, "attributs": attributs, "id": new_id(), "reference": payload.reference.strip(), "nom": payload.nom.strip(),
         "slug": slugifier(f"{payload.nom}-{payload.reference}"), "categorie_nom": cat["nom"],
         "caracteristiques": [c.strip() for c in payload.caracteristiques if c.strip()],
         "image_url": None, "image_source": "boutique", "stock": 0, "created_at": now_iso(),
@@ -197,12 +227,17 @@ async def modifier_produit(produit_id: str, payload: ProduitSaisie, ctx: Context
     existant = await ctx.tdb.produits.find_one({"reference": payload.reference.strip()})
     if existant and existant["id"] != produit_id:
         raise HTTPException(409, "Cette référence existe déjà dans votre catalogue")
+    attributs, telecom = await _appliquer_secteur(payload, ctx, actuel)
     _controler_mise_en_vente(payload)
     await _completer_depuis_fiche(payload)
     cat = await _categorie(ctx, payload.categorie_id)
     # Le stock n'est PAS modifiable ici : il ne bouge que par des mouvements
-    maj = {**payload.model_dump(), "reference": payload.reference.strip(), "nom": payload.nom.strip(),
+    maj = {**payload.model_dump(), "attributs": attributs, "reference": payload.reference.strip(), "nom": payload.nom.strip(),
            "categorie_nom": cat["nom"], "caracteristiques": [c.strip() for c in payload.caracteristiques if c.strip()]}
+    if not telecom:
+        # Lot A — hors télécom, la fiche technique déjà enregistrée (boutique passée
+        # d'un secteur à l'autre) est conservée telle quelle, jamais effacée
+        maj["fiche_technique"] = actuel.get("fiche_technique")
     if actuel.get("catalogue_id"):
         # Modèle issu du catalogue public : les informations partagées (nom,
         # caractéristiques...) sont tenues à jour par la plateforme ; la boutique

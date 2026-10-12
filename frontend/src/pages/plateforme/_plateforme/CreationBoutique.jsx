@@ -5,13 +5,14 @@ import { useState } from "react";
 import { apiClient, messageErreur } from "@/lib/api";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
-import { Champ, ChampsIdentification, erreurCoordonnees, identificationVersApi, TitreSection } from "./composants";
+import { Champ, ChampsIdentification, ChoixSecteur, erreurCoordonnees, identificationVersApi, TitreSection } from "./composants";
 import { PAYS_DEFAUT } from "./outils";
 import ChampMotDePasse from "@/components/ChampMotDePasse";
 
 // Formulaire vierge
 const CREATION_VIDE = {
   nom: "", telephone: "", email: "", code_marchand: "",
+  secteur: "telecom", // lot A : secteur d'activité (télécom par défaut)
   pays: PAYS_DEFAUT, ville: "", adresse: "", latitude: "", longitude: "", ifu: "", cnss: "", rccm: "",
   dg_nom: "", dg_telephone: "", dg_email: "", dg_mot_de_passe: "",
 };
@@ -39,11 +40,13 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
       const { data } = await apiClient.post("/plateforme/boutiques", {
         nom: f.nom.trim(), telephone: f.telephone.trim(), email: f.email.trim() || null,
         code_marchand: f.code_marchand.trim() || null,
+        secteur: f.secteur || "telecom",
         ...identificationVersApi(f),
         dg_email: f.dg_email.trim(), dg_mot_de_passe: f.dg_mot_de_passe,
       });
       // Message de succès : code marchand + nombre de modèles du catalogue copiés
-      toast.succes(`Boutique « ${data.boutique.nom} » créée (ID boutique ${data.boutique.code_marchand}) — ${data.produits_copies} modèle(s) du catalogue public copié(s).`);
+      // (secteur autre que le télécom : aucun modèle copié, catégories de départ du secteur créées)
+      toast.succes(`Boutique « ${data.boutique.nom} » créée (ID boutique ${data.boutique.code_marchand})${data.produits_copies ? ` — ${data.produits_copies} modèle(s) du catalogue public copié(s)` : ""}.`);
       setF(CREATION_VIDE);
       onCreee?.(data);
     } catch (err) {
@@ -63,6 +66,10 @@ export default function CreationBoutique({ ouvert, onFermer, onCreee }) {
         </Champ>
         <Champ label="Téléphone"><input className="input" type="tel" value={f.telephone} onChange={(e) => maj("telephone", e.target.value)} placeholder="70 00 00 00" /></Champ>
         <Champ label="E-mail de la boutique"><input className="input" type="email" value={f.email} onChange={(e) => maj("email", e.target.value)} /></Champ>
+        {/* Lot A — secteur : vocabulaire, champs des articles, modules et catégories de départ */}
+        <Champ label="Secteur d'activité *" className="sm:col-span-2" aide="Le catalogue de téléphones n'est copié que pour le télécom ; les autres secteurs reçoivent leurs catégories de départ.">
+          <ChoixSecteur valeur={f.secteur} onChange={(v) => maj("secteur", v)} required />
+        </Champ>
         <Champ label="ID boutique (code marchand)" className="sm:col-span-2" aide="Facultatif : laissé vide, un ID unique de 6 caractères est créé automatiquement. C'est cet ID que le personnel tape pour se connecter.">
           <input className="input font-mono uppercase" minLength={6} maxLength={6} pattern="[A-Za-z0-9]{6}" title="6 lettres ou chiffres" value={f.code_marchand}
             onChange={(e) => maj("code_marchand", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} />

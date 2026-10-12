@@ -7,6 +7,7 @@ import Chargement from "@/components/Chargement";
 import Modal from "@/components/Modal";
 import ProduitSelect from "@/components/ProduitSelect";
 import { useToast } from "@/components/Toast";
+import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes du secteur d'activité
 import { Champ, Vide } from "./_atelier/communs";
 import OngletsStock from "./_atelier/OngletsStock";
 
@@ -21,6 +22,7 @@ const MOTIFS_MANUELS = ["CASSE", "INVENT", "RETOUR", "AUTRE"];
 // et saisie d'un mouvement manuel (casse, inventaire...).
 export default function Stock() {
   const toast = useToast();
+  const v = useVocabulaire(); // « Stock », « Article »… selon le secteur
   const [params, setParams] = useSearchParams();
 
   // --- État de la page ---
@@ -60,7 +62,7 @@ export default function Stock() {
 
   return (
     <div>
-      <EnTetePage titre="Stock" sousTitre="Journal de toutes les entrées et sorties de marchandises">
+      <EnTetePage titre={v.stock} sousTitre="Journal de toutes les entrées et sorties de marchandises">
         <Link to="/gestion/stock/bons/nouveau" className="btn-outline">📥 Nouvelle réception</Link>
         <button type="button" className="btn-primary" onClick={() => setModale(true)}>± Mouvement manuel</button>
       </EnTetePage>
@@ -75,7 +77,7 @@ export default function Stock() {
       </div>
 
       <div className="mb-4">
-        <input className="input sm:max-w-sm" placeholder="🔍 Filtrer par produit, document, commentaire…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
+        <input className="input sm:max-w-sm" placeholder={`🔍 Filtrer par ${v.minuscule("article")}, document, commentaire…`} value={recherche} onChange={(e) => setRecherche(e.target.value)} />
       </div>
 
       {/* Tableau du journal */}
@@ -98,7 +100,7 @@ export default function Stock() {
           </ul>
           <table className="table hidden min-w-[860px] sm:table">
             <thead>
-              <tr><th>Date</th><th>Produit</th><th>Sens</th><th className="text-right">Quantité</th><th>Motif</th><th>Document</th><th>Commentaire</th><th>Utilisateur</th></tr>
+              <tr><th>Date</th><th>{v.article}</th><th>Sens</th><th className="text-right">Quantité</th><th>Motif</th><th>Document</th><th>Commentaire</th><th>Utilisateur</th></tr>
             </thead>
             <tbody>
               {affiches.map((m) => (
@@ -133,6 +135,7 @@ export default function Stock() {
 // Fenêtre de saisie d'un mouvement manuel (POST /stock/mouvements)
 function ModaleMouvement({ ouvert, onFermer, motifs, produitId, onEnregistre }) {
   const toast = useToast();
+  const v = useVocabulaire(); // « Produit » / « Article » selon le secteur
   const [produit, setProduit] = useState(null);
   const [saisie, setSaisie] = useState({ sens: "S", quantite: 1, motif: "CASSE", commentaire: "" });
   const [envoi, setEnvoi] = useState(false);
@@ -149,7 +152,7 @@ function ModaleMouvement({ ouvert, onFermer, motifs, produitId, onEnregistre }) 
 
   async function valider(e) {
     e.preventDefault();
-    if (!produit) { toast.erreur("Choisissez un produit"); return; }
+    if (!produit) { toast.erreur(`Choisissez : ${v.minuscule("article")}`); return; }
     setEnvoi(true);
     try {
       await apiClient.post("/stock/mouvements", { ...saisie, produit_id: produit.id, quantite: Number(saisie.quantite) });
@@ -163,11 +166,11 @@ function ModaleMouvement({ ouvert, onFermer, motifs, produitId, onEnregistre }) 
   }
 
   return (
-    <Modal ouvert={ouvert} titre="Mouvement manuel de stock" onFermer={onFermer}>
+    <Modal ouvert={ouvert} titre={`Mouvement manuel — ${v.stock}`} onFermer={onFermer}>
       <form onSubmit={valider} className="space-y-4">
         {/* Choix du produit (hors services) */}
         <div>
-          <p className="label">Produit</p>
+          <p className="label">{v.article}</p>
           {produit ? (
             <div className="flex items-center justify-between gap-2 rounded-xl border border-gray-300 px-3 py-2.5">
               <div>
@@ -176,7 +179,7 @@ function ModaleMouvement({ ouvert, onFermer, motifs, produitId, onEnregistre }) 
               </div>
               <button type="button" className="text-sm font-semibold text-primary" onClick={() => setProduit(null)}>Changer</button>
             </div>
-          ) : <ProduitSelect onChoisir={setProduit} filtre={produitStockable} placeholder="Rechercher le produit (nom, référence)…" />}
+          ) : <ProduitSelect onChoisir={setProduit} filtre={produitStockable} placeholder={`Rechercher : ${v.minuscule("article")} (nom, référence)…`} />}
         </div>
 
         {/* Sens : deux gros boutons Entrée / Sortie */}

@@ -56,7 +56,15 @@ def _boutique_publique(b: dict) -> dict:
     return publique
 
 
-def _produit_public(p: dict) -> dict:
+def _champs_secteur(b: dict) -> list:
+    """Lot A — champs du secteur d'activité de la boutique (lecture en mémoire)."""
+    import secteurs
+    return secteurs.secteur_en_cache(secteurs.code_de_boutique(b))["champs"]
+
+
+def _produit_public(p: dict, champs: Optional[list] = None) -> dict:
+    """Produit tel que vu par les visiteurs. `champs` : champs du secteur de la
+    boutique (lot A), pour afficher les attributs (Taille : M, Couleur : Bleu…)."""
     publique = {k: p.get(k) for k in CHAMPS_PRODUIT_PUBLICS}
     # Documents que la boutique a choisi de montrer (brochure, manuel...) et ses conseils
     publique["documents"] = [{k: d.get(k) for k in ("titre", "type", "url")}
@@ -65,6 +73,13 @@ def _produit_public(p: dict) -> dict:
     # Fiche technique structurée de la boutique, en lignes « Libellé : valeur »
     from fiche_technique import lignes
     publique["fiche_technique"] = lignes(p.get("fiche_technique"), p.get("garantie_mois", 0))
+    # Lot A — caractéristiques du secteur (prêt-à-porter, cosmétiques…) ajoutées aux mêmes
+    # lignes « Libellé : valeur », déjà affichées par la vitrine
+    # Titre du tableau : « Fiche technique » (téléphone), « Caractéristiques » sinon
+    publique["titre_fiche"] = "Fiche technique" if publique["fiche_technique"] else "Caractéristiques"
+    if champs and p.get("attributs"):
+        import secteurs
+        publique["fiche_technique"] = [*publique["fiche_technique"], *secteurs.lignes_attributs(champs, p["attributs"])]
     publique["modeles_compatibles"] = [m.get("nom") for m in p.get("modeles_compatibles", [])]
     # On indique seulement « disponible ou non », jamais la quantité exacte en stock
     publique["disponible"] = (not est_stockable(p)) or p.get("stock", 0) > 0
@@ -134,7 +149,7 @@ async def produits(slug: str, q: str = "", categorie: str = "", marque: str = ""
     page = max(page, 1)
     liste = await tdb.produits.find(filtre).sort(ordre).skip((page - 1) * par_page).limit(par_page).to_list(par_page)
     return {"total": total, "page": page, "pages": max(math.ceil(total / par_page), 1),
-            "produits": [_produit_public(p) for p in liste]}
+            "produits": [_produit_public(p, _champs_secteur(b)) for p in liste]}
 
 
 @router.get("/b/{slug}/produits/{produit_slug}")
@@ -146,7 +161,8 @@ async def produit(slug: str, produit_slug: str):
         raise HTTPException(404, "Produit introuvable")
     similaires = await tdb.produits.find({"categorie_id": p["categorie_id"], **EN_VENTE,
                                           "id": {"$ne": p["id"]}}).limit(4).to_list(4)
-    return {**_produit_public(p), "similaires": [_produit_public(s) for s in similaires]}
+    champs = _champs_secteur(b)
+    return {**_produit_public(p, champs), "similaires": [_produit_public(s, champs) for s in similaires]}
 
 
 # ---------------------------------------------------------------------------
