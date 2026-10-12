@@ -108,10 +108,16 @@ export default function Accueil() {
               <LogoAdlyn clair className="h-8 sm:h-10" />
               <span className="hidden border-l border-white/15 pl-4 text-sm font-medium text-gray-300 md:block">Boutiques de téléphonie</span>
             </Link>
-            {/* Libellé court sur téléphone pour laisser la place au nom de la plateforme */}
-            <Link to="/connexion" className="btn-clair btn-sm whitespace-nowrap">
-              <span className="sm:hidden">Connexion</span><span className="hidden sm:inline">Espace boutique</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {/* Lot B — inscription libre d'un commerçant (code WhatsApp) */}
+              <Link to="/creer-ma-boutique" className="btn-primary btn-sm whitespace-nowrap">
+                <span className="sm:hidden">Créer</span><span className="hidden sm:inline">Créer ma boutique</span>
+              </Link>
+              {/* Libellé court sur téléphone pour laisser la place au nom de la plateforme */}
+              <Link to="/connexion" className="btn-clair btn-sm whitespace-nowrap">
+                <span className="sm:hidden">Connexion</span><span className="hidden sm:inline">Espace boutique</span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -247,7 +253,11 @@ export default function Accueil() {
                 <p className="font-display text-2xl font-bold">Vous tenez une boutique de téléphonie ?</p>
                 <p className="mt-1 text-gray-300">Vitrine en ligne, caisse, stock et SAV : 14 jours d'essai gratuit.</p>
               </div>
-              <Link to="/connexion" className="btn-primary whitespace-nowrap px-8 py-3">Accéder à mon espace</Link>
+              <div className="flex flex-wrap gap-3">
+                {/* Lot B — inscription libre : numéro WhatsApp + code, boutique validée ensuite par adLyn */}
+                <Link to="/creer-ma-boutique" className="btn-primary whitespace-nowrap px-8 py-3">Créer ma boutique</Link>
+                <Link to="/connexion" className="btn-clair whitespace-nowrap px-8 py-3">Accéder à mon espace</Link>
+              </div>
             </div>
           </div>
         </section>

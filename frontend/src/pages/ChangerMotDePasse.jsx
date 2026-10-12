@@ -20,6 +20,9 @@ export default function ChangerMotDePasse() {
   if (chargement) return <Chargement plein />;
   if (!user) return <Navigate to="/connexion" replace />;
   const oblige = !!user.doit_changer_mot_de_passe;
+  // Lot B : compte créé par l'inscription en ligne (connexion par code WhatsApp),
+  // sans mot de passe pour l'instant -> premier mot de passe, pas d'« ancien » à saisir
+  const premier = user.a_mot_de_passe === false;
   const accueil = user.role === "super_admin" ? "/plateforme" : "/gestion";
 
   async function valider(e) {
@@ -50,13 +53,14 @@ export default function ChangerMotDePasse() {
       <form onSubmit={valider} className="w-full max-w-sm space-y-4 carte-acces">
         <div className="text-center">
           <p className="text-3xl">🔑</p>
-          <h1 className="mt-1 text-xl font-extrabold">{oblige ? "Choisissez votre mot de passe" : "Changer mon mot de passe"}</h1>
+          <h1 className="mt-1 text-xl font-extrabold">{oblige ? "Choisissez votre mot de passe" : premier ? "Définir un mot de passe" : "Changer mon mot de passe"}</h1>
           <p className="text-sm text-gray-500">
             {oblige ? "Vous utilisez un mot de passe provisoire : remplacez-le par un mot de passe personnel pour continuer."
+              : premier ? "Facultatif : vous vous connectez déjà avec un code WhatsApp. Un mot de passe permet aussi la connexion avec votre ID boutique."
               : `${user.nom} · ${user.email || user.telephone || ""}`}
           </p>
         </div>
-        {champ("ancien", oblige ? "Mot de passe provisoire reçu" : "Mot de passe actuel", "current-password")}
+        {!premier && champ("ancien", oblige ? "Mot de passe provisoire reçu" : "Mot de passe actuel", "current-password")}
         {champ("nouveau", "Nouveau mot de passe (8 caractères minimum)", "new-password")}
         {champ("confirmation", "Nouveau mot de passe, encore une fois", "new-password")}
         {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}

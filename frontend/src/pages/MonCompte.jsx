@@ -151,7 +151,10 @@ export default function MonCompte() {
         {succes && <p className="rounded-lg bg-green-50 p-2 text-sm text-green-800">{succes}</p>}
         {!fenetre && erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
 
-        <Link to="/mot-de-passe" className="btn-outline block w-full text-center">🔑 Changer mon mot de passe</Link>
+        {/* Lot B : un compte créé par l'inscription en ligne n'a pas encore de mot de passe */}
+        <Link to="/mot-de-passe" className="btn-outline block w-full text-center">
+          🔑 {user?.a_mot_de_passe === false ? "Définir un mot de passe (facultatif)" : "Changer mon mot de passe"}
+        </Link>
         {/* Téléphone perdu, poste partagé… : sans changer le mot de passe */}
         <button type="button" className="btn-outline block w-full text-center" onClick={fermerAutresSessions}>🚪 Déconnecter mes autres appareils</button>
         {/* Sessions ouvertes (une à une) et dates des dernières sauvegardes */}

@@ -39,6 +39,8 @@ export default function Plateforme() {
   const [restauration, setRestauration] = useState(null); // boutique à restaurer
   const [telechargement, setTelechargement] = useState(null); // id de la boutique en cours de sauvegarde
   const [aValiderSeulement, setAValiderSeulement] = useState(false); // filtre « créées par le webhook, à valider »
+  // Lot B — filtre « Inscriptions en ligne à valider » (commerçants inscrits seuls, code WhatsApp)
+  const [inscriptionsSeulement, setInscriptionsSeulement] = useState(false);
   const [journalOuvert, setJournalOuvert] = useState(false); // fenêtre « Journal du webhook »
   const [identifiantsDg, setIdentifiantsDg] = useState(null); // { boutique, email, telephone } : connexion du DG
 
@@ -144,9 +146,12 @@ export default function Plateforme() {
   const affichees = boutiques.filter((b) =>
     (!q || [b.nom, b.code_marchand, b.ville, b.pays].some((v) => (v || "").toLowerCase().includes(q)))
     && (!filtreKyc || (b.kyc?.statut || "NON_FOURNI") === filtreKyc)
-    && (!aValiderSeulement || b.validee === false));
-  // Boutiques créées automatiquement (webhook) en attente de validation
+    && (!aValiderSeulement || b.validee === false)
+    && (!inscriptionsSeulement || (b.origine === "inscription" && b.validee === false)));
+  // Boutiques créées automatiquement (webhook, parrainage, inscription en ligne) en attente de validation
   const nbAValider = boutiques.filter((b) => b.validee === false).length;
+  // Lot B — dont les inscriptions libres de commerçants (numéro vérifié par code WhatsApp)
+  const nbInscriptions = boutiques.filter((b) => b.origine === "inscription" && b.validee === false).length;
 
   // Boutique affichée dans la fenêtre « Dossier » (toujours la version à jour de la liste)
   const dossier = boutiques.find((b) => b.id === dossierId) || null;
@@ -197,9 +202,18 @@ export default function Plateforme() {
         {nbAValider > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <span>⏳ <b>{nbAValider}</b> boutique(s) créée(s) automatiquement attendent votre validation avant d'apparaître sur le portail.</span>
-            <button type="button" className="btn-outline btn-sm bg-white" onClick={() => setAValiderSeulement(!aValiderSeulement)}>
-              {aValiderSeulement ? "Voir toutes les boutiques" : "Voir seulement celles à valider"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-outline btn-sm bg-white" onClick={() => { setAValiderSeulement(!aValiderSeulement); setInscriptionsSeulement(false); }}>
+                {aValiderSeulement ? "Voir toutes les boutiques" : "Voir seulement celles à valider"}
+              </button>
+              {/* Lot B — inscriptions en ligne (formulaire « Créer ma boutique ») */}
+              {nbInscriptions > 0 && (
+                <button type="button" className={`btn-outline btn-sm ${inscriptionsSeulement ? "bg-amber-100" : "bg-white"}`}
+                  onClick={() => { setInscriptionsSeulement(!inscriptionsSeulement); setAValiderSeulement(false); }}>
+                  📝 Inscriptions en ligne à valider ({nbInscriptions})
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -227,7 +241,11 @@ export default function Plateforme() {
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       <span className="badge bg-gray-100 font-mono text-gray-700">{b.code_marchand}</span>
                       {b.actif === false ? <span className="badge bg-red-100 text-red-700">Suspendue</span> : <span className="badge bg-green-100 text-green-800">Active</span>}
-                      {b.validee === false && <span className="badge bg-amber-100 text-amber-800">⏳ À valider</span>}
+                      {b.validee === false && (b.origine === "inscription"
+                        ? <span className="badge bg-amber-100 text-amber-800">📝 Inscription en ligne — à valider</span>
+                        : <span className="badge bg-amber-100 text-amber-800">⏳ À valider</span>)}
+                      {/* Lot A/B — secteur d'activité principal */}
+                      {b.secteur_info && <span className="badge bg-sky-50 text-sky-800" title={b.secteur_info.libelle}>{b.secteur_info.icone} {b.secteur_info.libelle.split(" (")[0]}</span>}
                       {b.origine === "webhook" && <span className="badge bg-purple-50 text-purple-800">Webhook</span>}
                       {/* Boutique de démonstration : repère visible ici seulement (super-admin), jamais du public */}
                       {b.test && <span className="badge bg-slate-800 text-white" title="Boutique de démonstration : pas de paiement en ligne, aucun message envoyé">🧪 Démo</span>}
@@ -245,6 +263,15 @@ export default function Plateforme() {
                   </div>
                 </div>
 
+                {/* Lot B — inscription en ligne : numéro vérifié par code WhatsApp, position GPS */}
+                {b.inscription && (
+                  <p className="text-xs text-gray-500">
+                    Inscrite en ligne le {date(b.inscription.date)} — numéro vérifié par WhatsApp : {b.inscription.telephone_verifie}
+                    {b.latitude != null && b.longitude != null && (
+                      <> · <a className="text-primary underline" href={`https://www.google.com/maps?q=${b.latitude},${b.longitude}`} target="_blank" rel="noreferrer">position GPS ↗</a></>
+                    )}
+                  </p>
+                )}
                 {/* Envoi des identifiants au DG (boutiques créées par le webhook) */}
                 {b.identifiants_envoi && (
                   <p className="text-xs text-gray-500">

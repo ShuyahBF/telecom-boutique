@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { peut, useAuth } from "@/context/AuthContext";
 import { apiClient, messageErreur } from "@/lib/api";
 import { date, dateHeure, montant, prix } from "@/lib/format";
@@ -8,6 +8,7 @@ import Badge from "@/components/Badge";
 import Chargement from "@/components/Chargement";
 import EnTetePage from "@/components/EnTetePage";
 import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes du secteur d'activité
+import { CarteAttenteValidation } from "@/components/AttenteValidation"; // lot B : boutique à valider
 
 // Page d'accueil du back-office : indicateurs clés, ventes des 30 derniers
 // jours et listes de ce qui attend une action.
@@ -17,6 +18,8 @@ export default function TableauDeBord() {
   const [erreur, setErreur] = useState("");
   // Lot A — « Produits » / « Articles », « Catalogue »… selon le secteur de la boutique
   const v = useVocabulaire();
+  // Lot B — arrivée juste après l'inscription en ligne : message de bienvenue
+  const bienvenue = !!useLocation().state?.bienvenue;
 
   // Le technicien ne voit que l'atelier (réparations) et les alertes de stock
   const vendeur = peut(user, "facturation") || peut(user, "commandes");
@@ -79,6 +82,8 @@ export default function TableauDeBord() {
         {/* Caisse Aizenta : toujours active */}
         {peut(user, "caisse_aizenta") && <Link to="/gestion/caisse-aizenta" className="btn-outline btn-sm">🧮 Caisse Aizenta</Link>}
       </EnTetePage>
+      {/* Lot B — boutique en attente de validation : étapes, ID boutique, lien vers le dossier KYC */}
+      <CarteAttenteValidation user={user} boutique={boutique} bienvenue={bienvenue} />
 
       {/* Boutique sans autre option que le tableau de bord et la caisse */}
       {tuiles.length === 0 && (

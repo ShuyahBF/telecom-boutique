@@ -11,6 +11,7 @@ import { BandeauGrace, useCoupureProgrammee } from "@/components/AbonnementGrace
 import DernieresSauvegardes from "@/components/DernieresSauvegardes";
 import VersionApp from "@/components/VersionApp";
 import SupportSawali from "@/components/SupportSawali"; // SAWALI lot 90 : pictogramme d'assistance
+import { BandeauAttenteValidation, enAttenteValidation } from "@/components/AttenteValidation"; // lot B
 
 // Menu du back-office : chaque entrée indique
 //  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
@@ -211,7 +212,10 @@ export default function GestionLayout() {
             <button type="button" className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 lg:hidden" onClick={() => setMenuMobile(!menuMobile)} aria-label="Menu">☰</button>
             <span className="truncate font-display font-bold lg:hidden">{boutique.nom}</span>
             <div className="ml-auto flex items-center gap-3 text-sm">
-              <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
+              {/* Lot B : pas de lien vers la vitrine tant que la boutique n'est pas validée (invisible du public) */}
+              {!enAttenteValidation(boutique) && (
+                <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
+              )}
               <span className="hidden text-gray-600 sm:inline"><b className="font-semibold text-ink">{user.nom}</b> · {ROLES[user.role]}</span>
               {/* SAWALI lot 90 — sur téléphone, le pictogramme d'assistance passe dans la barre du haut */}
               {!grandEcran && <SupportSawali />}
@@ -223,6 +227,8 @@ export default function GestionLayout() {
           {boutique.abonnement_grace?.en_grace
             ? <BandeauGrace grace={boutique.abonnement_grace} dg={user.role === "dg"} />
             : user.role === "dg" && <BandeauAbonnement boutique={boutique} />}
+          {/* Lot B — boutique en attente de validation par l'équipe adLyn */}
+          <BandeauAttenteValidation user={user} boutique={boutique} />
           {menuMobile && <div className="no-print border-b border-white/5 bg-nuit-900 p-3 lg:hidden">{menu}</div>}
           {/* Contenu de la page (largeur maximale, marges plus généreuses sur grand écran) */}
           <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">

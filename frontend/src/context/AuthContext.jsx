@@ -89,6 +89,17 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
+  /** Lot B — session ouverte par un code WhatsApp (connexion par téléphone ou inscription
+   *  en ligne) : le serveur a déjà posé le cookie ; on retient l'utilisateur et sa boutique
+   *  (et l'ID boutique, pour préremplir la connexion par mot de passe). */
+  function ouvrirSession(data) {
+    if (data?.boutique?.code_marchand) memoriserIdBoutique(data.boutique.code_marchand);
+    localStorage.removeItem(BOUTIQUE_ACTIVE_KEY);
+    setUser(data.user);
+    setBoutique(data.boutique);
+    return data.user;
+  }
+
   /** Déconnexion : le serveur efface le cookie de session */
   async function deconnexion() {
     try {
@@ -113,7 +124,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, boutique, setBoutique, chargement, connexion, deconnexion, rafraichir, choisirBoutique, changerMotDePasse }}>
+    <AuthContext.Provider value={{ user, boutique, setBoutique, chargement, connexion, ouvrirSession, deconnexion, rafraichir, choisirBoutique, changerMotDePasse }}>
       {children}
     </AuthContext.Provider>
   );

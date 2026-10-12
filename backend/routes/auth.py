@@ -171,6 +171,39 @@ async def login(payload: Connexion, request: Request, response: Response):
     return session
 
 
+async def ouvrir_session_personnel(user: dict, request: Request, response: Response, *, methode: str,
+                                   identifiant: str = "") -> dict | JSONResponse:
+    """Lot B — ouverture de session APRÈS une vérification réussie autre que le mot de
+    passe (code WhatsApp : connexion par téléphone, inscription libre). Mêmes contrôles
+    que la fin de /auth/login : compte actif, blocages (onglet « Usage »), maintenance,
+    règles d'accès de la boutique (IP / appareils), journal, sessions simultanées,
+    cookie de session et signal SAWALI. Le super-administrateur n'y passe jamais.
+    Renvoie la session (comme /auth/login) ou la réponse 403 de refus."""
+    if not user.get("actif", True):
+        raise HTTPException(403, "Ce compte est désactivé")
+    await blocages_acces.controler_connexion(user, request, methode, identifiant=identifiant)
+    await maintenance_plateforme.refuser_si_maintenance()
+    boutique = await db.boutiques.find_one({"id": user.get("boutique_id")}, SANS_ID) if user.get("boutique_id") else None
+    if not boutique:
+        raise HTTPException(403, "Aucune boutique associée à ce compte")
+    # Adresse IP / appareil : règles d'accès de la boutique (listes blanche et noire)
+    appareil = acces.poser_cookie_appareil(request, response)
+    autorise, raison = acces.verdict(acces.regles(boutique), acces.ip_client(request), appareil)
+    await acces.journaliser(boutique["id"], request, "SUCCES" if autorise else "BLOQUE", user=user,
+                            raison=raison, appareil=appareil)
+    if not autorise:
+        refus = JSONResponse({"detail": f"Connexion refusée : {raison.lower()}. Contactez le DG de votre boutique."},
+                             status_code=403)
+        for cookie in response.headers.getlist("set-cookie"):  # garde l'identifiant de l'appareil
+            refus.headers.append("set-cookie", cookie)
+        return refus
+    session = await _reponse_session(user)
+    session["sessions_fermees"] = await sessions_actives.ouvrir(user, session["access_token"], request, methode=methode)
+    poser_cookie_session(response, session["access_token"])
+    signal_connexion.signaler_connexion_personnel(request, user, boutique)
+    return session
+
+
 @router.post("/logout")
 async def logout(request: Request, response: Response):
     """Déconnexion : le navigateur oublie le cookie de session (et la session libère sa place)."""
@@ -195,7 +228,9 @@ async def me(request: Request, user: dict = Depends(get_current_user)):
 
 
 class ChangementMotDePasse(BaseModel):
-    ancien: str
+    # Vide accepté UNIQUEMENT pour un compte qui n'a pas encore de mot de passe
+    # (lot B : compte créé par l'inscription libre, connexion par code WhatsApp)
+    ancien: str = ""
     nouveau: str = Field(..., min_length=8)
 
 
@@ -203,7 +238,9 @@ class ChangementMotDePasse(BaseModel):
 async def changer_mot_de_passe(payload: ChangementMotDePasse, response: Response,
                                user: dict = Depends(get_current_user)):
     complet = await db.users.find_one({"id": user["id"]}, SANS_ID)
-    if not verify_password(payload.ancien, complet["password_hash"]):
+    # Lot B : premier mot de passe d'un compte qui n'en a pas -> pas d'« ancien » à vérifier
+    # (la session a été ouverte par un code WhatsApp reçu sur le numéro du compte)
+    if complet.get("password_hash") and not verify_password(payload.ancien, complet["password_hash"]):
         raise HTTPException(400, "Ancien mot de passe incorrect")
     if payload.ancien == payload.nouveau:
         raise HTTPException(400, "Choisissez un mot de passe différent de l'actuel")

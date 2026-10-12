@@ -143,6 +143,11 @@ async def ensure_indexes() -> None:
     # Codes de vérification, limites d'envoi, blocages : effacés automatiquement à expiration
     await db.codes_verification.create_index([("user_id", 1), ("objet", 1)])
     await db.codes_verification.create_index("expire_le", expireAfterSeconds=0)
+    # Lot B — codes WhatsApp de l'inscription libre et de la connexion par téléphone
+    # (empreinte seulement ; effacés automatiquement à l'expiration, index TTL)
+    await db.otp_whatsapp.create_index([("telephone", 1), ("objet", 1)])
+    await db.otp_whatsapp.create_index("expire_le", expireAfterSeconds=0)
+    await db.boutiques.create_index([("origine", 1), ("validee", 1)])
     for collection in (db.limites_codes, db.echecs_codes, db.blocages_codes):
         await collection.create_index([("cle", 1), ("date", 1)])
         await collection.create_index("expire_le", expireAfterSeconds=0)
