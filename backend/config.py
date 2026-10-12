@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     def frontend_origins(self) -> list[str]:
         return [o.strip() for o in self.frontend_origin.split(",") if o.strip()]
 
+    # Lot E — adresse PUBLIQUE de l'API (ex. https://adlyn-api.onrender.com), utilisée dans
+    # les liens de partage des boutiques et des produits (/api/partage/...). Vide (défaut) :
+    # adresse par laquelle la requête est arrivée (https derrière le proxy de Render).
+    api_public_url: Optional[str] = None
+
     @property
     def public_site_url(self) -> str:
         origins = self.frontend_origins

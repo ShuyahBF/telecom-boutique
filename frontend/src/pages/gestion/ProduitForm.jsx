@@ -9,6 +9,8 @@ import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes et champs 
 import EnTetePage from "@/components/EnTetePage";
 import Chargement from "@/components/Chargement";
 import { useToast } from "@/components/Toast";
+import BoutonPartager from "@/components/BoutonPartager"; // lot E : partage de l'article
+import { enAttenteValidation } from "@/components/AttenteValidation";
 import { Case, Champ, ChoixImage } from "./_atelier/communs";
 import DocumentsPrives from "./_catalogue/DocumentsPrives";
 import FicheTechnique, { FICHE_VIDE, ficheVersApi, ficheVersFormulaire } from "./_catalogue/FicheTechnique";
@@ -352,6 +354,21 @@ export default function ProduitForm() {
             <Case label={`${v.article} actif`} aide={`Inactif : ne peut plus être vendu ni commandé.`} checked={produit.actif} onChange={(v) => maj("actif", v)} />
           </fieldset>
 
+          {/* Lot E — partage de l'article (WhatsApp, Facebook, lien, QR code) : tout membre du
+              personnel qui voit le catalogue. L'état ENREGISTRÉ fait foi (original) : un article
+              masqué, inactif ou sans prix n'est pas partageable, la raison est affichée. */}
+          {!creation && (
+            <div className="card">
+              <h2 className="mb-1 font-bold">Partager</h2>
+              <p className="mb-3 text-xs text-gray-500">Envoyez le lien de cet article : l'aperçu montre sa photo, son nom et son prix.</p>
+              <BoutonPartager produit={{ id: original.id, nom: original.nom }} className="btn-outline btn-sm w-full justify-center" libelle="Partager cet article" />
+              {raisonNonPartageable(original, boutique) && (
+                <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">🔒 {raisonNonPartageable(original, boutique)}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">Ouvert {original.partages?.ouvertures || 0} fois via un lien partagé.</p>
+            </div>
+          )}
+
           {/* TikTok : publication de la photo du produit sur le compte de la boutique */}
           {!creation && peutModifier && (
             <div className="card">
@@ -406,4 +423,14 @@ export default function ProduitForm() {
       )}
     </form>
   );
+}
+
+// Lot E — raison pour laquelle l'article enregistré ne peut pas être partagé ("" s'il peut l'être).
+// Mêmes règles que le serveur (backend/routes/partage.py), qui reste seul juge.
+function raisonNonPartageable(produit, boutique) {
+  if (enAttenteValidation(boutique)) return "Le partage sera disponible après la validation de votre boutique.";
+  if (produit.actif === false) return "Article inactif : il n'apparaît pas sur la vitrine et ne peut pas être partagé.";
+  if (!produit.visible_portail) return "Article masqué de la vitrine : cochez « Visible sur le portail » puis enregistrez pour le partager.";
+  if (!(Number(produit.prix_vente) > 0)) return "Article sans prix : fixez son prix de vente pour le partager.";
+  return "";
 }

@@ -12,6 +12,7 @@ import DernieresSauvegardes from "@/components/DernieresSauvegardes";
 import VersionApp from "@/components/VersionApp";
 import SupportSawali from "@/components/SupportSawali"; // SAWALI lot 90 : pictogramme d'assistance
 import { BandeauAttenteValidation, enAttenteValidation } from "@/components/AttenteValidation"; // lot B
+import BoutonPartager from "@/components/BoutonPartager"; // lot E : partage du lien de la vitrine
 
 // Menu du back-office : chaque entrée indique
 //  - la permission nécessaire pour la voir (table PERMISSIONS de backend/auth.py,
@@ -216,6 +217,11 @@ export default function GestionLayout() {
               {!enAttenteValidation(boutique) && (
                 <a href={`/b/${boutique.slug}`} target="_blank" rel="noreferrer" className="hidden font-semibold text-primary sm:inline">Voir ma vitrine ↗</a>
               )}
+              {/* Lot E — « Partager ma boutique » : tout le personnel (DG et collaborateurs).
+                  Boutique pas encore validée : la fenêtre explique que le partage viendra après la validation.
+                  Sur téléphone, seule l'icône « Partager » usuelle est affichée pour garder la barre lisible. */}
+              <BoutonPartager className="btn-outline btn-sm hidden sm:inline-flex" />
+              <BoutonPartager className="btn-outline btn-sm sm:hidden" libelle="" titre="Partager ma boutique" />
               <span className="hidden text-gray-600 sm:inline"><b className="font-semibold text-ink">{user.nom}</b> · {ROLES[user.role]}</span>
               {/* SAWALI lot 90 — sur téléphone, le pictogramme d'assistance passe dans la barre du haut */}
               {!grandEcran && <SupportSawali />}

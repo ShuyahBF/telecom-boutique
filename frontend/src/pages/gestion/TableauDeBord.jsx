@@ -8,7 +8,9 @@ import Badge from "@/components/Badge";
 import Chargement from "@/components/Chargement";
 import EnTetePage from "@/components/EnTetePage";
 import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes du secteur d'activité
-import { CarteAttenteValidation } from "@/components/AttenteValidation"; // lot B : boutique à valider
+import { CarteAttenteValidation, enAttenteValidation } from "@/components/AttenteValidation"; // lot B : boutique à valider
+import BoutonPartager from "@/components/BoutonPartager"; // lot E : partage du lien de la vitrine
+import IconePartage from "@/components/IconePartage"; // pictogramme « Partager » usuel
 
 // Page d'accueil du back-office : indicateurs clés, ventes des 30 derniers
 // jours et listes de ce qui attend une action.
@@ -105,6 +107,22 @@ export default function TableauDeBord() {
           </Link>
         ))}
       </div>
+
+      {/* Lot E — carte « Faire connaître ma boutique » : tout le personnel peut partager
+          le lien de la vitrine (WhatsApp, Facebook, lien copié, QR code). Boutique pas
+          encore validée : message explicite, le partage arrive après la validation. */}
+      <section className="card mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <IconePartage className="h-8 w-8 shrink-0 text-primary" />
+        <div className="flex-1">
+          <h2 className="font-bold">Faites connaître votre boutique</h2>
+          <p className="text-sm text-gray-600">
+            {enAttenteValidation(boutique)
+              ? "Le partage sera disponible après la validation de votre boutique par l'équipe adLyn."
+              : `Envoyez le lien de votre vitrine à vos clients par WhatsApp, Facebook ou QR code${boutique?.partages?.ouvertures ? ` · ouvert ${boutique.partages.ouvertures} fois via un lien partagé` : ""}.`}
+          </p>
+        </div>
+        <BoutonPartager className="btn-primary btn-sm" />
+      </section>
 
       {/* Graphique des ventes (réservé à la vente) */}
       {vendeur && opt("documents") && (
