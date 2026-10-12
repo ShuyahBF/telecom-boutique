@@ -35,8 +35,14 @@ def kyc_vide() -> dict:
 def kyc_public(kyc: Optional[dict]) -> dict:
     """Version renvoyée au navigateur : sans les clés de stockage des fichiers."""
     kyc = kyc or kyc_vide()
-    return {**kyc, "statut_libelle": STATUTS_KYC.get(kyc.get("statut"), ""),
-            "documents": [{k: v for k, v in d.items() if k != "cle"} for d in kyc.get("documents", [])]}
+    public = {**kyc, "statut_libelle": STATUTS_KYC.get(kyc.get("statut"), ""),
+              "documents": [{k: v for k, v in d.items() if k != "cle"} for d in kyc.get("documents", [])]}
+    # Lot C — dernière lecture par l'IA : seul le numéro MASQUÉ de la pièce peut sortir
+    # (protection supplémentaire : le numéro complet n'est de toute façon jamais enregistré)
+    if isinstance(public.get("ia"), dict) and isinstance(public["ia"].get("lecture"), dict):
+        public["ia"] = {**public["ia"], "lecture": {k: v for k, v in public["ia"]["lecture"].items()
+                                                   if k != "numero_piece"}}
+    return public
 
 
 async def ajouter_piece(boutique: dict, fichier: UploadFile, type_piece: str, auteur: str) -> dict:

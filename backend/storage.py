@@ -163,3 +163,18 @@ async def supprimer_prive(cle: str | None) -> None:
         await asyncio.to_thread(_delete)
         return
     chemin_local_prive(cle).unlink(missing_ok=True)
+
+
+async def lire_prive(cle: str) -> bytes:
+    """Lot C (KYC par l'IA) : relit le CONTENU d'un fichier privé (relance de la
+    vérification d'une pièce d'identité). Jamais exposé au navigateur."""
+    s = get_settings()
+    if s.storage_backend == "r2":
+        def _get():
+            return _r2_client().get_object(Bucket=s.r2_bucket_prive, Key=cle)["Body"].read()
+
+        return await asyncio.to_thread(_get)
+    chemin = chemin_local_prive(cle)
+    if not chemin.exists():
+        raise FileNotFoundError(cle)
+    return chemin.read_bytes()

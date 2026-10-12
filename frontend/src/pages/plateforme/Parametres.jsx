@@ -10,6 +10,7 @@ import DeconnexionGenerale from "./_plateforme/DeconnexionGenerale";
 import TransmissionWa from "./_plateforme/TransmissionWa";
 import ReglageInactivite from "@/components/ReglageInactivite";
 import ReglageSessionsMax from "@/components/ReglageSessionsMax";
+import ReglageKycIa from "@/components/ReglageKycIa";
 import { AideService, AvertissementSmtp, HOTES_ZEPTOMAIL, SERVICES_EMAIL, nomService } from "@/components/ServicesEmail";
 
 // Valeurs proposées quand rien n'est encore réglé
@@ -143,6 +144,12 @@ export default function Parametres() {
 
         {/* Transmission WA : canaux WhatsApp, adresse de retour SAWALI et derniers retours */}
         <TransmissionWa />
+
+        {/* Lot C — vérification des pièces d'identité par Liluvine (IA) et validation automatique */}
+        <div className="card space-y-2">
+          <h2 className="text-lg font-bold">🪪 Vérification des pièces d'identité (Liluvine)</h2>
+          <ReglageKycIa />
+        </div>
 
         {/* Sessions simultanées : nombre maximal par compte */}
         <div className="card space-y-2">

@@ -6,7 +6,7 @@ import re
 import secrets
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 import kyc as service_kyc
@@ -292,15 +292,14 @@ async def creer_boutique(payload: BoutiqueCreation, admin: dict = Depends(get_su
 
 @router.post("/boutiques/{boutique_id}/valider")
 async def valider_boutique(boutique_id: str, admin: dict = Depends(get_super_admin)):
-    """Boutique créée par le webhook : après vérification, elle devient visible du public."""
-    res = await db.boutiques.update_one({"id": boutique_id}, {"$set": {
-        "validee": True, "validee_le": now_iso(), "validee_par": admin.get("email", "")}})
-    if not res.matched_count:
+    """Boutique en attente (webhook, parrainage, inscription) : après vérification, elle
+    devient visible du public. Logique partagée avec la validation automatique par l'IA
+    (lot C) : validation_boutique.valider_boutique."""
+    import validation_boutique
+    boutique = await validation_boutique.valider_boutique(boutique_id, par=admin.get("email", ""))
+    if not boutique:
         raise HTTPException(404, "Boutique introuvable")
-    # Boutique parrainée : son ouverture valide le parrainage (bonus au parrain)
-    import parrainage
-    await parrainage.valider_filleul(boutique_id, par=admin.get("email", ""))
-    return _sans_secrets(await db.boutiques.find_one({"id": boutique_id}, SANS_ID), super_admin=True)
+    return _sans_secrets(boutique, super_admin=True)
 
 
 @router.post("/boutiques/{boutique_id}/renvoyer-identifiants")
@@ -500,12 +499,48 @@ class DecisionKyc(BaseModel):
 
 
 @router.post("/boutiques/{boutique_id}/kyc/decision")
-async def decider_kyc(boutique_id: str, payload: DecisionKyc, admin: dict = Depends(get_super_admin)):
+async def decider_kyc(boutique_id: str, payload: DecisionKyc, taches: BackgroundTasks,
+                      admin: dict = Depends(get_super_admin)):
     boutique = await service_kyc.boutique_ou_404(boutique_id)
     kyc = boutique.get("kyc") or service_kyc.kyc_vide()
-    if payload.statut == "REJETE" and not payload.motif_rejet.strip():
-        raise HTTPException(400, "Indiquez le motif du rejet (il sera affiché au DG)")
+    if payload.statut == "REJETE":
+        # Lot C : même traitement que « Refuser le KYC » (journal + message WhatsApp au DG)
+        import kyc_ia
+        return await kyc_ia.refuser(boutique_id, payload.motif_rejet, admin, taches=taches)
     kyc.update({"statut": payload.statut, "motif_rejet": payload.motif_rejet.strip(),
                 "verifie_par": admin.get("nom", ""), "date_verification": now_iso()})
     await db.boutiques.update_one({"id": boutique_id}, {"$set": {"kyc": kyc}})
     return service_kyc.kyc_public(kyc)
+
+
+# ---------------------------------------------------------------------------
+# Lot C — vérification de la pièce d'identité par l'IA (« Liluvine », kyc_ia.py)
+# ---------------------------------------------------------------------------
+class RefusKyc(BaseModel):
+    motif: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/boutiques/{boutique_id}/kyc/refuser")
+async def refuser_kyc(boutique_id: str, payload: RefusKyc, taches: BackgroundTasks,
+                      admin: dict = Depends(get_super_admin)):
+    """« Refuser le KYC » : statut REJETÉ + motif, affiché au commerçant et envoyé par WhatsApp."""
+    import kyc_ia
+    return await kyc_ia.refuser(boutique_id, payload.motif, admin, taches=taches)
+
+
+@router.post("/boutiques/{boutique_id}/kyc/relancer-ia")
+async def relancer_kyc_ia(boutique_id: str, taches: BackgroundTasks, admin: dict = Depends(get_super_admin)):
+    """« Relancer la vérification IA » sur la dernière pièce d'identité envoyée (sans limite par jour).
+    Renvoie la décision ET la boutique à jour (elle a pu être validée automatiquement)."""
+    import kyc_ia
+    resultat = await kyc_ia.relancer(boutique_id, admin, taches=taches)
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    return {**resultat, "boutique": _sans_secrets(boutique, super_admin=True)}
+
+
+@router.get("/boutiques/{boutique_id}/kyc/ia-journal")
+async def journal_kyc_ia(boutique_id: str, _: dict = Depends(get_super_admin)):
+    """Historique des lectures par l'IA et des refus (numéros de pièce toujours masqués)."""
+    import kyc_ia
+    await service_kyc.boutique_ou_404(boutique_id)
+    return await kyc_ia.journal(boutique_id)

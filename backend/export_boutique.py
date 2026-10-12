@@ -50,7 +50,9 @@ VERSION_FORMAT = 1
 COLLECTION_FICHE = "boutiques"
 NON_ARCHIVEES = ("sessions_activite",)
 CONSERVEES = ("abonnement_paiements", "sms_factures", "reversements", "cycle_vie_journal",
-              "cycle_vie_archives", "cycle_vie_reouvertures", "kyc_rappels_journal")
+              "cycle_vie_archives", "cycle_vie_reouvertures", "kyc_rappels_journal",
+              # Lot C : journal des vérifications de pièce d'identité par l'IA (traçabilité)
+              "kyc_ia_journal")
 LOT = transfert_donnees.LOT
 
 

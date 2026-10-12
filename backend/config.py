@@ -103,6 +103,9 @@ class Settings(BaseSettings):
     # Assistant de recherche des fiches techniques (API Claude + recherche web)
     anthropic_api_key: Optional[str] = None
     catalogue_ia_modele: str = "claude-opus-5"
+    # Lot C — lecture de la pièce d'identité par l'IA (« Liluvine », même clé ANTHROPIC_API_KEY).
+    # Vide = même modèle que le catalogue (CATALOGUE_IA_MODELE).
+    kyc_ia_modele: Optional[str] = None
 
     # --- Sauvegardes chiffrées des boutiques (chaque nuit, vers Google Drive) ---
     # Clé AES-256 en base64 (32 octets) : SANS ELLE AUCUNE RESTAURATION N'EST

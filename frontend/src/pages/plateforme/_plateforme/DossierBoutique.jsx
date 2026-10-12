@@ -2,11 +2,16 @@
 // 1. informations d'identification (modifiables) ;
 // 2. pièces justificatives du dossier KYC (voir, ajouter, supprimer) ;
 // 3. décision de vérification : Vérifié / Rejeté (avec motif) / en attente.
+// Lot C : résultat de la lecture de la pièce d'identité par Liluvine (IA), boutons
+// « Valider la boutique », « Refuser le KYC » (motif, message WhatsApp au commerçant)
+// et « Relancer la vérification IA ».
 import { useEffect, useState } from "react";
 import { apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import Patientez from "@/components/Patientez";
+import ResultatLiluvine from "@/components/ResultatLiluvine";
 import { BadgeKyc, Champ, ChampsIdentification, ChoixSecteur, erreurCoordonnees, identificationVersApi } from "./composants";
 import { FORMATS_JUSTIFICATIFS, messageErreurFichier, ouvrirFichier, TYPES_PIECES_KYC } from "./outils";
 
@@ -112,15 +117,46 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
     }
   }
 
+  // --- Lot C : relancer la lecture de la dernière pièce d'identité par Liluvine ---
+  async function relancerIa() {
+    setOccupe("ia");
+    try {
+      const { data } = await apiClient.post(`${base}/kyc/relancer-ia`, null, { timeout: 180000 });
+      onMaj(data.boutique); // KYC à jour ET éventuelle validation automatique
+      (data.decision === "VERIFIE" ? toast.succes : toast.info)(data.motif);
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Relance impossible"));
+    } finally {
+      setOccupe("");
+    }
+  }
+
+  // --- Lot C : valider la boutique (même route que le bouton de la liste) ---
+  async function validerBoutique() {
+    setOccupe("valider");
+    try {
+      const { data } = await apiClient.post(`${base}/valider`);
+      onMaj(data);
+      toast.succes(`Boutique « ${boutique.nom} » validée : elle est visible du public`);
+    } catch (err) {
+      toast.erreur(messageErreur(err, "Validation impossible"));
+    } finally {
+      setOccupe("");
+    }
+  }
+
   // --- 3. Décision : VERIFIE, REJETE (motif obligatoire) ou EN_ATTENTE ---
+  // REJETE = « Refuser le KYC » : statut REJETÉ + motif, message WhatsApp au commerçant
   async function decider(statut) {
     if (statut === "REJETE" && !motif.trim()) return toast.erreur("Indiquez le motif du rejet : il sera affiché au DG.");
     setOccupe("decision");
     try {
-      const { data } = await apiClient.post(`${base}/kyc/decision`, { statut, motif_rejet: statut === "REJETE" ? motif.trim() : "" });
+      const { data } = statut === "REJETE"
+        ? await apiClient.post(`${base}/kyc/refuser`, { motif: motif.trim() })
+        : await apiClient.post(`${base}/kyc/decision`, { statut, motif_rejet: "" });
       onMaj({ ...boutique, kyc: data });
       if (statut !== "REJETE") setMotif("");
-      toast.succes({ VERIFIE: "Dossier vérifié", REJETE: "Dossier rejeté", EN_ATTENTE: "Dossier remis en attente" }[statut]);
+      toast.succes({ VERIFIE: "Dossier vérifié", REJETE: "KYC refusé : le commerçant est prévenu", EN_ATTENTE: "Dossier remis en attente" }[statut]);
     } catch (err) {
       toast.erreur(messageErreur(err, "Décision impossible"));
     } finally {
@@ -144,6 +180,30 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
             <p className="w-full text-red-700">Motif du rejet : {kyc.motif_rejet}</p>
           )}
         </div>
+
+        {/* Attente de la relance IA : toast « Patientez… » + jauge circulaire */}
+        <Patientez actif={occupe === "ia"} texte="Patientez… Liluvine relit la pièce d'identité…" />
+
+        {/* ===== Lot C : vérification de la pièce d'identité par Liluvine (IA) ===== */}
+        <section>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-base font-bold">🤖 Vérification par Liluvine (IA)</h3>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn-outline btn-sm" disabled={!!occupe}
+                onClick={relancerIa}>{occupe === "ia" ? "Patientez…" : "🔁 Relancer la vérification IA"}</button>
+              {boutique.validee === false && (
+                <button type="button" className="btn btn-sm bg-green-600 text-white hover:bg-green-700" disabled={!!occupe}
+                  onClick={validerBoutique}>✓ Valider la boutique</button>
+              )}
+            </div>
+          </div>
+          {kyc.ia ? <ResultatLiluvine ia={kyc.ia} detaille /> : (
+            <p className="rounded-xl border border-dashed border-gray-300 p-3 text-center text-sm text-gray-500">
+              Aucune lecture par Liluvine pour l'instant (le commerçant n'a pas encore envoyé sa pièce depuis ses Paramètres).
+            </p>
+          )}
+          <p className="mt-1 text-xs text-gray-500">Pour refuser la pièce : indiquez le motif dans « 3. Décision » puis « Refuser le KYC ».</p>
+        </section>
 
         {/* ===== 1. Identification & localisation ===== */}
         <section>
@@ -220,7 +280,7 @@ export default function DossierBoutique({ boutique, onFermer, onMaj }) {
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <button type="button" className="btn bg-green-600 text-white hover:bg-green-700" disabled={!!occupe || !kyc.documents?.length}
               title={!kyc.documents?.length ? "Aucun justificatif à vérifier" : ""} onClick={() => decider("VERIFIE")}>✅ Vérifié</button>
-            <button type="button" className="btn-danger" disabled={!!occupe} onClick={() => decider("REJETE")}>✖ Rejeter</button>
+            <button type="button" className="btn-danger" disabled={!!occupe} onClick={() => decider("REJETE")}>✖ Refuser le KYC</button>
             <button type="button" className="btn-outline" disabled={!!occupe} onClick={() => decider("EN_ATTENTE")}>Remettre en attente</button>
           </div>
         </section>
