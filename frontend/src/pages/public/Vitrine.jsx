@@ -67,7 +67,7 @@ export default function Vitrine() {
         <div className="pointer-events-none absolute -bottom-16 right-24 h-32 w-32 rounded-full bg-white/10" />
         <p className="relative text-sm font-semibold text-white/80">Bienvenue chez {boutique.nom}</p>
         <h1 className="relative mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">
-          {boutique.slogan || "Téléphones, accessoires et réparations"}
+          {boutique.slogan || "Bienvenue dans notre boutique en ligne"}
         </h1>
         {boutique.ville && <p className="relative mt-1 text-sm text-white/80">📍 {boutique.ville}</p>}
         {/* Raccourcis vers les services les plus demandés */}

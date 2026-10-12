@@ -71,7 +71,7 @@ export default function OuvrirBoutique() {
           <form onSubmit={envoyer} className="space-y-4">
             <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
               <p className="surtitre">Invitation</p>
-              <p className="mt-1"><b>{parrain.nom}</b>{parrain.ville ? ` (${parrain.ville})` : ""} vous invite à ouvrir votre boutique de téléphonie sur adLyn : vitrine en ligne, commandes, stock et réparations. 14 jours d'essai gratuit.</p>
+              <p className="mt-1"><b>{parrain.nom}</b>{parrain.ville ? ` (${parrain.ville})` : ""} vous invite à ouvrir votre boutique sur adLyn : vitrine en ligne, commandes, stock et clients, adaptés à votre secteur d'activité. 14 jours d'essai gratuit.</p>
             </div>
             <h1 className="text-xl font-bold">Ouvrir ma boutique</h1>
 

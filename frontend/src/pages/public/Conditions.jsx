@@ -24,9 +24,9 @@ export default function Conditions() {
 
       <Section titre="2. Le service">
         <p>
-          adLyn fournit aux boutiques de téléphonie un outil de gestion (ventes, stock, réparations, clients) et une
+          adLyn fournit aux boutiques et commerces de tous secteurs un outil de gestion (ventes, stock, clients, services) et une
           vitrine en ligne où leurs clients peuvent consulter le catalogue, commander, payer et suivre leurs commandes
-          et réparations.
+          et services (réparations, maintenance…).
         </p>
         <p>
           <b>Chaque boutique est le vendeur</b> des produits et services qu'elle présente : elle fixe ses prix, assure

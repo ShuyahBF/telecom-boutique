@@ -106,7 +106,7 @@ export default function Accueil() {
             {/* Logo officiel adLyn (version claire pour le fond bleu nuit) */}
             <Link to="/" className="flex min-w-0 items-center gap-4" aria-label="adLyn, accueil">
               <LogoAdlyn clair className="h-8 sm:h-10" />
-              <span className="hidden border-l border-white/15 pl-4 text-sm font-medium text-gray-300 md:block">Boutiques de téléphonie</span>
+              <span className="hidden border-l border-white/15 pl-4 text-sm font-medium text-gray-300 md:block">Boutiques de tous secteurs</span>
             </Link>
             <div className="flex items-center gap-2">
               {/* Lot B — inscription libre d'un commerçant (code WhatsApp) */}
@@ -129,10 +129,10 @@ export default function Accueil() {
             </span>
             {/* Titre d'enseigne : grand, serré, d'une seule couleur */}
             <h1 className="mt-5 max-w-[16ch] text-[2.6rem] font-extrabold leading-[0.98] sm:text-7xl">
-              Votre boutique de téléphonie, à portée de main.
+              Vos boutiques préférées, à portée de main.
             </h1>
             <p className="mt-5 max-w-xl text-lg text-gray-300">
-              Téléphones, accessoires et réparations : commandez en ligne, suivez votre commande et votre réparation, posez vos questions.
+              Mode, beauté, quincaillerie, téléphonie, alimentation… : commandez en ligne, suivez votre commande et posez vos questions à la boutique.
             </p>
 
             {/* Formulaire de recherche : nom de la boutique ou code marchand */}
@@ -200,7 +200,7 @@ export default function Accueil() {
                         <LogoBoutique boutique={b} taille="h-12 w-12 text-2xl" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate font-semibold">{b.nom}</p>
-                          <p className="truncate text-sm text-gray-500">{[lieuBoutique(b), b.slogan].filter(Boolean).join(" · ") || "Boutique de téléphonie"}</p>
+                          <p className="truncate text-sm text-gray-500">{[lieuBoutique(b), b.slogan].filter(Boolean).join(" · ") || "Boutique en ligne"}</p>
                         </div>
                         <span className="puce text-gray-500">{b.code_marchand}</span>
                       </Link>
@@ -233,7 +233,7 @@ export default function Accueil() {
               {[
                 ["🏪", "Choisissez votre boutique", "Par son nom, son code marchand ou en scannant son QR code."],
                 ["🛒", "Commandez en ligne", "Retrait en boutique ou livraison, paiement à la réception ou par Mobile Money."],
-                ["🔧", "Suivez tout en direct", "L'avancement de votre commande et de votre réparation, à tout moment."],
+                ["🔧", "Suivez tout en direct", "L'avancement de votre commande (et de votre réparation, si la boutique en propose), à tout moment."],
               ].map(([emoji, titre, texte], i) => (
                 // Étapes réellement successives : numérotées 1, 2, 3 en grand chiffre d'enseigne
                 <div key={titre} className="card-nuit">
@@ -250,8 +250,8 @@ export default function Accueil() {
             {/* Encadré d'appel à l'action (comme « Got a project in mind? » sur Sawali) */}
             <div className="mt-14 flex flex-col items-start justify-between gap-6 rounded-3xl border border-white/15 bg-nuit-700 p-8 sm:flex-row sm:items-center">
               <div>
-                <p className="font-display text-2xl font-bold">Vous tenez une boutique de téléphonie ?</p>
-                <p className="mt-1 text-gray-300">Vitrine en ligne, caisse, stock et SAV : 14 jours d'essai gratuit.</p>
+                <p className="font-display text-2xl font-bold">Vous tenez une boutique ou un commerce ?</p>
+                <p className="mt-1 text-gray-300">Vitrine en ligne, caisse, stock et clients, adaptés à votre secteur : 14 jours d'essai gratuit.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 {/* Lot B — inscription libre : numéro WhatsApp + code, boutique validée ensuite par adLyn */}
@@ -268,8 +268,8 @@ export default function Accueil() {
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm sm:grid-cols-3">
           <div>
             <LogoAdlyn clair className="h-9" />
-            <p className="mt-2 text-xs text-gray-300">Le SaaS qui fait grandir votre boutique de téléphonie</p>
-            <p className="mt-3 leading-relaxed">La plateforme qui relie les boutiques de téléphonie à leurs clients : catalogue, commandes et réparations.</p>
+            <p className="mt-2 text-xs text-gray-300">La plateforme de services qui fait grandir votre commerce</p>
+            <p className="mt-3 leading-relaxed">La plateforme qui relie les boutiques de tous secteurs à leurs clients : catalogue, commandes et services.</p>
           </div>
           <div>
             <p className="font-display font-semibold text-white">Clients</p>
@@ -391,7 +391,7 @@ function Carrousel({ boutiques }) {
               <p className="truncate font-display text-lg font-bold group-hover:text-primary">{b.nom}</p>
               {/* Lieu : « Ville, Pays » (seulement les informations renseignées) */}
               <p className="truncate text-sm text-gray-500">📍 {lieuBoutique(b) || "Ville non précisée"}</p>
-              <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-gray-600">{b.slogan || "Téléphones, accessoires et réparations."}</p>
+              <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-sm text-gray-600">{b.slogan || "Boutique en ligne sur adLyn."}</p>
               <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
                 <span className="puce text-gray-500">{b.code_marchand}</span>
                 <span className="text-sm font-semibold text-primary">Entrer →</span>
