@@ -361,7 +361,7 @@ export default function ProduitForm() {
             <div className="card">
               <h2 className="mb-1 font-bold">Partager</h2>
               <p className="mb-3 text-xs text-gray-500">Envoyez le lien de cet article : l'aperçu montre sa photo, son nom et son prix.</p>
-              <BoutonPartager produit={{ id: original.id, nom: original.nom }} className="btn-outline btn-sm w-full justify-center" libelle="🔗 Partager cet article" />
+              <BoutonPartager produit={{ id: original.id, nom: original.nom }} className="btn-outline btn-sm w-full justify-center" libelle="Partager cet article" />
               {raisonNonPartageable(original, boutique) && (
                 <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">🔒 {raisonNonPartageable(original, boutique)}</p>
               )}

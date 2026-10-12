@@ -10,6 +10,7 @@ import EnTetePage from "@/components/EnTetePage";
 import { useVocabulaire } from "@/lib/vocabulaire"; // lot A : termes du secteur d'activité
 import { CarteAttenteValidation, enAttenteValidation } from "@/components/AttenteValidation"; // lot B : boutique à valider
 import BoutonPartager from "@/components/BoutonPartager"; // lot E : partage du lien de la vitrine
+import IconePartage from "@/components/IconePartage"; // pictogramme « Partager » usuel
 
 // Page d'accueil du back-office : indicateurs clés, ventes des 30 derniers
 // jours et listes de ce qui attend une action.
@@ -111,7 +112,7 @@ export default function TableauDeBord() {
           le lien de la vitrine (WhatsApp, Facebook, lien copié, QR code). Boutique pas
           encore validée : message explicite, le partage arrive après la validation. */}
       <section className="card mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <span className="text-3xl" aria-hidden="true">🔗</span>
+        <IconePartage className="h-8 w-8 shrink-0 text-primary" />
         <div className="flex-1">
           <h2 className="font-bold">Faites connaître votre boutique</h2>
           <p className="text-sm text-gray-600">

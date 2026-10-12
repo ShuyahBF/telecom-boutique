@@ -219,9 +219,9 @@ export default function GestionLayout() {
               )}
               {/* Lot E — « Partager ma boutique » : tout le personnel (DG et collaborateurs).
                   Boutique pas encore validée : la fenêtre explique que le partage viendra après la validation.
-                  Sur téléphone, seul le pictogramme 🔗 est affiché pour garder la barre lisible. */}
+                  Sur téléphone, seule l'icône « Partager » usuelle est affichée pour garder la barre lisible. */}
               <BoutonPartager className="btn-outline btn-sm hidden sm:inline-flex" />
-              <BoutonPartager className="btn-outline btn-sm sm:hidden" libelle="🔗" titre="Partager ma boutique" />
+              <BoutonPartager className="btn-outline btn-sm sm:hidden" libelle="" titre="Partager ma boutique" />
               <span className="hidden text-gray-600 sm:inline"><b className="font-semibold text-ink">{user.nom}</b> · {ROLES[user.role]}</span>
               {/* SAWALI lot 90 — sur téléphone, le pictogramme d'assistance passe dans la barre du haut */}
               {!grandEcran && <SupportSawali />}
