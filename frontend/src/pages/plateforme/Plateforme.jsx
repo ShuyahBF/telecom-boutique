@@ -257,7 +257,9 @@ export default function Plateforme() {
         {chargement ? <Chargement /> : affichees.length === 0 ? <p className="py-10 text-center text-gray-500">Aucune boutique.</p> : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {affichees.map((b) => (
-              <div key={b.id} className={`card flex flex-col gap-3 ${b.actif === false ? "border-red-200 bg-red-50/40" : b.validee === false ? "border-amber-300 bg-amber-50/40" : ""}`}>
+              // min-w-0 : sans lui, une carte de grille prend la largeur de son plus long texte (e-mail du DG,
+              // nom de boutique…) et élargit toute la page sur téléphone ; les textes « truncate » sont alors coupés « … »
+              <div key={b.id} className={`card flex min-w-0 flex-col gap-3 ${b.actif === false ? "border-red-200 bg-red-50/40" : b.validee === false ? "border-amber-300 bg-amber-50/40" : ""}`}>
                 {/* Identité de la boutique + badges d'état */}
                 <div className="flex items-start gap-3">
                   {b.logo_url

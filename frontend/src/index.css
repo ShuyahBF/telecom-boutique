@@ -60,7 +60,9 @@
   .label { @apply mb-1.5 block text-sm font-semibold text-gray-700; }
 
   /* Cartes : fond blanc, bordure fine, PAS d'ombre (le relief est réservé aux fenêtres) */
-  .card { @apply rounded-2xl border bg-white p-5; border-color: var(--trait); }
+  /* min-width: 0 — une carte placée dans une grille ou une rangée ne s'élargit jamais au-delà de l'écran
+     à cause d'un texte long (e-mail, nom de boutique) : correctif du débordement sur téléphone (lot 48) */
+  .card { @apply min-w-0 rounded-2xl border bg-white p-5; border-color: var(--trait); }
   /* Carte pour fond sombre */
   .card-nuit { @apply rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-white; }
 
