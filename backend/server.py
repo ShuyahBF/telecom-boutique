@@ -28,6 +28,7 @@ from routes import transfert_donnees  # export / import complet de la base (chan
 from routes import maintenance_plateforme  # déconnexion programmée de tous les utilisateurs
 from routes import sessions  # fermeture des sessions d'un compte (sans changer le mot de passe)
 from routes import inactivite  # déconnexion après inactivité (réglages)
+from routes import sawali_contacts  # lot 52 : contacts du personnel lus (signés) par SAWALI
 from routes import abonnement_grace  # période de grâce des abonnements, puis coupure automatique
 from routes import sessions_actives  # sessions simultanées limitées par compte
 from routes import sauvegarde_auto  # sauvegarde générale automatique (Cron Job Render -> R2)
@@ -147,6 +148,8 @@ api.include_router(inscription.connexion)
 # et lien / message prérempli pour le personnel (DG et collaborateurs)
 api.include_router(partage.public)
 api.include_router(partage.boutique)
+# Lot 52 — contacts du personnel des boutiques lus (signés HMAC) par SAWALI : GET /api/sawali/contacts
+api.include_router(sawali_contacts.router)
 
 
 @api.get("/health")
