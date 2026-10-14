@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { lienCarte, PAYS_AFRIQUE_CENTRALE, PAYS_AFRIQUE_OUEST, PAYS_LISTE, STATUTS_KYC } from "./outils";
 import { LogoAdlyn } from "@/components/Marque";
 import VersionApp from "@/components/VersionApp";
+import JaugeCluster from "@/components/JaugeCluster";
 
 // ---------------------------------------------------------------------------
 // En-tête (bandeau sombre) commun aux pages de la plateforme, avec le menu :
@@ -42,6 +43,8 @@ export function EnTetePlateforme() {
         <div className="shrink-0">
           <Link to="/plateforme" aria-label="adLyn, administration"><LogoAdlyn clair className="h-8" /></Link>
           <VersionApp className="mt-0.5 text-gray-400" />
+          {/* Lot 54 : jauge du cluster de production Atlas (administrateur de la plateforme seulement) */}
+          <div className="mt-1"><JaugeCluster actif={user?.role === "super_admin"} /></div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="hidden border-l border-white/15 pl-3 2xl:block">
