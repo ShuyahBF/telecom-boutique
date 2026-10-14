@@ -54,3 +54,25 @@ méthode de travail par défaut, sans qu'il soit nécessaire de les redemander.
 ## Attentes et chargements
 - Toute attente longue (connexion, recherche…) affiche un toast « Patientez… »
   et une jauge circulaire transparente (arc qui tourne), comme sur SAWALI.
+
+## Dépôts GitHub des plateformes (règle permanente du propriétaire, 14/10/2026 : « rends-les permanents quelles que soient les sessions »)
+Tous les dépôts sont sous le compte GitHub `ShuyahBF`. Quand une demande nomme une plateforme, utiliser CE tableau sans
+le redemander. Dépôt absent de la session : `list_repos` (requête « ShuyahBF »), puis `add_repo` (accès « push » pour
+modifier), cloner UNE fois (`git clone --depth 1`, délai généreux), puis `register_repo_root`.
+
+| Plateforme | Dépôt | Branche de base / déploiement |
+|---|---|---|
+| SAWALI | `ShuyahBF/Emergent` | PR vers `render-production` (Render y déploie) |
+| ZandGo | `ShuyahBF/zandgo` | `main` |
+| Portail e-Kol (élèves et parents) | `ShuyahBF/ekol-portail` | `main` |
+| adLyn | `ShuyahBF/telecom-boutique` | `main` |
+| beAuthentik | `ShuyahBF/site-meetafrican` | `main` |
+| ALBARKA | `ShuyahBF/albarka-portal` | `main` |
+| Ster | dépôt à identifier (aucun dépôt nommé « Ster » sur le compte ; à confirmer avec le propriétaire) | — |
+| Loois (logiciel Windows) et sa mise à jour | `ShuyahBF/Loois`, `ShuyahBF/Loois-MAJ` | `main` |
+| Aizenta (analyse qualité des stocks) | `ShuyahBF/Aizenta-Analyse-Qualit-Gestion-Stocks` | voir ses règles |
+| BF Mobility (VTC) | `ShuyahBF/sawali-bfmobility` | `main` |
+| DentalCare | `ShuyahBF/dentalcare` | `main` |
+
+Autres dépôts utiles : `ShuyahBF/Claude` (règles techniques, `TECHNICAL_RULES.md`), `ShuyahBF/reglesmetier_claude` (règles métier).
+Dépôt refusé par le contrôle d'accès de la session (ex. `shuyah-mirror`) : ne pas insister, le dire au propriétaire.
