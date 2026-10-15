@@ -25,6 +25,7 @@ import { ChampCode, IconeWhatsapp, useCompteARebours } from "@/components/CodeWh
 const FORMULAIRE_VIDE = {
   telephone: "", prenom: "", nom: "", email: "", nom_boutique: "", secteur: "",
   pays: "Burkina Faso", ville: "", adresse: "", latitude: null, longitude: null, accepte_conditions: false,
+  accepte_whatsapp: false, // lot 55 : consentement WhatsApp FACULTATIF, jamais coché d'office
 };
 
 export default function CreerBoutique() {
@@ -205,6 +206,13 @@ export default function CreerBoutique() {
               <input type="checkbox" className="mt-0.5 h-4 w-4" checked={form.accepte_conditions} onChange={champ("accepte_conditions")} />
               <span>J'accepte les <Link to="/conditions" className="text-primary underline">conditions d'utilisation</Link> et la{" "}
                 <Link to="/confidentialite" className="text-primary underline">politique de confidentialité</Link> d'adLyn.</span>
+            </label>
+
+            {/* Lot 55 : consentement WhatsApp facultatif (décoché par défaut) */}
+            <label className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm">
+              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={form.accepte_whatsapp} onChange={champ("accepte_whatsapp")} data-testid="accepte-whatsapp" />
+              <span>J'accepte de recevoir les nouveautés et offres d'adLyn sur WhatsApp{" "}
+                <span className="text-gray-500">(facultatif — vous pourrez arrêter à tout moment en écrivant STOP)</span>.</span>
             </label>
 
             <BlocErreur erreur={erreur} dejaInscrit={dejaInscrit} />

@@ -332,3 +332,21 @@ def test_compte_sans_mot_de_passe_refuse_par_mot_de_passe(client, boite):
     r = client.post("/api/auth/login", json={"code_boutique": code_boutique, "identifiant": numero,
                                              "password": "nimportequoi"})
     assert r.status_code == 401
+
+
+def test_consentement_whatsapp_a_l_inscription(client, boite, monkeypatch):
+    """Lot 55 — case facultative : accord noté (date, moyen, IP) seulement si cochée ; transmis à SAWALI ; IP jamais renvoyée au site."""
+    import export_contacts_sawali as E
+    monkeypatch.setenv("SAWALI_CONTACTS_HMAC", "cle-contacts-test")
+    r_oui, _, num_oui = inscrire(client, boite, accepte_whatsapp=True)
+    r_non, _, num_non = inscrire(client, boite)                      # case non cochée
+    assert r_oui.status_code == 201 and r_non.status_code == 201
+    oui = client.portal.call(lambda: db.users.find_one({"telephone": e164(num_oui)}, {"_id": 0}))
+    non = client.portal.call(lambda: db.users.find_one({"telephone": e164(num_non)}, {"_id": 0}))
+    assert oui["accepte_whatsapp"] is True and oui["accepte_whatsapp_moyen"] == "inscription"
+    assert oui["accepte_whatsapp_le"] and oui["accepte_whatsapp_ip"]
+    assert "accepte_whatsapp" not in non                              # jamais d'accord inventé
+    assert "accepte_whatsapp_ip" not in r_oui.text                    # la preuve reste côté serveur
+    contacts = {c["telephone"]: c for c in client.portal.call(E.tous_les_contacts, db)}
+    assert contacts[e164(num_oui).lstrip("+")]["accepte_whatsapp"] is True and contacts[e164(num_oui).lstrip("+")]["accepte_le"]
+    assert "accepte_whatsapp" not in contacts[e164(num_non).lstrip("+")]

@@ -8,8 +8,9 @@ d'environnement saisie par le propriétaire sur Render, même valeur que CONTACT
 Clé absente → 503 (route désactivée) ; signature absente, périmée ou fausse → 401.
 
 Contenu : le PERSONNEL des boutiques (DG et collaborateurs actifs qui ont un téléphone) avec le nom de leur boutique.
-Jamais les clients des boutiques (données des commerçants), ni commande, stock, montant ou mot de passe. Aucun consentement
-transmis pour le moment : SAWALI ne diffuse un carrousel qu'aux personnes qui ont donné leur accord elles-mêmes.
+Jamais les clients des boutiques (données des commerçants), ni commande, stock, montant ou mot de passe. Lot 55 : le
+consentement WhatsApp (accord ou retrait, avec sa date) est transmis SEULEMENT si la personne l'a donné elle-même (case
+cochée à l'inscription) ; sinon rien : SAWALI ne diffuse un carrousel qu'aux personnes qui ont donné leur accord elles-mêmes.
 """
 from __future__ import annotations
 
@@ -50,14 +51,18 @@ async def tous_les_contacts(db) -> List[Dict[str, Any]]:
     boutiques = {b["id"]: b.get("nom") or "" async for b in db.boutiques.find({}, {"_id": 0, "id": 1, "nom": 1})}
     contacts, vus = [], set()
     async for u in db.users.find({"actif": {"$ne": False}, "role": {"$ne": "super_admin"}, "telephone": {"$nin": [None, ""]}},
-                                 {"_id": 0, "id": 1, "nom": 1, "telephone": 1, "role": 1, "boutique_id": 1}):
+                                 {"_id": 0, "id": 1, "nom": 1, "telephone": 1, "role": 1, "boutique_id": 1,
+                                  "accepte_whatsapp": 1, "accepte_whatsapp_le": 1}):
         tel = re.sub(r"\D", "", u.get("telephone") or "")
         if len(tel) < 8 or tel in vus:
             continue
         vus.add(tel)
         boutique = boutiques.get(u.get("boutique_id"), "")
-        contacts.append({"id": u["id"], "nom": u.get("nom") or "", "telephone": tel,
-                         "role": u.get("role") or "", "societe": f"adLyn · {boutique}" if boutique else "adLyn"})
+        contact = {"id": u["id"], "nom": u.get("nom") or "", "telephone": tel,
+                   "role": u.get("role") or "", "societe": f"adLyn · {boutique}" if boutique else "adLyn"}
+        if isinstance(u.get("accepte_whatsapp"), bool):      # lot 55 : accord (ou retrait) donné par la personne elle-même
+            contact.update({"accepte_whatsapp": u["accepte_whatsapp"], "accepte_le": u.get("accepte_whatsapp_le")})
+        contacts.append(contact)
     return sorted(contacts, key=lambda c: c["id"])
 
 
