@@ -133,6 +133,8 @@ class Inscription(BaseModel):
     secteur: str = Field(..., min_length=1, max_length=40)  # secteur d'activité principal
     email: Optional[EmailStr] = None  # facultatif
     accepte_conditions: bool = False
+    # Lot 55 : case FACULTATIVE « J'accepte de recevoir les nouveautés et offres d'adLyn sur WhatsApp » (jamais cochée d'office)
+    accepte_whatsapp: bool = False
 
 
 class ConfirmationInscription(Inscription):
@@ -212,6 +214,10 @@ async def confirmer_inscription(payload: ConfirmationInscription, request: Reque
 
     # Création (même fonction que le super-admin, le webhook et le parrainage)
     prenom, nom = payload.prenom.strip(), payload.nom.strip()
+    # Lot 55 : consentement WhatsApp donné par la personne elle-même (case facultative) : date, moyen et adresse IP gardés
+    # comme preuve sur la fiche du DG. Case non cochée : aucune trace (« pas de réponse » ≠ « refus »).
+    consentement = ({"accepte_whatsapp": True, "accepte_whatsapp_le": now_iso(), "accepte_whatsapp_moyen": "inscription",
+                     "accepte_whatsapp_ip": ip} if payload.accepte_whatsapp else {})
     donnees = {
         "nom": payload.nom_boutique.strip(), "telephone": tel, "email": str(payload.email or ""),
         "pays": payload.pays.strip(), "ville": payload.ville.strip(), "adresse": payload.adresse.strip(),
@@ -222,7 +228,7 @@ async def confirmer_inscription(payload: ConfirmationInscription, request: Reque
         donnees, dg_email=str(payload.email) if payload.email else None, dg_mot_de_passe=None,
         validee=False, origine="inscription", dg_telephone=tel,
         # Prénom et nom séparés : serviront au lot C (comparaison avec la pièce d'identité)
-        dg_complements={"prenom": prenom, "nom_famille": nom})
+        dg_complements={"prenom": prenom, "nom_famille": nom, **consentement})
     # Suivi de l'inscription + Paramètres (dont le dossier KYC) et Abonnement toujours
     # accessibles au DG, quel que soit le secteur choisi
     suivi = {"date": now_iso(), "telephone_verifie": tel, "canal_code": "WHATSAPP",

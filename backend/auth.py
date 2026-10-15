@@ -144,8 +144,9 @@ def effacer_cookie_session(response: Response) -> None:
 def user_public(user: dict) -> dict:
     """Fiche utilisateur renvoyée au navigateur (jamais le hachage du mot de passe),
     avec la liste de ses permissions."""
+    # Lot 55 : l'adresse IP gardée comme preuve du consentement WhatsApp reste côté serveur
     public = {k: v for k, v in user.items() if k not in ("password_hash", "_id", "version_session",
-                                                     "sessions_fermees_par_admin_le")}
+                                                     "sessions_fermees_par_admin_le", "accepte_whatsapp_ip")}
     public["permissions"] = permissions_de(user.get("role", ""))
     # Lot B : faux pour un compte créé par l'inscription libre (connexion par code
     # WhatsApp) tant qu'il n'a pas défini de mot de passe (« Mon compte »)
