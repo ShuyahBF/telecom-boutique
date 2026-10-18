@@ -12,6 +12,7 @@ import EtatServeur from "@/components/EtatServeur";
 import ConnexionWhatsapp from "@/components/ConnexionWhatsapp"; // lot B : téléphone + code WhatsApp
 import { IconeWhatsapp } from "@/components/CodeWhatsapp";
 import Patientez from "@/components/Patientez";
+import BoutonInstaller from "@/components/BoutonInstaller"; // application Android installable
 
 // Connexion du personnel : ID BOUTIQUE (6 caractères, reçu à la création de la
 // boutique) + e-mail OU numéro de téléphone + mot de passe personnel. L'ID boutique est retenu pour
@@ -141,6 +142,8 @@ export default function Connexion() {
         <p className="text-center text-xs text-gray-500">Vous resterez connecté 30 jours sur cet appareil. Votre mot de passe n'y est jamais enregistré.</p>
         {/* État du serveur (actif, lent, injoignable) : règle du propriétaire */}
         <EtatServeur />
+        {/* Installer adLyn comme application (masqué quand elle est déjà installée) */}
+        <BoutonInstaller />
         <div className="flex justify-between border-t border-gray-100 pt-4 text-sm">
           <Link to="/" className="text-primary">← Retour aux boutiques</Link>
           <button type="button" className="text-gray-500 hover:text-primary" onClick={() => { setAdministrateur(!administrateur); setMode("mdp"); setErreur(""); }}>
