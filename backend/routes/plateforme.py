@@ -465,10 +465,11 @@ async def modifier_options(boutique_id: str, payload: OptionsSidebar, admin: dic
 @router.get("/statistiques")
 async def statistiques(_: dict = Depends(get_super_admin)):
     return {
-        "boutiques": await db.boutiques.count_documents({}),
+        # Prévention MongoDB : estimation instantanée (métadonnées) au lieu d'un parcours complet de la collection
+        "boutiques": await db.boutiques.estimated_document_count(),
         "boutiques_actives": await db.boutiques.count_documents({"actif": True}),
         "utilisateurs": await db.users.count_documents({"role": {"$ne": "super_admin"}}),
-        "commandes": await db.commandes.count_documents({}),
+        "commandes": await db.commandes.estimated_document_count(),   # la table qui grossit le plus
         "factures_validees": await db.documents.count_documents({"type_document": "FAC", "statut": "VALIDE"}),
     }
 

@@ -19,6 +19,7 @@ import base64
 import gzip
 import json
 import os
+import tempfile
 from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -99,9 +100,54 @@ def nom_fichier(boutique: dict) -> str:
     return f"sauvegarde_{boutique['code_marchand']}_{horodatage}.tlb.gz.enc"
 
 
+TAILLE_PAQUET = 200   # documents écrits à la fois dans l'archive (borne la mémoire)
+
+
+async def _ecrire_liste(gz, curseur) -> None:
+    """Écrit un curseur MongoDB comme tableau JSON, par paquets, sans jamais charger toute la liste en mémoire."""
+    gz.write(b"[")
+    premier, paquet = True, []
+    async for doc in curseur:
+        paquet.append(json.dumps(doc, ensure_ascii=False, default=str))
+        if len(paquet) >= TAILLE_PAQUET:
+            gz.write((("" if premier else ", ") + ", ".join(paquet)).encode("utf-8"))
+            premier, paquet = False, []
+    if paquet:
+        gz.write((("" if premier else ", ") + ", ".join(paquet)).encode("utf-8"))
+    gz.write(b"]")
+
+
 async def creer_archive(boutique_id: str) -> tuple[str, bytes]:
-    donnees = await exporter(boutique_id)
-    return nom_fichier(donnees["boutique"]), chiffrer(donnees)
+    """Archive chiffrée de la boutique.
+
+    Prévention mémoire (lot 30) : l'ancienne version chargeait toute la boutique en mémoire (to_list(None)) puis en
+    faisait plusieurs copies (JSON, octets, gzip) — risque de dépassement des 512 Mo de Render quand une boutique
+    grossit (même défaut que la sauvegarde d'e-Kol/ALBARKA, qui a provoqué des redémarrages). Maintenant les documents
+    sont lus par paquets et écrits au fur et à mesure dans un fichier gzip TEMPORAIRE ; seul le résultat compressé est
+    chiffré en mémoire. Le format est identique : dechiffrer() relit anciennes et nouvelles archives."""
+    boutique = await db.boutiques.find_one({"id": boutique_id}, SANS_ID)
+    if not boutique:
+        raise HTTPException(404, "Boutique introuvable")
+    tdb = TenantDB(boutique_id)
+    with tempfile.TemporaryFile() as fichier:
+        with gzip.GzipFile(fileobj=fichier, mode="wb", compresslevel=9) as gz:
+            # En-tête : mêmes clés, même ordre que exporter()
+            entete = {"format": "telecom-boutique", "version": VERSION_FORMAT, "date": now_iso(), "boutique": boutique}
+            gz.write(json.dumps(entete, ensure_ascii=False, default=str)[:-1].encode("utf-8"))
+            for cle, curseur in (("utilisateurs", db.users.find({"boutique_id": boutique_id}, SANS_ID)),
+                                 ("compteurs", db.compteurs.find({"boutique_id": boutique_id}, SANS_ID)),
+                                 ("paiements_pawapay", db.paiements.find({"boutique_id": boutique_id}, SANS_ID))):
+                gz.write((", " + json.dumps(cle) + ": ").encode("utf-8"))
+                await _ecrire_liste(gz, curseur)
+            gz.write(b', "collections": {')
+            for i, nom in enumerate(COLLECTIONS_BOUTIQUE):
+                gz.write(((", " if i else "") + json.dumps(nom) + ": ").encode("utf-8"))
+                await _ecrire_liste(gz, getattr(tdb, nom).find({}))
+            gz.write(b"}}")
+        fichier.seek(0)
+        brut = fichier.read()
+    nonce = os.urandom(12)
+    return nom_fichier(boutique), MAGIQUE + nonce + AESGCM(_cle()).encrypt(nonce, brut, MAGIQUE)
 
 
 async def restaurer(boutique_id: str, archive: bytes) -> dict:
