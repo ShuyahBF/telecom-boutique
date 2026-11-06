@@ -120,7 +120,7 @@ export default function Connexion() {
         {/* Un seul champ : l'e-mail OU le numéro de téléphone (beaucoup n'ont pas d'e-mail) */}
         <div><label className="label" htmlFor="identifiant">{administrateur ? "E-mail" : "E-mail ou téléphone"}</label>
           <input id="identifiant" className="input" type={administrateur ? "email" : "text"} autoComplete="username" required
-            placeholder={administrateur ? "" : "vous@exemple.com ou 70 12 34 56"}
+            placeholder={administrateur ? "" : "awa.badini@gmail.com ou 70 12 34 56"}
             value={identifiant} onChange={(e) => setIdentifiant(e.target.value)} /></div>
         <div>
           <div className="flex items-baseline justify-between">

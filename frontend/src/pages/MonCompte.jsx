@@ -17,7 +17,7 @@ import VersionApp from "@/components/VersionApp";
 //   - Vérifier : même chose avec la valeur actuelle (prouve qu'elle est à vous).
 //   - Retirer : possible seulement si l'AUTRE identifiant existe et est vérifié.
 const TYPES = {
-  email: { libelle: "E-mail", icone: "✉️", saisie: "vous@exemple.com", type: "email", canal: "par e-mail" },
+  email: { libelle: "E-mail", icone: "✉️", saisie: "awa.badini@gmail.com", type: "email", canal: "par e-mail" },
   telephone: { libelle: "Téléphone (WhatsApp)", icone: "📱", saisie: "70 12 34 56 ou +226 70 12 34 56", type: "tel", canal: "par WhatsApp (ou SMS)" },
 };
 

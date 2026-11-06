@@ -161,7 +161,7 @@ export default function ParamMessagerie() {
         <form onSubmit={tester} className="card space-y-3">
           <h2 className="font-bold">✉️ E-mail de test</h2>
           <p className="text-xs text-gray-500">Enregistrez d'abord vos réglages, puis envoyez-vous un e-mail pour vérifier.</p>
-          <input className="input" type="email" required value={destinataire} onChange={(e) => setDestinataire(e.target.value)} placeholder="adresse@exemple.com" />
+          <input className="input" type="email" required value={destinataire} onChange={(e) => setDestinataire(e.target.value)} placeholder="awa.badini@gmail.com" />
           <button className="btn-outline w-full" disabled={testEnCours}>{testEnCours ? "Envoi en cours…" : "Envoyer un e-mail de test"}</button>
           {test && (
             test.statut === "ENVOYE"
