@@ -86,7 +86,7 @@ export default function MotDePasseOublie() {
             </div>
             <div>
               <label className="label" htmlFor="identifiant">E-mail ou téléphone de votre compte</label>
-              <input id="identifiant" className="input" required autoComplete="username" placeholder="vous@exemple.com ou 70 12 34 56"
+              <input id="identifiant" className="input" required autoComplete="username" placeholder="awa.badini@gmail.com ou 70 12 34 56"
                 value={identifiant} onChange={(e) => setIdentifiant(e.target.value)} />
             </div>
             {erreur && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erreur}</p>}
