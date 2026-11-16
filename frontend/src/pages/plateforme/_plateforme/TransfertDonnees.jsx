@@ -3,6 +3,7 @@
 // ce fichier, pour changer de cluster MongoDB Atlas en quelques clics.
 // Chaque action exige le mot de passe du super-administrateur et une phrase
 // secrète (jamais conservée : sans elle, le fichier est illisible).
+import ChampMotDePasse from "@/components/ChampMotDePasse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL, apiClient, messageErreur } from "@/lib/api";
 import { dateHeure } from "@/lib/format";
@@ -129,11 +130,11 @@ function FenetreExport({ tacheInitiale, onFermer, onFini }) {
           </p>
           <AvertissementPhrase />
           <Champ label="Phrase secrète" aide={`${form.phrase.length} caractère(s) — au moins ${PHRASE_MIN}`}>
-            <input className={`input ${form.phrase && !phraseOk ? "border-red-400" : ""}`} type="password" autoComplete="new-password"
+            <ChampMotDePasse className={`input ${form.phrase && !phraseOk ? "border-red-400" : ""}`}  autoComplete="new-password"
               value={form.phrase} onChange={(e) => maj("phrase", e.target.value)} />
           </Champ>
           <Champ label="Retapez la phrase secrète" aide={form.phrase_confirmation && !identiques ? "Les deux phrases ne sont pas identiques" : null}>
-            <input className={`input ${form.phrase_confirmation && !identiques ? "border-red-400" : ""}`} type="password" autoComplete="new-password"
+            <ChampMotDePasse className={`input ${form.phrase_confirmation && !identiques ? "border-red-400" : ""}`}  autoComplete="new-password"
               value={form.phrase_confirmation} onChange={(e) => maj("phrase_confirmation", e.target.value)} />
           </Champ>
           <label className="flex items-start gap-2 text-sm">
@@ -141,7 +142,7 @@ function FenetreExport({ tacheInitiale, onFermer, onFini }) {
             <span>J'ai noté ma phrase secrète en lieu sûr. Je sais qu'elle ne pourra pas être retrouvée.</span>
           </label>
           <Champ label="Votre mot de passe (super-administrateur)" aide="Demandé à chaque export, par sécurité.">
-            <input className="input" type="password" autoComplete="current-password" value={form.mot_de_passe}
+            <ChampMotDePasse className="input"  autoComplete="current-password" value={form.mot_de_passe}
               onChange={(e) => maj("mot_de_passe", e.target.value)} />
           </Champ>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -243,7 +244,7 @@ function FenetreImport({ tacheInitiale, onFermer, onFini }) {
               onChange={(e) => maj("fichier", e.target.files?.[0] || null)} />
           </Champ>
           <Champ label="Phrase secrète choisie lors de l'export">
-            <input className="input" type="password" autoComplete="off" value={form.phrase} onChange={(e) => maj("phrase", e.target.value)} />
+            <ChampMotDePasse className="input"  autoComplete="off" value={form.phrase} onChange={(e) => maj("phrase", e.target.value)} />
           </Champ>
 
           <fieldset className="space-y-2">
@@ -279,7 +280,7 @@ function FenetreImport({ tacheInitiale, onFermer, onFini }) {
           </div>
 
           <Champ label="Votre mot de passe (super-administrateur)" aide="Celui avec lequel vous êtes connecté maintenant.">
-            <input className="input" type="password" autoComplete="current-password" value={form.mot_de_passe}
+            <ChampMotDePasse className="input"  autoComplete="current-password" value={form.mot_de_passe}
               onChange={(e) => maj("mot_de_passe", e.target.value)} />
           </Champ>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
